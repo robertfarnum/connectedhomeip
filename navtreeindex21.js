@@ -1,5 +1,14 @@
 var NAVTREEINDEX21 =
 {
+"classchip_1_1_controller_1_1_cluster_base.html#a70965bf0709092b458afc6cb59065f9b":[10,0,1,11,4,4],
+"classchip_1_1_controller_1_1_cluster_base.html#a8394ee44c584199389891a9b66a04d1c":[10,0,1,11,4,2],
+"classchip_1_1_controller_1_1_cluster_base.html#aa7f9000058e0fa69bb5ecafa5b109954":[10,0,1,11,4,7],
+"classchip_1_1_controller_1_1_cluster_base.html#af5a91affa4cc3774ebc078bffe2d3425":[10,0,1,11,4,9],
+"classchip_1_1_controller_1_1_cluster_base.html#af8951402d310215e124c92cd1d2e0bdb":[10,0,1,11,4,5],
+"classchip_1_1_controller_1_1_cluster_base.html#afcd0a650bf04fcd8118e4eadac42f60d":[10,0,1,11,4,0],
+"classchip_1_1_controller_1_1_color_control_cluster.html":[10,0,1,11,5],
+"classchip_1_1_controller_1_1_color_control_cluster.html#a039d51c17cd96dfcb92190aa829ac28a":[10,0,1,11,5,11],
+"classchip_1_1_controller_1_1_color_control_cluster.html#a05d532b616fa4848e822671fcebee019":[10,0,1,11,5,60],
 "classchip_1_1_controller_1_1_color_control_cluster.html#a08cc0ce4e28ce1baccfcf49d62f90483":[10,0,1,11,5,75],
 "classchip_1_1_controller_1_1_color_control_cluster.html#a0b44aed19e62d29742876d7c4178cce8":[10,0,1,11,5,88],
 "classchip_1_1_controller_1_1_color_control_cluster.html#a166f1536e5c8f31364441fe374f19d80":[10,0,1,11,5,34],
@@ -240,14 +249,5 @@ var NAVTREEINDEX21 =
 "classchip_1_1_controller_1_1_general_commissioning_cluster.html#aa2f3aa4e0936e2c454d513597eb7f50d":[10,0,1,11,16,5],
 "classchip_1_1_controller_1_1_general_commissioning_cluster.html#adf20066de842d17c2ee31458bffe4d2e":[10,0,1,11,16,4],
 "classchip_1_1_controller_1_1_general_commissioning_cluster.html#aed96e2c2923c19db56de88e09d6fbad7":[10,0,1,11,16,2],
-"classchip_1_1_controller_1_1_groups_cluster.html":[10,0,1,11,17],
-"classchip_1_1_controller_1_1_groups_cluster.html#a26a964c40b1175597f476c10127bd633":[10,0,1,11,17,1],
-"classchip_1_1_controller_1_1_groups_cluster.html#a324826d4ea5ee87e0c7cdaad88825122":[10,0,1,11,17,7],
-"classchip_1_1_controller_1_1_groups_cluster.html#a4115bebe10608e52b46b3cf3eee55b9e":[10,0,1,11,17,9],
-"classchip_1_1_controller_1_1_groups_cluster.html#a44515f93a9a039c1cce0639c49081522":[10,0,1,11,17,5],
-"classchip_1_1_controller_1_1_groups_cluster.html#a746463cc31adb94ee515d501c7f5826a":[10,0,1,11,17,3],
-"classchip_1_1_controller_1_1_groups_cluster.html#a87740275be3aa4a663e3f5e7cc84f2c6":[10,0,1,11,17,0],
-"classchip_1_1_controller_1_1_groups_cluster.html#a87ed0ab097d71a0229ca14aa2f090e73":[10,0,1,11,17,10],
-"classchip_1_1_controller_1_1_groups_cluster.html#a911e804d3f52b3bac89a7e7345222ac5":[10,0,1,11,17,6],
-"classchip_1_1_controller_1_1_groups_cluster.html#ac1d804921a3180560c065e52e514d29e":[10,0,1,11,17,4]
+"classchip_1_1_controller_1_1_groups_cluster.html":[10,0,1,11,17]
 };
