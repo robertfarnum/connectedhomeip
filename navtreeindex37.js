@@ -1,5 +1,6 @@
 var NAVTREEINDEX37 =
 {
+"functions_func_s.html":[10,3,1,19],
 "functions_func_t.html":[10,3,1,20],
 "functions_func_u.html":[10,3,1,21],
 "functions_func_v.html":[10,3,1,22],
@@ -248,6 +249,5 @@ var NAVTREEINDEX37 =
 "md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md19":[2,1],
 "md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md20":[2,2],
 "md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md21":[2,3],
-"md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md22":[2,4],
-"md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md23":[0]
+"md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md22":[2,4]
 };

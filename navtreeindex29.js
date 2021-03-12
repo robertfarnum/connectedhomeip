@@ -248,6 +248,6 @@ var NAVTREEINDEX29 =
 "classchip_1_1_mdns_1_1_commission_advertising_parameters.html#aeee757944d687a99f0f6e7349ce0ac44":[10,0,1,22,1,2],
 "classchip_1_1_mdns_1_1_commission_advertising_parameters.html#af4b881811527953880fe6eeae398d048":[10,0,1,22,1,8],
 "classchip_1_1_mdns_1_1_discovery_impl_platform.html":[10,0,1,22,2],
-"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a18ad3466e0cb296fca6cae3802abb8f2":[10,0,1,22,2,3],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a18ad3466e0cb296fca6cae3802abb8f2":[10,0,1,22,2,4],
 "classchip_1_1_mdns_1_1_discovery_impl_platform.html#a19d5a9174437b347f9bc0ef9af58bc67":[10,0,1,22,2,2]
 };
