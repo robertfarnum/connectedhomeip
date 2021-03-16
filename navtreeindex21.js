@@ -1,8 +1,5 @@
 var NAVTREEINDEX21 =
 {
-"classchip_1_1_controller_1_1_cluster_base.html#a70965bf0709092b458afc6cb59065f9b":[10,0,1,11,4,4],
-"classchip_1_1_controller_1_1_cluster_base.html#a8394ee44c584199389891a9b66a04d1c":[10,0,1,11,4,2],
-"classchip_1_1_controller_1_1_cluster_base.html#aa7f9000058e0fa69bb5ecafa5b109954":[10,0,1,11,4,7],
 "classchip_1_1_controller_1_1_cluster_base.html#af5a91affa4cc3774ebc078bffe2d3425":[10,0,1,11,4,9],
 "classchip_1_1_controller_1_1_cluster_base.html#af8951402d310215e124c92cd1d2e0bdb":[10,0,1,11,4,5],
 "classchip_1_1_controller_1_1_cluster_base.html#afcd0a650bf04fcd8118e4eadac42f60d":[10,0,1,11,4,0],
@@ -249,5 +246,8 @@ var NAVTREEINDEX21 =
 "classchip_1_1_controller_1_1_general_commissioning_cluster.html#aa2f3aa4e0936e2c454d513597eb7f50d":[10,0,1,11,16,5],
 "classchip_1_1_controller_1_1_general_commissioning_cluster.html#adf20066de842d17c2ee31458bffe4d2e":[10,0,1,11,16,4],
 "classchip_1_1_controller_1_1_general_commissioning_cluster.html#aed96e2c2923c19db56de88e09d6fbad7":[10,0,1,11,16,2],
-"classchip_1_1_controller_1_1_groups_cluster.html":[10,0,1,11,17]
+"classchip_1_1_controller_1_1_groups_cluster.html":[10,0,1,11,17],
+"classchip_1_1_controller_1_1_groups_cluster.html#a26a964c40b1175597f476c10127bd633":[10,0,1,11,17,1],
+"classchip_1_1_controller_1_1_groups_cluster.html#a324826d4ea5ee87e0c7cdaad88825122":[10,0,1,11,17,7],
+"classchip_1_1_controller_1_1_groups_cluster.html#a4115bebe10608e52b46b3cf3eee55b9e":[10,0,1,11,17,9]
 };

@@ -1,8 +1,5 @@
 var NAVTREEINDEX15 =
 {
-"_system_packet_buffer_8h.html#ae487404f5b2cceb9d00f046db4ff2fd2":[11,0,9,17,6],
-"_system_packet_buffer_8h_source.html":[11,0,9,17],
-"_system_stats_8cpp.html":[11,0,9,18],
 "_system_stats_8cpp.html#a22f6788aef8f20f02b66c8c689766be3":[11,0,9,18,6],
 "_system_stats_8cpp.html#a45eecf6b66aaaabb44b98631b5844a94":[11,0,9,18,7],
 "_system_stats_8cpp.html#a5ed48eb2929e181ae437c5a7c9691a6b":[11,0,9,18,1],
@@ -249,5 +246,8 @@ var NAVTREEINDEX15 =
 "_zephyr_2_logging_8cpp.html#a2317ac81b6fb6b5a38488ad9e71c4945":[11,0,7,11,7,0],
 "_zephyr_2_logging_8cpp.html#a7259a872f0b5cb8b70d74f29e23f7367":[11,0,7,11,7,2],
 "_zephyr_2_logging_8cpp.html#add1c5468dee37805ce0979bae77b9bda":[11,0,7,11,7,1],
-"_zephyr_2_platform_manager_impl_8cpp.html":[11,0,7,11,8]
+"_zephyr_2_platform_manager_impl_8cpp.html":[11,0,7,11,8],
+"_zephyr_2_platform_manager_impl_8cpp.html#addb6c1267ffa83b1f6a16bdf9d843015":[11,0,7,11,8,0],
+"_zephyr_2_platform_manager_impl_8h.html":[11,0,7,11,9],
+"_zephyr_2_platform_manager_impl_8h.html#a9b90588e3accea89d79094c29fc07261":[11,0,7,11,9,1]
 };

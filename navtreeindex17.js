@@ -1,8 +1,5 @@
 var NAVTREEINDEX17 =
 {
-"cc13x2__26x2_2_connectivity_manager_impl_8h.html#a17ec2ecb960975c25c4a890d7a72cbfb":[11,0,7,0,14,2],
-"cc13x2__26x2_2_connectivity_manager_impl_8h.html#ae3364f4ad1379eb7fb38490e701307e6":[11,0,7,0,14,1],
-"cc13x2__26x2_2_connectivity_manager_impl_8h_source.html":[11,0,7,0,14],
 "cc13x2__26x2_2_device_network_provisioning_delegate_impl_8cpp.html":[11,0,7,0,15],
 "cc13x2__26x2_2_device_network_provisioning_delegate_impl_8h.html":[11,0,7,0,16],
 "cc13x2__26x2_2_device_network_provisioning_delegate_impl_8h_source.html":[11,0,7,0,16],
@@ -249,5 +246,8 @@ var NAVTREEINDEX17 =
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a4e39215170456a286a4319ea92401801":[10,0,2,1,11],
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a5115ca580e83ccb3e4fc505b85b9ff69":[10,0,2,1,5],
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a587c20711728da0447dada1956825015":[10,0,2,1,15],
-"classchip-device-ctrl_1_1_device_mgr_cmd.html#a5f8615eb5fb8038d634bf76b4b3d750f":[10,0,2,1,25]
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#a5f8615eb5fb8038d634bf76b4b3d750f":[10,0,2,1,25],
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#a5f89f2fb7d5b435ff802b9f8f34cd99d":[10,0,2,1,17],
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#a6ec756321b12be1b92d7cafa6c1f1d52":[10,0,2,1,4],
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#a73e6afca7854db564c18ed80de0595f0":[10,0,2,1,6]
 };

@@ -41,7 +41,6 @@ var hierarchy =
     [ "chip::BitFlags< ExFlagValues >", "classchip_1_1_bit_flags.html", null ],
     [ "chip::BitFlags< Flags >", "classchip_1_1_bit_flags.html", null ],
     [ "chip::BitFlags< FlagValues >", "classchip_1_1_bit_flags.html", null ],
-    [ "chip::BitFlags< InternalFlagValues >", "classchip_1_1_bit_flags.html", null ],
     [ "chip::BitFlags< TimerStateFlag >", "classchip_1_1_bit_flags.html", null ],
     [ "mdns::Minimal::BitPackedFlags", "classmdns_1_1_minimal_1_1_bit_packed_flags.html", null ],
     [ "chip::Ble::BleApplicationDelegate", "classchip_1_1_ble_1_1_ble_application_delegate.html", [
@@ -290,8 +289,8 @@ var hierarchy =
     [ "chip::Inet::IPPacketInfo", "classchip_1_1_inet_1_1_i_p_packet_info.html", null ],
     [ "chip::Inet::IPPrefix", "classchip_1_1_inet_1_1_i_p_prefix.html", null ],
     [ "chip::DeviceLayer::Internal::K32WConfig", "classchip_1_1_device_layer_1_1_internal_1_1_k32_w_config.html", null ],
-    [ "chip::DeviceLayer::Internal::ESP32Config::Key", "structchip_1_1_device_layer_1_1_internal_1_1_e_s_p32_config_1_1_key.html", null ],
     [ "chip::DeviceLayer::Internal::CC13X2_26X2Config::Key", "structchip_1_1_device_layer_1_1_internal_1_1_c_c13_x2__26_x2_config_1_1_key.html", null ],
+    [ "chip::DeviceLayer::Internal::ESP32Config::Key", "structchip_1_1_device_layer_1_1_internal_1_1_e_s_p32_config_1_1_key.html", null ],
     [ "chip::DeviceLayer::Internal::PosixConfig::Key", "structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html", null ],
     [ "chip::DeviceLayer::PersistedStorage::KeyValueStoreManager", "classchip_1_1_device_layer_1_1_persisted_storage_1_1_key_value_store_manager.html", [
       [ "chip::DeviceLayer::PersistedStorage::KeyValueStoreManagerImpl", "classchip_1_1_device_layer_1_1_persisted_storage_1_1_key_value_store_manager_impl.html", null ]
