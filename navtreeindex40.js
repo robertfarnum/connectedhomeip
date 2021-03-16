@@ -1,5 +1,6 @@
 var NAVTREEINDEX40 =
 {
+"qpg6100_2_c_h_i_p_platform_config_8h.html#abeaa6c1fea9f3c82cfcdee92fabfc194":[11,0,7,10,5,7],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#ac59d5027b3677d6a4347652c1177be27":[11,0,7,10,5,20],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#ace8434c4c9d24512c02c4330f2629ed2":[11,0,7,10,5,10],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#ad23b0cee50e786f27970ec0dd63db75e":[11,0,7,10,5,15],
@@ -248,6 +249,5 @@ var NAVTREEINDEX40 =
 "structchip_1_1_device_layer_1_1_ble_c_c_c_write_event_type.html#a741b7e72dc03694adbdbf03eeb6c82ac":[10,0,1,14,4,0],
 "structchip_1_1_device_layer_1_1_ble_conn_event_type.html":[10,0,1,14,5],
 "structchip_1_1_device_layer_1_1_ble_conn_event_type.html#a4def36b4c1d8b3fec6331329b2ebed15":[10,0,1,14,5,1],
-"structchip_1_1_device_layer_1_1_ble_conn_event_type.html#aa6ee42bdb765643b708486ea2df5a159":[10,0,1,14,5,0],
-"structchip_1_1_device_layer_1_1_chip_device_event.html":[10,0,1,14,6]
+"structchip_1_1_device_layer_1_1_ble_conn_event_type.html#aa6ee42bdb765643b708486ea2df5a159":[10,0,1,14,5,0]
 };

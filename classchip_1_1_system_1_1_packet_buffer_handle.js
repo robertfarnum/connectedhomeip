@@ -12,6 +12,7 @@ var classchip_1_1_system_1_1_packet_buffer_handle =
     [ "Consume", "classchip_1_1_system_1_1_packet_buffer_handle.html#afa680c7b45ac6478cddaf24f228b4e9d", null ],
     [ "FreeHead", "classchip_1_1_system_1_1_packet_buffer_handle.html#ab5625ab3a29e3140c3d4baf481949c1a", null ],
     [ "GetLwIPpbuf", "classchip_1_1_system_1_1_packet_buffer_handle.html#a969b989269644ed8222cf725c8cde641", null ],
+    [ "HasSoleOwnership", "classchip_1_1_system_1_1_packet_buffer_handle.html#a0917ef83743d123d742c485871c3d8c1", null ],
     [ "IsNull", "classchip_1_1_system_1_1_packet_buffer_handle.html#a63e13c201b8c13dc611111e3ec3612da", null ],
     [ "New", "classchip_1_1_system_1_1_packet_buffer_handle.html#ab9d44448b8b4aa3570563026a15926fd", null ],
     [ "NewWithData", "classchip_1_1_system_1_1_packet_buffer_handle.html#a4a486c4305df89f772f37f5c29a86967", null ],
