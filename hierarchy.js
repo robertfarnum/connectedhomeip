@@ -252,7 +252,6 @@ var hierarchy =
     ] ],
     [ "chip::DeviceLayer::Internal::GenericConnectivityManagerImpl_Thread< ImplClass >", "classchip_1_1_device_layer_1_1_internal_1_1_generic_connectivity_manager_impl___thread.html", null ],
     [ "chip::DeviceLayer::Internal::GenericConnectivityManagerImpl_WiFi< ImplClass >", "classchip_1_1_device_layer_1_1_internal_1_1_generic_connectivity_manager_impl___wi_fi.html", null ],
-    [ "chip::DeviceLayer::Internal::GenericNetworkProvisioningServerImpl< ImplClass >", "classchip_1_1_device_layer_1_1_internal_1_1_generic_network_provisioning_server_impl.html", null ],
     [ "chip::DeviceLayer::Internal::GenericPlatformManagerImpl< ImplClass >", "classchip_1_1_device_layer_1_1_internal_1_1_generic_platform_manager_impl.html", [
       [ "chip::DeviceLayer::Internal::GenericPlatformManagerImpl_Zephyr< ImplClass >", "classchip_1_1_device_layer_1_1_internal_1_1_generic_platform_manager_impl___zephyr.html", null ]
     ] ],
@@ -289,8 +288,8 @@ var hierarchy =
     [ "chip::Inet::IPPrefix", "classchip_1_1_inet_1_1_i_p_prefix.html", null ],
     [ "chip::DeviceLayer::Internal::K32WConfig", "classchip_1_1_device_layer_1_1_internal_1_1_k32_w_config.html", null ],
     [ "chip::DeviceLayer::Internal::CC13X2_26X2Config::Key", "structchip_1_1_device_layer_1_1_internal_1_1_c_c13_x2__26_x2_config_1_1_key.html", null ],
-    [ "chip::DeviceLayer::Internal::ESP32Config::Key", "structchip_1_1_device_layer_1_1_internal_1_1_e_s_p32_config_1_1_key.html", null ],
     [ "chip::DeviceLayer::Internal::PosixConfig::Key", "structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html", null ],
+    [ "chip::DeviceLayer::Internal::ESP32Config::Key", "structchip_1_1_device_layer_1_1_internal_1_1_e_s_p32_config_1_1_key.html", null ],
     [ "chip::DeviceLayer::PersistedStorage::KeyValueStoreManager", "classchip_1_1_device_layer_1_1_persisted_storage_1_1_key_value_store_manager.html", [
       [ "chip::DeviceLayer::PersistedStorage::KeyValueStoreManagerImpl", "classchip_1_1_device_layer_1_1_persisted_storage_1_1_key_value_store_manager_impl.html", null ]
     ] ],
@@ -498,8 +497,8 @@ var hierarchy =
     [ "chip::SessionEstablishmentDelegate", "classchip_1_1_session_establishment_delegate.html", [
       [ "chip::RendezvousSession", "classchip_1_1_rendezvous_session.html", null ]
     ] ],
-    [ "chip.setuppayload.SetupPayload", "classchip_1_1setuppayload_1_1_setup_payload.html", null ],
     [ "chip::SetupPayload", "classchip_1_1_setup_payload.html", null ],
+    [ "chip.setuppayload.SetupPayload", "classchip_1_1setuppayload_1_1_setup_payload.html", null ],
     [ "chip::SetupPayloadParameter", "structchip_1_1_setup_payload_parameter.html", null ],
     [ "chip.setuppayload.SetupPayloadParser", "classchip_1_1setuppayload_1_1_setup_payload_parser.html", null ],
     [ "chip::Shell::Shell", "classchip_1_1_shell_1_1_shell.html", null ],
