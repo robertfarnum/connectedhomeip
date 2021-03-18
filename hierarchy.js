@@ -138,6 +138,7 @@ var hierarchy =
       [ "chip::Controller::ContentLaunchCluster", "classchip_1_1_controller_1_1_content_launch_cluster.html", null ],
       [ "chip::Controller::DoorLockCluster", "classchip_1_1_controller_1_1_door_lock_cluster.html", null ],
       [ "chip::Controller::GeneralCommissioningCluster", "classchip_1_1_controller_1_1_general_commissioning_cluster.html", null ],
+      [ "chip::Controller::GroupKeyManagementCluster", "classchip_1_1_controller_1_1_group_key_management_cluster.html", null ],
       [ "chip::Controller::GroupsCluster", "classchip_1_1_controller_1_1_groups_cluster.html", null ],
       [ "chip::Controller::IasZoneCluster", "classchip_1_1_controller_1_1_ias_zone_cluster.html", null ],
       [ "chip::Controller::IdentifyCluster", "classchip_1_1_controller_1_1_identify_cluster.html", null ],
@@ -361,10 +362,10 @@ var hierarchy =
     [ "chip::Optional< uint16_t >", "classchip_1_1_optional.html", null ],
     [ "chip::Optional< uint32_t >", "classchip_1_1_optional.html", null ],
     [ "chip::Optional< uint8_t >", "classchip_1_1_optional.html", null ],
-    [ "chip.setuppayload.OptionalQRCodeInfo", "classchip_1_1setuppayload_1_1_optional_q_r_code_info.html", null ],
     [ "chip::OptionalQRCodeInfo", "structchip_1_1_optional_q_r_code_info.html", [
       [ "chip::OptionalQRCodeInfoExtension", "structchip_1_1_optional_q_r_code_info_extension.html", null ]
     ] ],
+    [ "chip.setuppayload.OptionalQRCodeInfo", "classchip_1_1setuppayload_1_1_optional_q_r_code_info.html", null ],
     [ "chip.setuppayload.OptionalQRCodeInfo.OptionalQRCodeInfoType", "enumchip_1_1setuppayload_1_1_optional_q_r_code_info_1_1_optional_q_r_code_info_type.html", null ],
     [ "chip::Crypto::P256KeypairContext", "structchip_1_1_crypto_1_1_p256_keypair_context.html", null ],
     [ "chip::System::PacketBufferHandle", "classchip_1_1_system_1_1_packet_buffer_handle.html", [
@@ -497,8 +498,8 @@ var hierarchy =
     [ "chip::SessionEstablishmentDelegate", "classchip_1_1_session_establishment_delegate.html", [
       [ "chip::RendezvousSession", "classchip_1_1_rendezvous_session.html", null ]
     ] ],
-    [ "chip::SetupPayload", "classchip_1_1_setup_payload.html", null ],
     [ "chip.setuppayload.SetupPayload", "classchip_1_1setuppayload_1_1_setup_payload.html", null ],
+    [ "chip::SetupPayload", "classchip_1_1_setup_payload.html", null ],
     [ "chip::SetupPayloadParameter", "structchip_1_1_setup_payload_parameter.html", null ],
     [ "chip.setuppayload.SetupPayloadParser", "classchip_1_1setuppayload_1_1_setup_payload_parser.html", null ],
     [ "chip::Shell::Shell", "classchip_1_1_shell_1_1_shell.html", null ],

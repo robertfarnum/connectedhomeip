@@ -374,11 +374,12 @@ var searchData=
   ['glogfilter_2731',['gLogFilter',['../namespacechip_1_1_logging.html#af9e619768010212522883decdb952334',1,'chip::Logging']]],
   ['gmainloop_2732',['Gmainloop',['../classchip_1_1_chip_bluez_mgr_1_1_bluez_manager.html#a7be6792d2bab34339070dd4f0d7a9484',1,'chip::ChipBluezMgr::BluezManager']]],
   ['gmaxbondeddevices_5fc_2733',['gMaxBondedDevices_c',['../ble__function__mux_8c.html#a23db0fe488da415c5ee1967d7e7a5e77',1,'ble_function_mux.c']]],
-  ['groupkeystoreimpl_2734',['GroupKeyStoreImpl',['../classchip_1_1_device_layer_1_1_internal_1_1_group_key_store_impl.html',1,'chip::DeviceLayer::Internal']]],
-  ['groupkeystoreimpl_2ecpp_2735',['GroupKeyStoreImpl.cpp',['../_e_f_r32_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)'],['../_e_s_p32_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)'],['../_k32_w_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)'],['../qpg6100_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)']]],
-  ['groupkeystoreimpl_2eh_2736',['GroupKeyStoreImpl.h',['../_e_f_r32_2_group_key_store_impl_8h.html',1,'(Global Namespace)'],['../_e_s_p32_2_group_key_store_impl_8h.html',1,'(Global Namespace)'],['../_k32_w_2_group_key_store_impl_8h.html',1,'(Global Namespace)'],['../qpg6100_2_group_key_store_impl_8h.html',1,'(Global Namespace)']]],
-  ['groupscluster_2737',['GroupsCluster',['../classchip_1_1_controller_1_1_groups_cluster.html',1,'chip::Controller::GroupsCluster'],['../classchip_1_1_controller_1_1_groups_cluster.html#a87740275be3aa4a663e3f5e7cc84f2c6',1,'chip::Controller::GroupsCluster::GroupsCluster()']]],
-  ['gs_5ftest_5fsuites_2738',['gs_test_suites',['../namespacechip.html#a9f18a101a646d2e3379fda8413dad931',1,'chip']]],
-  ['gsentropycontext_2739',['gsEntropyContext',['../namespacechip_1_1_crypto.html#aa7b56818cd97b5d19a19577f718f992c',1,'chip::Crypto']]],
-  ['gsmpkeys_2740',['gSmpKeys',['../ble__function__mux_8c.html#aa091530ba09c4dea16703e6ae190dd36',1,'ble_function_mux.c']]]
+  ['groupkeymanagementcluster_2734',['GroupKeyManagementCluster',['../classchip_1_1_controller_1_1_group_key_management_cluster.html',1,'chip::Controller::GroupKeyManagementCluster'],['../classchip_1_1_controller_1_1_group_key_management_cluster.html#a88dd93bcea2b15d9c397aba3d6e46fed',1,'chip::Controller::GroupKeyManagementCluster::GroupKeyManagementCluster()']]],
+  ['groupkeystoreimpl_2735',['GroupKeyStoreImpl',['../classchip_1_1_device_layer_1_1_internal_1_1_group_key_store_impl.html',1,'chip::DeviceLayer::Internal']]],
+  ['groupkeystoreimpl_2ecpp_2736',['GroupKeyStoreImpl.cpp',['../_e_f_r32_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)'],['../_e_s_p32_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)'],['../_k32_w_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)'],['../qpg6100_2_group_key_store_impl_8cpp.html',1,'(Global Namespace)']]],
+  ['groupkeystoreimpl_2eh_2737',['GroupKeyStoreImpl.h',['../_e_f_r32_2_group_key_store_impl_8h.html',1,'(Global Namespace)'],['../_e_s_p32_2_group_key_store_impl_8h.html',1,'(Global Namespace)'],['../_k32_w_2_group_key_store_impl_8h.html',1,'(Global Namespace)'],['../qpg6100_2_group_key_store_impl_8h.html',1,'(Global Namespace)']]],
+  ['groupscluster_2738',['GroupsCluster',['../classchip_1_1_controller_1_1_groups_cluster.html',1,'chip::Controller::GroupsCluster'],['../classchip_1_1_controller_1_1_groups_cluster.html#a87740275be3aa4a663e3f5e7cc84f2c6',1,'chip::Controller::GroupsCluster::GroupsCluster()']]],
+  ['gs_5ftest_5fsuites_2739',['gs_test_suites',['../namespacechip.html#a9f18a101a646d2e3379fda8413dad931',1,'chip']]],
+  ['gsentropycontext_2740',['gsEntropyContext',['../namespacechip_1_1_crypto.html#aa7b56818cd97b5d19a19577f718f992c',1,'chip::Crypto']]],
+  ['gsmpkeys_2741',['gSmpKeys',['../ble__function__mux_8c.html#aa091530ba09c4dea16703e6ae190dd36',1,'ble_function_mux.c']]]
 ];

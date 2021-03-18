@@ -1,5 +1,13 @@
 var NAVTREEINDEX41 =
 {
+"structchip_1_1_device_layer_1_1_ble_c1_write_event_type.html#aba42be4a7d2e865b00a35821538624a7":[10,0,1,14,2,1],
+"structchip_1_1_device_layer_1_1_ble_c2_ind_done_event_type.html":[10,0,1,14,3],
+"structchip_1_1_device_layer_1_1_ble_c2_ind_done_event_type.html#a2693438e784d35f52bbc0d15ce2918db":[10,0,1,14,3,0],
+"structchip_1_1_device_layer_1_1_ble_c2_ind_done_event_type.html#a566de2b9d4139ddcae6aae2ea00a6e9e":[10,0,1,14,3,1],
+"structchip_1_1_device_layer_1_1_ble_c_c_c_write_event_type.html":[10,0,1,14,4],
+"structchip_1_1_device_layer_1_1_ble_c_c_c_write_event_type.html#a5f8c2436a8c927af495f5bb0ddcab738":[10,0,1,14,4,1],
+"structchip_1_1_device_layer_1_1_ble_c_c_c_write_event_type.html#a741b7e72dc03694adbdbf03eeb6c82ac":[10,0,1,14,4,0],
+"structchip_1_1_device_layer_1_1_ble_conn_event_type.html":[10,0,1,14,5],
 "structchip_1_1_device_layer_1_1_ble_conn_event_type.html#a4def36b4c1d8b3fec6331329b2ebed15":[10,0,1,14,5,1],
 "structchip_1_1_device_layer_1_1_ble_conn_event_type.html#aa6ee42bdb765643b708486ea2df5a159":[10,0,1,14,5,0],
 "structchip_1_1_device_layer_1_1_chip_device_event.html":[10,0,1,14,6],
@@ -121,8 +129,8 @@ var NAVTREEINDEX41 =
 "structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html":[10,0,1,14,0,35,0],
 "structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html#a1f15216c9b89844dc6780d1750478192":[10,0,1,14,0,35,0,3],
 "structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html#a5cb26b591b8c08a693e98beb3134fa08":[10,0,1,14,0,35,0,2],
-"structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html#adbafe797bbaa0cea3aa27f14bfa9b962":[10,0,1,14,0,35,0,1],
 "structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html#adbafe797bbaa0cea3aa27f14bfa9b962":[10,0,1,14,0,35,0,0],
+"structchip_1_1_device_layer_1_1_internal_1_1_posix_config_1_1_key.html#adbafe797bbaa0cea3aa27f14bfa9b962":[10,0,1,14,0,35,0,1],
 "structchip_1_1_device_layer_1_1_persisted_storage_1_1_read_entry.html":[10,0,1,14,1,2],
 "structchip_1_1_device_layer_1_1_persisted_storage_1_1_read_entry.html#a5d4b06539be82f33c219d87e00489d9e":[10,0,1,14,1,2,3],
 "structchip_1_1_device_layer_1_1_persisted_storage_1_1_read_entry.html#a6b4da433b89d752dba53234b6df5aa72":[10,0,1,14,1,2,2],
@@ -241,13 +249,5 @@ var NAVTREEINDEX41 =
 "structmdns_1_1_minimal_1_1_server_base_1_1_endpoint_info.html":[10,0,3,0,33,0],
 "structmdns_1_1_minimal_1_1_server_base_1_1_endpoint_info.html#a44ae54d01507918526641611bbfc6341":[10,0,3,0,33,0,0],
 "structmdns_1_1_minimal_1_1_server_base_1_1_endpoint_info.html#a9d99959643068a93c0bd2b5294cfae98":[10,0,3,0,33,0,2],
-"structmdns_1_1_minimal_1_1_server_base_1_1_endpoint_info.html#af3421c7f6ff5ca68f0c3149782f79bc6":[10,0,3,0,33,0,1],
-"structsize_counter_struct__tag.html":[10,0,16],
-"support_2logging_2_constants_8h.html":[11,0,6,3,0,2],
-"support_2logging_2_constants_8h.html#a0c911e4b46b73ea3124a20cee4d5dfce":[11,0,6,3,0,2,0],
-"support_2logging_2_constants_8h.html#a0c911e4b46b73ea3124a20cee4d5dfcea10430dff997040dda6a321563cfe4ac0":[11,0,6,3,0,2,0,4],
-"support_2logging_2_constants_8h.html#a0c911e4b46b73ea3124a20cee4d5dfcea135c2068055472bb316496280139c450":[11,0,6,3,0,2,0,0],
-"support_2logging_2_constants_8h.html#a0c911e4b46b73ea3124a20cee4d5dfcea2e639b8ca7dad62c0d3e270c436bcf0e":[11,0,6,3,0,2,0,2],
-"support_2logging_2_constants_8h.html#a0c911e4b46b73ea3124a20cee4d5dfcea76d16fa090e67ebf1065afb44b46d891":[11,0,6,3,0,2,0,3],
-"support_2logging_2_constants_8h.html#a0c911e4b46b73ea3124a20cee4d5dfcea7f89b3b2c8df115f62fe9d85f563f8b1":[11,0,6,3,0,2,0,1]
+"structmdns_1_1_minimal_1_1_server_base_1_1_endpoint_info.html#af3421c7f6ff5ca68f0c3149782f79bc6":[10,0,3,0,33,0,1]
 };
