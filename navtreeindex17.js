@@ -1,5 +1,6 @@
 var NAVTREEINDEX17 =
 {
+"cc13x2__26x2_2_inet_platform_config_8h.html#aef5c7feebc33ffdf14a671fda1179ee0":[11,0,7,0,18,0],
 "cc13x2__26x2_2_inet_platform_config_8h_source.html":[11,0,7,0,18],
 "cc13x2__26x2_2_key_value_store_manager_impl_8cpp.html":[11,0,7,0,19],
 "cc13x2__26x2_2_key_value_store_manager_impl_8h.html":[11,0,7,0,20],
@@ -110,8 +111,9 @@ var NAVTREEINDEX17 =
 "class_android_ble_application_delegate.html#ad251f4b0ce7ebf4a75855f197d5cc9d0":[10,0,4,1],
 "class_android_ble_application_delegate.html#af947cbe36acd155339cff4305146d7ea":[10,0,4,0],
 "class_android_ble_connection_delegate.html":[10,0,5],
-"class_android_ble_connection_delegate.html#a89f5cdb81f7a3300e4c3fd5d3e9361b1":[10,0,5,1],
-"class_android_ble_connection_delegate.html#ac4cc37d24a742286195fdcd7c5f81492":[10,0,5,0],
+"class_android_ble_connection_delegate.html#a432424ac45658699abcd3209f4c61364":[10,0,5,0],
+"class_android_ble_connection_delegate.html#a89f5cdb81f7a3300e4c3fd5d3e9361b1":[10,0,5,2],
+"class_android_ble_connection_delegate.html#ac4cc37d24a742286195fdcd7c5f81492":[10,0,5,1],
 "class_android_ble_platform_delegate.html":[10,0,6],
 "class_android_ble_platform_delegate.html#a03aff8a0146f6ab657973b69d59780ae":[10,0,6,13],
 "class_android_ble_platform_delegate.html#a08cd7e06d44393b2d72654c4009bbe8e":[10,0,6,2],
@@ -247,7 +249,5 @@ var NAVTREEINDEX17 =
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a9c89e0aa6f83c9a2dea3cd6efca7089d":[10,0,2,1,10],
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#aa14a53106faddadc9c91bf5219700d4c":[10,0,2,1,22],
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#aa35d250fc97b18c2c36b32e71388b790":[10,0,2,1,7],
-"classchip-device-ctrl_1_1_device_mgr_cmd.html#aa887ca04e828f413599bf56c1344b181":[10,0,2,1,28],
-"classchip-device-ctrl_1_1_device_mgr_cmd.html#acb38262c0e1422beaf93597339b12d44":[10,0,2,1,18],
-"classchip-device-ctrl_1_1_device_mgr_cmd.html#ace15288ad10334c2a425cd31ecf1998e":[10,0,2,1,12]
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#aa887ca04e828f413599bf56c1344b181":[10,0,2,1,28]
 };

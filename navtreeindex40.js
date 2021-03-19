@@ -1,5 +1,10 @@
 var NAVTREEINDEX40 =
 {
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a5e3f88d3ddb04517e635b9cd0bae78be":[11,0,7,10,5,30],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a5fefb4704e0b8b7a37c3c1782d1eca7b":[11,0,7,10,5,19],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a620289c3b89e543662bcf30c5f84c428":[11,0,7,10,5,3],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a6c8de5f84114dd3a92233ece973e4e03":[11,0,7,10,5,18],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a6dd8c7f84720f334c5660d7a1690978a":[11,0,7,10,5,39],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a720046b9468b5c3bc4930d74e070235c":[11,0,7,10,5,2],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a77341573532803679ccbd564e0f2542a":[11,0,7,10,5,31],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a7ac5617767de0ed14976fb3b042e4280":[11,0,7,10,5,42],
@@ -244,10 +249,5 @@ var NAVTREEINDEX40 =
 "structchip_1_1_crypto_1_1_spake2p___context.html#a504facf508fa33fcbd628f56484530e0":[10,0,1,12,10,5],
 "structchip_1_1_crypto_1_1_spake2p___context.html#a5759943686288aa6804e2940e08dfcee":[10,0,1,12,10,15],
 "structchip_1_1_crypto_1_1_spake2p___context.html#a65c5305788ff7d1044a4a1454bd89c02":[10,0,1,12,10,0],
-"structchip_1_1_crypto_1_1_spake2p___context.html#a802c94ab89170ae51d0ea86fe89ce540":[10,0,1,12,10,3],
-"structchip_1_1_crypto_1_1_spake2p___context.html#a8c8baba2582fd62f7c49fc4d9d9c8c8a":[10,0,1,12,10,13],
-"structchip_1_1_crypto_1_1_spake2p___context.html#aa5199a6f5f4032acd36ce7dccd15d072":[10,0,1,12,10,6],
-"structchip_1_1_crypto_1_1_spake2p___context.html#aa5cfd29dba7ce3d3bc0c537a95d2feb0":[10,0,1,12,10,2],
-"structchip_1_1_crypto_1_1_spake2p___context.html#aabf085540c8d83c4dcb2745e4b543f1c":[10,0,1,12,10,9],
-"structchip_1_1_crypto_1_1_spake2p___context.html#ac20df745200756b6a5a3c6d9d6bb215d":[10,0,1,12,10,12]
+"structchip_1_1_crypto_1_1_spake2p___context.html#a802c94ab89170ae51d0ea86fe89ce540":[10,0,1,12,10,3]
 };
