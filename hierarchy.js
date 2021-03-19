@@ -9,6 +9,7 @@ var hierarchy =
       ] ]
     ] ],
     [ "chip::Transport::AccessControlList", "structchip_1_1_transport_1_1_access_control_list.html", null ],
+    [ "chip::Transport::TCPBase::ActiveConnectionState", "structchip_1_1_transport_1_1_t_c_p_base_1_1_active_connection_state.html", null ],
     [ "chip.ble.get_adapters.AdapterInfo", "classchip_1_1ble_1_1get__adapters_1_1_adapter_info.html", null ],
     [ "chip::SetupPayloadData::AdditionalDataPayload", "structchip_1_1_setup_payload_data_1_1_additional_data_payload.html", null ],
     [ "chip::AdditionalDataPayloadGenerator", "classchip_1_1_additional_data_payload_generator.html", null ],

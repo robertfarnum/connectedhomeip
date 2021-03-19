@@ -1,5 +1,11 @@
 var NAVTREEINDEX40 =
 {
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a77341573532803679ccbd564e0f2542a":[11,0,7,10,5,31],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a7ac5617767de0ed14976fb3b042e4280":[11,0,7,10,5,42],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a7cec7f627dd41dee5328e4575855366b":[11,0,7,10,5,17],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a82faaf02749c6bcf78ea079d4e017c13":[11,0,7,10,5,29],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a8867aa7a26debef00255a559ec087f01":[11,0,7,10,5,41],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a88c111bb4451c24c5efc9db2cd244d6b":[11,0,7,10,5,25],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a8918057a248c253a311c7e9e67754057":[11,0,7,10,5,11],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a90e732b8888318763da3d6499a1e2981":[11,0,7,10,5,24],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a94b9d362ab031bd0da363c120c1bbd76":[11,0,7,10,5,26],
@@ -243,11 +249,5 @@ var NAVTREEINDEX40 =
 "structchip_1_1_crypto_1_1_spake2p___context.html#aa5cfd29dba7ce3d3bc0c537a95d2feb0":[10,0,1,12,10,2],
 "structchip_1_1_crypto_1_1_spake2p___context.html#aabf085540c8d83c4dcb2745e4b543f1c":[10,0,1,12,10,9],
 "structchip_1_1_crypto_1_1_spake2p___context.html#ac20df745200756b6a5a3c6d9d6bb215d":[10,0,1,12,10,12],
-"structchip_1_1_crypto_1_1_spake2p___context.html#ae39c0da5fe4414fd1eb6ac075b3781b9":[10,0,1,12,10,4],
-"structchip_1_1_crypto_1_1_spake2p___context.html#ae895bdc31e9031f6f779dbc3c99b0410":[10,0,1,12,10,8],
-"structchip_1_1_crypto_1_1_spake2p___context.html#af73c5b1bab9a294dadd020b155d19df5":[10,0,1,12,10,14],
-"structchip_1_1_crypto_1_1_spake2p_opaque_context.html":[10,0,1,12,12],
-"structchip_1_1_crypto_1_1_spake2p_opaque_context.html#a8fea65c6d282d58e9c7ab30a5ad466a0":[10,0,1,12,12,0],
-"structchip_1_1_device_layer_1_1_ble_c1_write_event_type.html":[10,0,1,14,2],
-"structchip_1_1_device_layer_1_1_ble_c1_write_event_type.html#a90db7d2037839f75cdd16361e365f23f":[10,0,1,14,2,0]
+"structchip_1_1_crypto_1_1_spake2p___context.html#ae39c0da5fe4414fd1eb6ac075b3781b9":[10,0,1,12,10,4]
 };
