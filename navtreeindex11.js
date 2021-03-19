@@ -1,5 +1,10 @@
 var NAVTREEINDEX11 =
 {
+"_inet_interface_8h.html#a87082141e9db31e6627649f1230134c7":[11,0,5,17,2],
+"_inet_interface_8h.html#aaedbf1b3d2639b1ef8318e2866ab1a5d":[11,0,5,17,3],
+"_inet_interface_8h.html#abfa05c909a84ba6b0195f30fe6381013":[11,0,5,17,5],
+"_inet_interface_8h.html#af56d66a51130f1bfdffff55b54a6105e":[11,0,5,17,6],
+"_inet_interface_8h_source.html":[11,0,5,17],
 "_inet_layer_8cpp.html":[11,0,5,18],
 "_inet_layer_8cpp.html#a0eff0c32ff2f932fbbb85073f0b0a60f":[11,0,5,18,4],
 "_inet_layer_8cpp.html#a4018295e8c5d59de57efe815b449521f":[11,0,5,18,2],
@@ -182,8 +187,8 @@ var NAVTREEINDEX11 =
 "_k32_w_2_logging_8cpp.html#a0dfce62d534dadcd80a7446a1ba405a0":[11,0,7,5,25,5],
 "_k32_w_2_logging_8cpp.html#a2317ac81b6fb6b5a38488ad9e71c4945":[11,0,7,5,25,4],
 "_k32_w_2_logging_8cpp.html#a2d36f351d3edc7242b2295567c083a77":[11,0,7,5,25,8],
-"_k32_w_2_logging_8cpp.html#a5211fc5df7a3b8262867144844347c89":[11,0,7,5,25,3],
 "_k32_w_2_logging_8cpp.html#a5211fc5df7a3b8262867144844347c89":[11,0,7,5,25,2],
+"_k32_w_2_logging_8cpp.html#a5211fc5df7a3b8262867144844347c89":[11,0,7,5,25,3],
 "_k32_w_2_logging_8cpp.html#a7239e2be33c8d7bb4471386fa5b65569":[11,0,7,5,25,6],
 "_k32_w_2_logging_8cpp.html#a7259a872f0b5cb8b70d74f29e23f7367":[11,0,7,5,25,9],
 "_k32_w_2_logging_8cpp.html#a82ad1681e5a7011b4d1341e61a795513":[11,0,7,5,25,7],
@@ -244,10 +249,5 @@ var NAVTREEINDEX11 =
 "_key_value_store_manager_8h.html#ae1007815349979758e1535e5561dfe79":[11,0,4,0,8,1],
 "_key_value_store_manager_8h_source.html":[11,0,4,0,8],
 "_lifetime_persisted_counter_8cpp.html":[11,0,6,3,31],
-"_lifetime_persisted_counter_8h.html":[11,0,6,3,32],
-"_lifetime_persisted_counter_8h_source.html":[11,0,6,3,32],
-"_linux_2_b_l_e_manager_impl_8cpp.html":[11,0,7,6,1],
-"_linux_2_b_l_e_manager_impl_8h.html":[11,0,7,6,2],
-"_linux_2_b_l_e_manager_impl_8h_source.html":[11,0,7,6,2],
-"_linux_2_ble_platform_config_8h.html":[11,0,7,6,3]
+"_lifetime_persisted_counter_8h.html":[11,0,6,3,32]
 };

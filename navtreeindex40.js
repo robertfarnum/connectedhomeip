@@ -1,5 +1,10 @@
 var NAVTREEINDEX40 =
 {
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a044568a3a1869d82f844bb3ae592908d":[11,0,7,10,5,44],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a04d4a632246fce0f32b74a35491beea6":[11,0,7,10,5,35],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a06c0373178ceae164c362949ccffcbce":[11,0,7,10,5,5],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a1b5e2848601c54fa6d66cfbe726dc101":[11,0,7,10,5,37],
+"qpg6100_2_c_h_i_p_platform_config_8h.html#a1e3f892a26cbf0a37737fb079bb01b13":[11,0,7,10,5,6],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a33ef68a3fe8194463ee35f37cb1b7689":[11,0,7,10,5,9],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a37f61d1eb2010ee0d310452850285f44":[11,0,7,10,5,21],
 "qpg6100_2_c_h_i_p_platform_config_8h.html#a3aa01c76a63f43b5e827b36d1618ea80":[11,0,7,10,5,48],
@@ -244,10 +249,5 @@ var NAVTREEINDEX40 =
 "structchip_1_1_controller_1_1_serialized_device.html":[10,0,1,11,31],
 "structchip_1_1_controller_1_1_serialized_device.html#ae39a74a571db639ffbf4bbdb8ae0caec":[10,0,1,11,31,0],
 "structchip_1_1_crypto_1_1_entropy_context.html":[10,0,1,12,3],
-"structchip_1_1_crypto_1_1_entropy_context.html#a6c45107c6d9d823f02d91c9583abc97a":[10,0,1,12,3,2],
-"structchip_1_1_crypto_1_1_entropy_context.html#aafe492e18fec07a3aa81c27efaa00c99":[10,0,1,12,3,0],
-"structchip_1_1_crypto_1_1_entropy_context.html#ab0e8fc6b4ffab1ed598b9b90d687d4e9":[10,0,1,12,3,3],
-"structchip_1_1_crypto_1_1_entropy_context.html#ac1b7f8954e031dbd4b7f5daceb46e89a":[10,0,1,12,3,1],
-"structchip_1_1_crypto_1_1_hash_s_h_a256_opaque_context.html":[10,0,1,12,5],
-"structchip_1_1_crypto_1_1_hash_s_h_a256_opaque_context.html#aa826d754483a782e7bbddcb1ed23d30b":[10,0,1,12,5,0]
+"structchip_1_1_crypto_1_1_entropy_context.html#a6c45107c6d9d823f02d91c9583abc97a":[10,0,1,12,3,2]
 };

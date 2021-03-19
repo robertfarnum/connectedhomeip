@@ -1,5 +1,10 @@
 var NAVTREEINDEX12 =
 {
+"_lifetime_persisted_counter_8h_source.html":[11,0,6,3,32],
+"_linux_2_b_l_e_manager_impl_8cpp.html":[11,0,7,6,1],
+"_linux_2_b_l_e_manager_impl_8h.html":[11,0,7,6,2],
+"_linux_2_b_l_e_manager_impl_8h_source.html":[11,0,7,6,2],
+"_linux_2_ble_platform_config_8h.html":[11,0,7,6,3],
 "_linux_2_ble_platform_config_8h.html#acb6e2ad865d7c11a97ad1410b95ff192":[11,0,7,6,3,0],
 "_linux_2_ble_platform_config_8h_source.html":[11,0,7,6,3],
 "_linux_2_c_h_i_p_device_platform_config_8h.html":[11,0,7,6,4],
@@ -244,10 +249,5 @@ var NAVTREEINDEX12 =
 "_message_header_8h.html#a5b400de06885a88a19e98ec42610cd78aeff6d496d87fceb336498361b53cc9f7":[11,0,11,0,2,8,3],
 "_message_header_8h.html#a8480539d9757ec7148d562f0d2e06ac4":[11,0,11,0,2,9],
 "_message_header_8h.html#a8480539d9757ec7148d562f0d2e06ac4a0ea8589af3fb7586523cc84230f69155":[11,0,11,0,2,9,2],
-"_message_header_8h.html#a8480539d9757ec7148d562f0d2e06ac4a6d03afc0f5ffb8405df6c26af263ee52":[11,0,11,0,2,9,3],
-"_message_header_8h.html#a8480539d9757ec7148d562f0d2e06ac4a7d123076e849b84580e652b061b9e0b1":[11,0,11,0,2,9,1],
-"_message_header_8h.html#a8480539d9757ec7148d562f0d2e06ac4af6dfd9e27ec0334b0bcfdcf0291731b5":[11,0,11,0,2,9,0],
-"_message_header_8h.html#a911a83fdf89daee3f71f39da9e743e01":[11,0,11,0,2,5],
-"_message_header_8h.html#aa8c9a1ddef0fee4cd2b90ae547fe08af":[11,0,11,0,2,11],
-"_message_header_8h.html#ad67568c9278152f00a7d18f60464e4f0":[11,0,11,0,2,3]
+"_message_header_8h.html#a8480539d9757ec7148d562f0d2e06ac4a6d03afc0f5ffb8405df6c26af263ee52":[11,0,11,0,2,9,3]
 };
