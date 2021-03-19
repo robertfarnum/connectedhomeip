@@ -1,5 +1,6 @@
 var NAVTREEINDEX42 =
 {
+"structmdns_1_1_minimal_1_1_full_q_name.html#add13e0e5473bb03a92e6a0b2103d3fa8":[10,0,3,0,5,4],
 "structmdns_1_1_minimal_1_1_full_q_name.html#aea1693b2cb1d2f7b9f85db199b1645ab":[10,0,3,0,5,3],
 "structmdns_1_1_minimal_1_1_internal_1_1_query_responder_info.html":[10,0,3,0,1,0],
 "structmdns_1_1_minimal_1_1_internal_1_1_query_responder_info.html#a07187785d2fec992e6c8e0a8353bd52e":[10,0,3,0,1,0,0],

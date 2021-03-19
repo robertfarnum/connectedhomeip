@@ -1,5 +1,6 @@
 var NAVTREEINDEX41 =
 {
+"structchip_1_1_crypto_1_1_spake2p___context.html#ae39c0da5fe4414fd1eb6ac075b3781b9":[10,0,1,12,10,4],
 "structchip_1_1_crypto_1_1_spake2p___context.html#ae895bdc31e9031f6f779dbc3c99b0410":[10,0,1,12,10,8],
 "structchip_1_1_crypto_1_1_spake2p___context.html#af73c5b1bab9a294dadd020b155d19df5":[10,0,1,12,10,14],
 "structchip_1_1_crypto_1_1_spake2p_opaque_context.html":[10,0,1,12,12],
@@ -248,6 +249,5 @@ var NAVTREEINDEX41 =
 "structmdns_1_1_minimal_1_1_full_q_name.html#a7c81269db32a46ae08be4f002696748c":[10,0,3,0,5,0],
 "structmdns_1_1_minimal_1_1_full_q_name.html#a89f599db53c8cf6707373e94e594a429":[10,0,3,0,5,2],
 "structmdns_1_1_minimal_1_1_full_q_name.html#a8f70cd6aed7ca7e94348c749feb88dba":[10,0,3,0,5,5],
-"structmdns_1_1_minimal_1_1_full_q_name.html#ab346b383a0df55411f76e8fcf7591e1d":[10,0,3,0,5,8],
-"structmdns_1_1_minimal_1_1_full_q_name.html#add13e0e5473bb03a92e6a0b2103d3fa8":[10,0,3,0,5,4]
+"structmdns_1_1_minimal_1_1_full_q_name.html#ab346b383a0df55411f76e8fcf7591e1d":[10,0,3,0,5,8]
 };

@@ -1,5 +1,6 @@
 var NAVTREEINDEX34 =
 {
+"classchip_1_1ble_1_1commissioning_1_1_connection.html#a598c727d2353c3cec45c5b99f5501087":[10,0,1,0,0,1,1],
 "classchip_1_1ble_1_1commissioning_1_1_connection.html#a6a1fd0ff60d4cc85e34b86f02a058a73":[10,0,1,0,0,1,2],
 "classchip_1_1ble_1_1commissioning_1_1_connection.html#afe9a84777366c1d27c63d42b3942a652":[10,0,1,0,0,1,5],
 "classchip_1_1ble_1_1commissioning_1_1_pair_notification_type.html":[10,0,1,0,0,2],
@@ -248,6 +249,5 @@ var NAVTREEINDEX34 =
 "classmdns_1_1_minimal_1_1_ptr_resource_record.html#a54a7e0aac107af7c0809799c52929aa1":[10,0,3,0,12,2],
 "classmdns_1_1_minimal_1_1_ptr_resource_record.html#ae3b140a3e6014929ad4bc034ae99b6ea":[10,0,3,0,12,1],
 "classmdns_1_1_minimal_1_1_ptr_responder.html":[10,0,3,0,13],
-"classmdns_1_1_minimal_1_1_ptr_responder.html#a2658c1374cfa454980e5a80d24ce71ad":[10,0,3,0,13,0],
-"classmdns_1_1_minimal_1_1_ptr_responder.html#ad3b5d43d2680f5f038b485e37a0c58d4":[10,0,3,0,13,1]
+"classmdns_1_1_minimal_1_1_ptr_responder.html#a2658c1374cfa454980e5a80d24ce71ad":[10,0,3,0,13,0]
 };
