@@ -27,7 +27,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">Connected Home over IP
-   &#160;<span id="projectnumber">0856624</span>
+   &#160;<span id="projectnumber">f1d150c</span>
    </div>
   </td>
  </tr>
@@ -435,7 +435,7 @@ $(document).ready(function(){initNavTree('_message_header_8h_source.html',''); i
 <div class="line"><a name="l00559"></a><span class="lineno">  559</span>&#160; </div>
 <div class="line"><a name="l00561"></a><span class="lineno">  561</span>&#160;    <a class="code" href="classchip_1_1_optional.html">Optional&lt;uint16_t&gt;</a> mVendorId;</div>
 <div class="line"><a name="l00562"></a><span class="lineno">  562</span>&#160; </div>
-<div class="line"><a name="l00564"></a><span class="lineno">  564</span>&#160;    uint16_t mProtocolID = 0;</div>
+<div class="line"><a name="l00564"></a><span class="lineno">  564</span>&#160;    uint16_t mProtocolID = <span class="keyword">static_cast&lt;</span>uint16_t<span class="keyword">&gt;</span>(Protocols::kProtocol_NotSpecified);</div>
 <div class="line"><a name="l00565"></a><span class="lineno">  565</span>&#160; </div>
 <div class="line"><a name="l00567"></a><span class="lineno">  567</span>&#160;    <a class="code" href="classchip_1_1_bit_flags.html">Header::ExFlags</a> mExchangeFlags;</div>
 <div class="line"><a name="l00568"></a><span class="lineno">  568</span>&#160; </div>
@@ -607,7 +607,7 @@ $(document).ready(function(){initNavTree('_message_header_8h_source.html',''); i
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_ce14ed064186955200333d2a0a25aa72.html">transport</a></li><li class="navelem"><a class="el" href="dir_a311810e72fdebe288f4c04505dd73fe.html">raw</a></li><li class="navelem"><a class="el" href="_message_header_8h.html">MessageHeader.h</a></li>
-    <li class="footer">Generated on Fri Mar 19 2021 00:50:07 for Connected Home over IP by
+    <li class="footer">Generated on Fri Mar 19 2021 01:56:02 for Connected Home over IP by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>
