@@ -42,7 +42,7 @@ var searchData=
   ['kbindingclusterid_3240',['kBindingClusterId',['../namespacechip_1_1_controller.html#a40c7e883b75b299fa31c68fec386e0ee',1,'chip::Controller']]],
   ['kbit1_3241',['kBit1',['../classchip_1_1_static_allocator_bitmap.html#ae06363b821f8bff747220eb8def7737e',1,'chip::StaticAllocatorBitmap']]],
   ['kbitchunksize_3242',['kBitChunkSize',['../classchip_1_1_static_allocator_bitmap.html#a6fa80e0c0db1ae9c00939cb5677f1902',1,'chip::StaticAllocatorBitmap']]],
-  ['kble_3243',['kBLE',['../namespacechip.html#a22a6daa82ecc6c358dda9f9223043a7ea94919bca50489b7b7d62eea68ab00899',1,'chip::kBLE()'],['../namespacechip_1_1_transport.html#ade3bfdcf371e172855de66da8ddcaf68a470516836d44cb6fe03b42bb7beff5e2',1,'chip::Transport::kBle()']]],
+  ['kble_3243',['kBle',['../namespacechip_1_1_transport.html#ade3bfdcf371e172855de66da8ddcaf68a470516836d44cb6fe03b42bb7beff5e2',1,'chip::Transport::kBle()'],['../namespacechip.html#a22a6daa82ecc6c358dda9f9223043a7ea94919bca50489b7b7d62eea68ab00899',1,'chip::kBLE()']]],
   ['kblecloseflag_5faborttransmission_3244',['kBleCloseFlag_AbortTransmission',['../namespacechip_1_1_ble.html#a5fdc51fe6db1777de1691e501ed055dba8ad3a3bc9c5fc2ff9e6d4e8fb8913880',1,'chip::Ble']]],
   ['kblecloseflag_5fsuppresscallback_3245',['kBleCloseFlag_SuppressCallback',['../namespacechip_1_1_ble.html#a5fdc51fe6db1777de1691e501ed055dba3c916baa51dd118c8c09ae05b1066147',1,'chip::Ble']]],
   ['kblefuncmux_5fappmode_5fnone_3246',['kBleFuncMux_AppMode_None',['../ble__function__mux_8h.html#a62bf50fd7c429548a6a7e217b5308460a62792132fcb830b330d5811accc19618',1,'ble_function_mux.h']]],

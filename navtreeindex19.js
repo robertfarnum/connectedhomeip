@@ -1,5 +1,6 @@
 var NAVTREEINDEX19 =
 {
+"classchip_1_1_chip_ble_base_1_1_chip_ble_base.html#a7a50b9ec3299b4b64843f865cfbed5bf":[10,0,1,3,0,1],
 "classchip_1_1_chip_ble_base_1_1_chip_ble_base.html#a7d8107dd7236cec9ea0b149691374970":[10,0,1,3,0,3],
 "classchip_1_1_chip_ble_utility_1_1_ble_device_identification_info.html":[10,0,1,4,0],
 "classchip_1_1_chip_ble_utility_1_1_ble_device_identification_info.html#a0784091095ef2abe7a39c9a6e0768bc2":[10,0,1,4,0,2],
@@ -248,6 +249,5 @@ var NAVTREEINDEX19 =
 "classchip_1_1_chip_cluster_1_1_chip_cluster.html#aab6f06a081cf145287908e4cd679d754":[10,0,1,6,0,83],
 "classchip_1_1_chip_cluster_1_1_chip_cluster.html#aae1d09338f16d4af4998633204340d7d":[10,0,1,6,0,7],
 "classchip_1_1_chip_cluster_1_1_chip_cluster.html#ab0d276ab0adc23f11d872ec7a8d63dae":[10,0,1,6,0,56],
-"classchip_1_1_chip_cluster_1_1_chip_cluster.html#ab2cc1592af1f3e3ed77d542b9e95903e":[10,0,1,6,0,67],
-"classchip_1_1_chip_cluster_1_1_chip_cluster.html#ab5b58c5fe84de6ed362938a08c9c0db0":[10,0,1,6,0,8]
+"classchip_1_1_chip_cluster_1_1_chip_cluster.html#ab2cc1592af1f3e3ed77d542b9e95903e":[10,0,1,6,0,67]
 };
