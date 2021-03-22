@@ -1,6 +1,5 @@
 var NAVTREEINDEX17 =
 {
-"cc13x2__26x2_2_configuration_manager_impl_8h.html#aa339b4bbbc137aab908ac19ebd3460e3":[11,0,7,0,12,1],
 "cc13x2__26x2_2_configuration_manager_impl_8h_source.html":[11,0,7,0,12],
 "cc13x2__26x2_2_connectivity_manager_impl_8cpp.html":[11,0,7,0,13],
 "cc13x2__26x2_2_connectivity_manager_impl_8h.html":[11,0,7,0,14],
@@ -148,12 +147,12 @@ var NAVTREEINDEX17 =
 "class_android_ble_platform_delegate.html#aeb246a77bbef2b642478d6e0a2cfec41":[10,0,6,8],
 "class_android_device_controller_wrapper.html":[10,0,7],
 "class_android_device_controller_wrapper.html#a02f76234b68b17c5781f9f4492f76a9e":[10,0,7,18],
-"class_android_device_controller_wrapper.html#a15b87eaa6f3f6679a4d0fd3affe135f6":[10,0,7,1],
 "class_android_device_controller_wrapper.html#a1ae9b6390c8e98b7939bfc2fffecd160":[10,0,7,8],
 "class_android_device_controller_wrapper.html#a3b72f00087cc4094012e597b0276caaa":[10,0,7,15],
 "class_android_device_controller_wrapper.html#a3eb7a63d41171f84f616df89e5e03295":[10,0,7,10],
 "class_android_device_controller_wrapper.html#a42a30b2d21ab72b52d83c37f2da66a6d":[10,0,7,12],
 "class_android_device_controller_wrapper.html#a43334a1d9c4480e1f6798483ab7004ee":[10,0,7,14],
+"class_android_device_controller_wrapper.html#a4eb2fff14160e6e6d08fcfeaed00ee58":[10,0,7,1],
 "class_android_device_controller_wrapper.html#a55cd8dc8da41b0126a724dfd815bd848":[10,0,7,3],
 "class_android_device_controller_wrapper.html#a5fb3e882f00ec06e11efd4e1aaebb75e":[10,0,7,13],
 "class_android_device_controller_wrapper.html#a7033fe9f637dabfbf52d3531a6ee408a":[10,0,7,0],
@@ -249,5 +248,6 @@ var NAVTREEINDEX17 =
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a1c7d6e412b03db5b027fb30acc8795fe":[10,0,2,1,31],
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a2b9150e466142b0289de513c3c83de9b":[10,0,2,1,14],
 "classchip-device-ctrl_1_1_device_mgr_cmd.html#a323076b09b9db9069dfcd0af7800249d":[10,0,2,1,9],
-"classchip-device-ctrl_1_1_device_mgr_cmd.html#a3d95ac11d0bea3b213ed7fd3f3b14294":[10,0,2,1,26]
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#a3d95ac11d0bea3b213ed7fd3f3b14294":[10,0,2,1,26],
+"classchip-device-ctrl_1_1_device_mgr_cmd.html#a493412881fa4d7cde2bcfc34356ec06f":[10,0,2,1,20]
 };

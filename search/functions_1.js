@@ -51,7 +51,7 @@ var searchData=
   ['alloc_7337',['Alloc',['../classchip_1_1_platform_1_1_impl_1_1_scoped_memory_buffer_base.html#a82f8d7875efde1f0dc1bad7369521e46',1,'chip::Platform::Impl::ScopedMemoryBufferBase::Alloc()'],['../classchip_1_1_platform_1_1_scoped_memory_buffer.html#a54ab37617016db3f9cfcd01c302150e6',1,'chip::Platform::ScopedMemoryBuffer::Alloc()']]],
   ['allocate_7338',['Allocate',['../classchip_1_1_static_allocator_bitmap.html#a5b3ff3cf25ea762cc90d92a838d93140',1,'chip::StaticAllocatorBitmap']]],
   ['allocated_7339',['Allocated',['../classchip_1_1_static_allocator_base.html#a72daf1efdb45c2812ad189bb3c1a3768',1,'chip::StaticAllocatorBase']]],
-  ['allocatenew_7340',['AllocateNew',['../class_android_device_controller_wrapper.html#a15b87eaa6f3f6679a4d0fd3affe135f6',1,'AndroidDeviceControllerWrapper']]],
+  ['allocatenew_7340',['AllocateNew',['../class_android_device_controller_wrapper.html#a4eb2fff14160e6e6d08fcfeaed00ee58',1,'AndroidDeviceControllerWrapper']]],
   ['allocsize_7341',['AllocSize',['../classchip_1_1_system_1_1_packet_buffer.html#a46827678a540122d2a6ea6c90c360d61',1,'chip::System::PacketBuffer']]],
   ['androidbleapplicationdelegate_7342',['AndroidBleApplicationDelegate',['../class_android_ble_application_delegate.html#af947cbe36acd155339cff4305146d7ea',1,'AndroidBleApplicationDelegate']]],
   ['androidbleplatformdelegate_7343',['AndroidBlePlatformDelegate',['../class_android_ble_platform_delegate.html#ac57c0adb2e098e01171b7cfa4f596a71',1,'AndroidBlePlatformDelegate']]],

@@ -1,6 +1,5 @@
 var NAVTREEINDEX37 =
 {
-"functions_k.html":[10,3,0,12],
 "functions_l.html":[10,3,0,13],
 "functions_m.html":[10,3,0,14],
 "functions_n.html":[10,3,0,15],
@@ -67,8 +66,8 @@ var NAVTREEINDEX37 =
 "gatt__uuid128_8h_source.html":[11,0,7,5,16],
 "get__adapters_8py.html":[11,0,1,1,0,0,3],
 "get__adapters_8py.html#a8f4e1a21814f7d1dd588116f64527643":[11,0,1,1,0,0,3,1],
-"globals.html":[11,1,0],
 "globals.html":[11,1,0,0],
+"globals.html":[11,1,0],
 "globals_a.html":[11,1,0,1],
 "globals_b.html":[11,1,0,2],
 "globals_c.html":[11,1,0,3],
@@ -101,8 +100,8 @@ var NAVTREEINDEX37 =
 "globals_enum.html":[11,1,4],
 "globals_eval.html":[11,1,5],
 "globals_f.html":[11,1,0,6],
-"globals_func.html":[11,1,1,0],
 "globals_func.html":[11,1,1],
+"globals_func.html":[11,1,1,0],
 "globals_func_b.html":[11,1,1,1],
 "globals_func_c.html":[11,1,1,2],
 "globals_func_e.html":[11,1,1,3],
@@ -249,5 +248,6 @@ var NAVTREEINDEX37 =
 "md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md30":[2,0],
 "md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md31":[2,1],
 "md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md32":[2,2],
-"md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md33":[2,3]
+"md__home_runner_work_connectedhomeip_connectedhomeip__c_o_n_t_r_i_b_u_t_i_n_g.html#autotoc_md33":[2,3],
+"md__home_runner_work_connectedhomeip_connectedhomeip__r_e_a_d_m_e.html":[0]
 };
