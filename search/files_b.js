@@ -1,13 +1,13 @@
 var searchData=
 [
-  ['library_5fhandle_2epy_6920',['library_handle.py',['../ble_2library__handle_8py.html',1,'(Global Namespace)'],['../logging_2library__handle_8py.html',1,'(Global Namespace)']]],
-  ['lifetimepersistedcounter_2ecpp_6921',['LifetimePersistedCounter.cpp',['../_lifetime_persisted_counter_8cpp.html',1,'']]],
-  ['lifetimepersistedcounter_2eh_6922',['LifetimePersistedCounter.h',['../_lifetime_persisted_counter_8h.html',1,'']]],
-  ['linuximpl_2ecpp_6923',['LinuxImpl.cpp',['../_linux_impl_8cpp.html',1,'']]],
-  ['log_5fbackend_2eh_6924',['log_backend.h',['../log__backend_8h.html',1,'']]],
-  ['log_5fchip_2eh_6925',['log_chip.h',['../log__chip_8h.html',1,'']]],
-  ['logging_2ecpp_6926',['Logging.cpp',['../cc13x2__26x2_2_logging_8cpp.html',1,'(Global Namespace)'],['../_darwin_2_logging_8cpp.html',1,'(Global Namespace)'],['../_e_f_r32_2_logging_8cpp.html',1,'(Global Namespace)'],['../_e_s_p32_2_logging_8cpp.html',1,'(Global Namespace)'],['../_k32_w_2_logging_8cpp.html',1,'(Global Namespace)'],['../_linux_2_logging_8cpp.html',1,'(Global Namespace)'],['../logging_2impl_2android_2_logging_8cpp.html',1,'(Global Namespace)'],['../logging_2impl_2stdio_2_logging_8cpp.html',1,'(Global Namespace)'],['../qpg6100_2_logging_8cpp.html',1,'(Global Namespace)'],['../_zephyr_2_logging_8cpp.html',1,'(Global Namespace)']]],
-  ['loggingredirect_2ecpp_6927',['LoggingRedirect.cpp',['../_logging_redirect_8cpp.html',1,'']]],
-  ['logv_2eh_6928',['LogV.h',['../_log_v_8h.html',1,'']]],
-  ['lwipcorelock_2ecpp_6929',['LwIPCoreLock.cpp',['../_lw_i_p_core_lock_8cpp.html',1,'']]]
+  ['library_5fhandle_2epy_6954',['library_handle.py',['../ble_2library__handle_8py.html',1,'(Global Namespace)'],['../logging_2library__handle_8py.html',1,'(Global Namespace)']]],
+  ['lifetimepersistedcounter_2ecpp_6955',['LifetimePersistedCounter.cpp',['../_lifetime_persisted_counter_8cpp.html',1,'']]],
+  ['lifetimepersistedcounter_2eh_6956',['LifetimePersistedCounter.h',['../_lifetime_persisted_counter_8h.html',1,'']]],
+  ['linuximpl_2ecpp_6957',['LinuxImpl.cpp',['../_linux_impl_8cpp.html',1,'']]],
+  ['log_5fbackend_2eh_6958',['log_backend.h',['../log__backend_8h.html',1,'']]],
+  ['log_5fchip_2eh_6959',['log_chip.h',['../log__chip_8h.html',1,'']]],
+  ['logging_2ecpp_6960',['Logging.cpp',['../cc13x2__26x2_2_logging_8cpp.html',1,'(Global Namespace)'],['../_darwin_2_logging_8cpp.html',1,'(Global Namespace)'],['../_e_f_r32_2_logging_8cpp.html',1,'(Global Namespace)'],['../_e_s_p32_2_logging_8cpp.html',1,'(Global Namespace)'],['../_k32_w_2_logging_8cpp.html',1,'(Global Namespace)'],['../_linux_2_logging_8cpp.html',1,'(Global Namespace)'],['../logging_2impl_2android_2_logging_8cpp.html',1,'(Global Namespace)'],['../logging_2impl_2stdio_2_logging_8cpp.html',1,'(Global Namespace)'],['../qpg6100_2_logging_8cpp.html',1,'(Global Namespace)'],['../_zephyr_2_logging_8cpp.html',1,'(Global Namespace)']]],
+  ['loggingredirect_2ecpp_6961',['LoggingRedirect.cpp',['../_logging_redirect_8cpp.html',1,'']]],
+  ['logv_2eh_6962',['LogV.h',['../_log_v_8h.html',1,'']]],
+  ['lwipcorelock_2ecpp_6963',['LwIPCoreLock.cpp',['../_lw_i_p_core_lock_8cpp.html',1,'']]]
 ];
