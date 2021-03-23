@@ -1,7 +1,5 @@
 var NAVTREEINDEX40 =
 {
-"platform_2_k32_w_2_software_update_manager_impl_8h.html":[11,0,7,5,29],
-"platform_2_k32_w_2_software_update_manager_impl_8h_source.html":[11,0,7,5,29],
 "qpg6100_2_b_l_e_manager_impl_8cpp.html":[11,0,7,10,0],
 "qpg6100_2_b_l_e_manager_impl_8h.html":[11,0,7,10,1],
 "qpg6100_2_b_l_e_manager_impl_8h_source.html":[11,0,7,10,1],
@@ -249,5 +247,7 @@ var NAVTREEINDEX40 =
 "streamer_8h.html#ab61bc9fec7408c207046ca0c5f6944b7":[11,0,6,2,5,2],
 "streamer_8h.html#ac0d640c8d3a5a83294803c8ac78d3d17":[11,0,6,2,5,5],
 "streamer_8h.html#adcf50b495c23f82e9076b047a8984909":[11,0,6,2,5,8],
-"streamer_8h.html#ae733b1154802be58fa3d9d715e0a098c":[11,0,6,2,5,10]
+"streamer_8h.html#ae733b1154802be58fa3d9d715e0a098c":[11,0,6,2,5,10],
+"streamer_8h.html#af021369dde292b24491f7895a39c53e7":[11,0,6,2,5,11],
+"streamer_8h_source.html":[11,0,6,2,5]
 };

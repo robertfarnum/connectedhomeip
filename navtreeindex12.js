@@ -1,5 +1,10 @@
 var NAVTREEINDEX12 =
 {
+"_k32_w_2_system_platform_config_8h_source.html":[11,0,7,5,30],
+"_k32_w_2_thread_stack_manager_impl_8cpp.html":[11,0,7,5,31],
+"_k32_w_2_thread_stack_manager_impl_8cpp.html#a102f3f432087ace749cbb5ba9c140233":[11,0,7,5,31,4],
+"_k32_w_2_thread_stack_manager_impl_8cpp.html#a5ebc4edb990923ac45cf098b02e08be2":[11,0,7,5,31,0],
+"_k32_w_2_thread_stack_manager_impl_8cpp.html#a64920a791a87465bf49fa751c7677825":[11,0,7,5,31,1],
 "_k32_w_2_thread_stack_manager_impl_8cpp.html#a98d12345d246d5e55b6c8d749e771ac3":[11,0,7,5,31,3],
 "_k32_w_2_thread_stack_manager_impl_8cpp.html#ac49db73d9aaa97e39416ad4a6149aabe":[11,0,7,5,31,2],
 "_k32_w_2_thread_stack_manager_impl_8h.html":[11,0,7,5,32],
@@ -244,10 +249,5 @@ var NAVTREEINDEX12 =
 "_mdns_8h.html#a0754a398f1b32ce97bb2158f0e632975":[11,0,6,1,1,0,6],
 "_mdns_8h.html#a440ac2443e9cad79596da62ae3490092":[11,0,6,1,1,0,5],
 "_mdns_8h.html#a440ac2443e9cad79596da62ae3490092a04ad499e4d402961bfb6a5b109d2b51e":[11,0,6,1,1,0,5,0],
-"_mdns_8h.html#a440ac2443e9cad79596da62ae3490092a3d185fafc6e81389f3d612753b172e52":[11,0,6,1,1,0,5,1],
-"_mdns_8h.html#a440ac2443e9cad79596da62ae3490092a73428695c5688752034fb3fc15e7a270":[11,0,6,1,1,0,5,2],
-"_mdns_8h.html#a49bd665343abea118d41b69f96604e37":[11,0,6,1,1,0,10],
-"_mdns_8h.html#a5ad2794d474d946a6bb144a0775d4535":[11,0,6,1,1,0,15],
-"_mdns_8h.html#a5f94f57a92a0c21031b403275ddd4247":[11,0,6,1,1,0,2],
-"_mdns_8h.html#a6b14bf17fcc3156914be6dedb1206466":[11,0,6,1,1,0,4]
+"_mdns_8h.html#a440ac2443e9cad79596da62ae3490092a3d185fafc6e81389f3d612753b172e52":[11,0,6,1,1,0,5,1]
 };

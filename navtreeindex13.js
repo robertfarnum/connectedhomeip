@@ -1,5 +1,10 @@
 var NAVTREEINDEX13 =
 {
+"_mdns_8h.html#a440ac2443e9cad79596da62ae3490092a73428695c5688752034fb3fc15e7a270":[11,0,6,1,1,0,5,2],
+"_mdns_8h.html#a49bd665343abea118d41b69f96604e37":[11,0,6,1,1,0,10],
+"_mdns_8h.html#a5ad2794d474d946a6bb144a0775d4535":[11,0,6,1,1,0,15],
+"_mdns_8h.html#a5f94f57a92a0c21031b403275ddd4247":[11,0,6,1,1,0,2],
+"_mdns_8h.html#a6b14bf17fcc3156914be6dedb1206466":[11,0,6,1,1,0,4],
 "_mdns_8h.html#a7aabbd6d910d8bba5ba8b82ef7140393":[11,0,6,1,1,0,3],
 "_mdns_8h.html#a92918bc47fadde76f386ab039d196c7c":[11,0,6,1,1,0,9],
 "_mdns_8h.html#abb1a78179c950d386b70af49eb548e30":[11,0,6,1,1,0,11],
@@ -237,17 +242,12 @@ var NAVTREEINDEX13 =
 "_response_sender_8cpp.html#aabfb124a22e2b796a7c64854394db76d":[11,0,6,1,0,11,0],
 "_response_sender_8h.html":[11,0,6,1,0,12],
 "_response_sender_8h_source.html":[11,0,6,1,0,12],
-"_return_macros_8h.html":[11,0,6,3,41],
-"_return_macros_8h.html#a037c2295bf352e271ab7aba5b4ef8b47":[11,0,6,3,41,3],
-"_return_macros_8h.html#a086c6eaaca7876489f691abbda75e15e":[11,0,6,3,41,4],
-"_return_macros_8h.html#a1cc302484de2f71bce360f97cad5751d":[11,0,6,3,41,0],
-"_return_macros_8h.html#aadfb3cc63b079f409a982141ac9f4a1a":[11,0,6,3,41,2],
-"_return_macros_8h.html#ab7eac32a4eff11925cac2aea1eaee6e0":[11,0,6,3,41,1],
-"_return_macros_8h_source.html":[11,0,6,3,41],
-"_safe_int_8h.html":[11,0,6,3,42],
-"_safe_int_8h.html#a06380c10d587341d7647de899ff8b601":[11,0,6,3,42,0],
-"_safe_int_8h.html#a8205c30bb95fb13aa400284110944165":[11,0,6,3,42,1],
-"_safe_int_8h_source.html":[11,0,6,3,42],
-"_safe_pointer_cast_8h.html":[11,0,6,3,43],
-"_safe_pointer_cast_8h.html#aee017799f072a54ed1aeab9f343b8675":[11,0,6,3,43,0]
+"_safe_int_8h.html":[11,0,6,3,41],
+"_safe_int_8h.html#a06380c10d587341d7647de899ff8b601":[11,0,6,3,41,0],
+"_safe_int_8h.html#a8205c30bb95fb13aa400284110944165":[11,0,6,3,41,1],
+"_safe_int_8h_source.html":[11,0,6,3,41],
+"_safe_pointer_cast_8h.html":[11,0,6,3,42],
+"_safe_pointer_cast_8h.html#aee017799f072a54ed1aeab9f343b8675":[11,0,6,3,42,0],
+"_safe_pointer_cast_8h_source.html":[11,0,6,3,42],
+"_safe_string_8h.html":[11,0,6,3,43]
 };

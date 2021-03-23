@@ -27,7 +27,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">Connected Home over IP
-   &#160;<span id="projectnumber">ab6d518</span>
+   &#160;<span id="projectnumber">cb4d7fd</span>
    </div>
   </td>
  </tr>
@@ -454,6 +454,21 @@ Macros</h2></td></tr>
 <tr class="memitem:a196f1b0a05fd8473de9e5ef6d7abb21e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#a196f1b0a05fd8473de9e5ef6d7abb21e">IgnoreUnusedVariable</a>(aVariable)&#160;&#160;&#160;((void) (aVariable))</td></tr>
 <tr class="memdesc:a196f1b0a05fd8473de9e5ef6d7abb21e"><td class="mdescLeft">&#160;</td><td class="mdescRight">This casts the specified <em>aVariable</em> to void to quell any compiler-issued unused variable warnings or errors.  <a href="_code_utils_8h.html#a196f1b0a05fd8473de9e5ef6d7abb21e">More...</a><br /></td></tr>
 <tr class="separator:a196f1b0a05fd8473de9e5ef6d7abb21e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab7eac32a4eff11925cac2aea1eaee6e0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#ab7eac32a4eff11925cac2aea1eaee6e0">ReturnErrorOnFailure</a>(expr)</td></tr>
+<tr class="memdesc:ab7eac32a4eff11925cac2aea1eaee6e0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the error code if the expression returns something different than CHIP_NO_ERROR.  <a href="_code_utils_8h.html#ab7eac32a4eff11925cac2aea1eaee6e0">More...</a><br /></td></tr>
+<tr class="separator:ab7eac32a4eff11925cac2aea1eaee6e0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aadfb3cc63b079f409a982141ac9f4a1a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#aadfb3cc63b079f409a982141ac9f4a1a">ReturnOnFailure</a>(expr)</td></tr>
+<tr class="memdesc:aadfb3cc63b079f409a982141ac9f4a1a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns if the expression returns something different than CHIP_NO_ERROR.  <a href="_code_utils_8h.html#aadfb3cc63b079f409a982141ac9f4a1a">More...</a><br /></td></tr>
+<tr class="separator:aadfb3cc63b079f409a982141ac9f4a1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a037c2295bf352e271ab7aba5b4ef8b47"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#a037c2295bf352e271ab7aba5b4ef8b47">VerifyOrReturn</a>(expr, ...)</td></tr>
+<tr class="memdesc:a037c2295bf352e271ab7aba5b4ef8b47"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns from the void function if expression evaluates to false.  <a href="_code_utils_8h.html#a037c2295bf352e271ab7aba5b4ef8b47">More...</a><br /></td></tr>
+<tr class="separator:a037c2295bf352e271ab7aba5b4ef8b47"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a086c6eaaca7876489f691abbda75e15e"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#a086c6eaaca7876489f691abbda75e15e">VerifyOrReturnError</a>(expr,  code)</td></tr>
+<tr class="memdesc:a086c6eaaca7876489f691abbda75e15e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a specified error code if expression evaluates to false.  <a href="_code_utils_8h.html#a086c6eaaca7876489f691abbda75e15e">More...</a><br /></td></tr>
+<tr class="separator:a086c6eaaca7876489f691abbda75e15e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1cc302484de2f71bce360f97cad5751d"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#a1cc302484de2f71bce360f97cad5751d">ReturnErrorCodeIf</a>(expr,  code)</td></tr>
+<tr class="memdesc:a1cc302484de2f71bce360f97cad5751d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a specified error code if expression evaluates to true.  <a href="_code_utils_8h.html#a1cc302484de2f71bce360f97cad5751d">More...</a><br /></td></tr>
+<tr class="separator:a1cc302484de2f71bce360f97cad5751d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a670a2aeb107e6cc4df69083384bd85d0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="_code_utils_8h.html#a670a2aeb107e6cc4df69083384bd85d0">VerifyOrDie</a>(aCondition)&#160;&#160;&#160;nlABORT(aCondition)</td></tr>
 <tr class="memdesc:a670a2aeb107e6cc4df69083384bd85d0"><td class="mdescLeft">&#160;</td><td class="mdescRight">This checks for the specified condition, which is expected to commonly be true and forces an immediate abort if the condition is false.  <a href="_code_utils_8h.html#a670a2aeb107e6cc4df69083384bd85d0">More...</a><br /></td></tr>
 <tr class="separator:a670a2aeb107e6cc4df69083384bd85d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -718,6 +733,125 @@ Functions</h2></td></tr>
 </div><!-- fragment --> 
 </div>
 </div>
+<a id="a1cc302484de2f71bce360f97cad5751d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1cc302484de2f71bce360f97cad5751d">&#9670;&nbsp;</a></span>ReturnErrorCodeIf</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ReturnErrorCodeIf</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">expr, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">code&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span>                                                                                                                             \</div>
+<div class="line">    {                                                                                                                              \</div>
+<div class="line">        if (expr)                                                                                                                  \</div>
+<div class="line">        {                                                                                                                          \</div>
+<div class="line">            return code;                                                                                                           \</div>
+<div class="line">        }                                                                                                                          \</div>
+<div class="line">    } <span class="keywordflow">while</span> (<span class="keyword">false</span>)</div>
+</div><!-- fragment -->
+<p>Returns a specified error code if expression evaluates to true. </p>
+<p>Example usage:</p>
+<div class="fragment"><div class="line"><a class="code" href="_code_utils_8h.html#a1cc302484de2f71bce360f97cad5751d">ReturnErrorCodeIf</a>(state == kInitialized, <a class="code" href="_c_h_i_p_error_8h.html#a255ed42b89227e34eef134084739716e">CHIP_NO_ERROR</a>);</div>
+<div class="line"><a class="code" href="_code_utils_8h.html#a1cc302484de2f71bce360f97cad5751d">ReturnErrorCodeIf</a>(state == kInitialized, CHIP_ERROR_INVALID_STATE);</div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">expr</td><td>A Boolean expression to be evaluated. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">code</td><td>A value to return if <em>expr</em> is false. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ab7eac32a4eff11925cac2aea1eaee6e0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab7eac32a4eff11925cac2aea1eaee6e0">&#9670;&nbsp;</a></span>ReturnErrorOnFailure</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ReturnErrorOnFailure</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">expr</td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span>                                                                                                                             \</div>
+<div class="line">    {                                                                                                                              \</div>
+<div class="line">        CHIP_ERROR __err = (expr);                                                                                                 \</div>
+<div class="line">        if (__err != <a class="code" href="_c_h_i_p_error_8h.html#a255ed42b89227e34eef134084739716e">CHIP_NO_ERROR</a>)                                                                                                \</div>
+<div class="line">        {                                                                                                                          \</div>
+<div class="line">            return __err;                                                                                                          \</div>
+<div class="line">        }                                                                                                                          \</div>
+<div class="line">    } <span class="keywordflow">while</span> (<span class="keyword">false</span>)</div>
+</div><!-- fragment -->
+<p>Returns the error code if the expression returns something different than CHIP_NO_ERROR. </p>
+<p>Example usage:</p>
+<div class="fragment"><div class="line"><a class="code" href="_code_utils_8h.html#ab7eac32a4eff11925cac2aea1eaee6e0">ReturnErrorOnFailure</a>(<a class="code" href="_c_h_i_p_device_controller-_j_n_i_8cpp.html#af3965ccdfc573b047dd5a95c7fe3022d">channel</a>-&gt;SendMsg(msg));</div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">expr</td><td>A scalar expression to be evaluated against CHIP_NO_ERROR. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aadfb3cc63b079f409a982141ac9f4a1a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aadfb3cc63b079f409a982141ac9f4a1a">&#9670;&nbsp;</a></span>ReturnOnFailure</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define ReturnOnFailure</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">expr</td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span>                                                                                                                             \</div>
+<div class="line">    {                                                                                                                              \</div>
+<div class="line">        CHIP_ERROR __err = (expr);                                                                                                 \</div>
+<div class="line">        if (__err != <a class="code" href="_c_h_i_p_error_8h.html#a255ed42b89227e34eef134084739716e">CHIP_NO_ERROR</a>)                                                                                                \</div>
+<div class="line">        {                                                                                                                          \</div>
+<div class="line">            return;                                                                                                                \</div>
+<div class="line">        }                                                                                                                          \</div>
+<div class="line">    } <span class="keywordflow">while</span> (<span class="keyword">false</span>)</div>
+</div><!-- fragment -->
+<p>Returns if the expression returns something different than CHIP_NO_ERROR. </p>
+<p>Example usage:</p>
+<div class="fragment"><div class="line"><a class="code" href="_code_utils_8h.html#aadfb3cc63b079f409a982141ac9f4a1a">ReturnOnFailure</a>(<a class="code" href="_c_h_i_p_device_controller-_j_n_i_8cpp.html#af3965ccdfc573b047dd5a95c7fe3022d">channel</a>-&gt;SendMsg(msg));</div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">expr</td><td>A scalar expression to be evaluated against CHIP_NO_ERROR. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a670a2aeb107e6cc4df69083384bd85d0"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a670a2aeb107e6cc4df69083384bd85d0">&#9670;&nbsp;</a></span>VerifyOrDie</h2>
 
@@ -813,6 +947,98 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a037c2295bf352e271ab7aba5b4ef8b47"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a037c2295bf352e271ab7aba5b4ef8b47">&#9670;&nbsp;</a></span>VerifyOrReturn</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define VerifyOrReturn</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">expr, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>...</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span>                                                                                                                             \</div>
+<div class="line">    {                                                                                                                              \</div>
+<div class="line">        if (!(expr))                                                                                                               \</div>
+<div class="line">        {                                                                                                                          \</div>
+<div class="line">            __VA_ARGS__;                                                                                                           \</div>
+<div class="line">            return;                                                                                                                \</div>
+<div class="line">        }                                                                                                                          \</div>
+<div class="line">    } <span class="keywordflow">while</span> (<span class="keyword">false</span>)</div>
+</div><!-- fragment -->
+<p>Returns from the void function if expression evaluates to false. </p>
+<p>Example usage:</p>
+<div class="fragment"><div class="line"><a class="code" href="_code_utils_8h.html#a037c2295bf352e271ab7aba5b4ef8b47">VerifyOrReturn</a>(param != <span class="keyword">nullptr</span>, LogError(<span class="stringliteral">&quot;param is nullptr&quot;</span>));</div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">expr</td><td>A Boolean expression to be evaluated. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a086c6eaaca7876489f691abbda75e15e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a086c6eaaca7876489f691abbda75e15e">&#9670;&nbsp;</a></span>VerifyOrReturnError</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define VerifyOrReturnError</td>
+          <td>(</td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">expr, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname">code&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span>                                                                                                                             \</div>
+<div class="line">    {                                                                                                                              \</div>
+<div class="line">        if (!(expr))                                                                                                               \</div>
+<div class="line">        {                                                                                                                          \</div>
+<div class="line">            return code;                                                                                                           \</div>
+<div class="line">        }                                                                                                                          \</div>
+<div class="line">    } <span class="keywordflow">while</span> (<span class="keyword">false</span>)</div>
+</div><!-- fragment -->
+<p>Returns a specified error code if expression evaluates to false. </p>
+<p>Example usage:</p>
+<div class="fragment"><div class="line"><a class="code" href="_code_utils_8h.html#a086c6eaaca7876489f691abbda75e15e">VerifyOrReturnError</a>(param != <span class="keyword">nullptr</span>, <a class="code" href="_c_h_i_p_error_8h.html#a16861ed332933820e629940561f47104">CHIP_ERROR_INVALID_ARGUMENT</a>);</div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">expr</td><td>A Boolean expression to be evaluated. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">code</td><td>A value to return if <em>expr</em> is false. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="ac4a38a77adf7accad0c23273ff9e86ae"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ac4a38a77adf7accad0c23273ff9e86ae">&#9670;&nbsp;</a></span>chipDie()</h2>
@@ -857,17 +1083,25 @@ Here is the caller graph for this function:</div>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <div class="ttc" id="a_code_utils_8h_html_a196f1b0a05fd8473de9e5ef6d7abb21e"><div class="ttname"><a href="_code_utils_8h.html#a196f1b0a05fd8473de9e5ef6d7abb21e">IgnoreUnusedVariable</a></div><div class="ttdeci">#define IgnoreUnusedVariable(aVariable)</div><div class="ttdoc">This casts the specified aVariable to void to quell any compiler-issued unused variable warnings or e...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:157</div></div>
-<div class="ttc" id="a_code_utils_8h_html_a670a2aeb107e6cc4df69083384bd85d0"><div class="ttname"><a href="_code_utils_8h.html#a670a2aeb107e6cc4df69083384bd85d0">VerifyOrDie</a></div><div class="ttdeci">#define VerifyOrDie(aCondition)</div><div class="ttdoc">This checks for the specified condition, which is expected to commonly be true and forces an immediat...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:320</div></div>
+<div class="ttc" id="a_code_utils_8h_html_aadfb3cc63b079f409a982141ac9f4a1a"><div class="ttname"><a href="_code_utils_8h.html#aadfb3cc63b079f409a982141ac9f4a1a">ReturnOnFailure</a></div><div class="ttdeci">#define ReturnOnFailure(expr)</div><div class="ttdoc">Returns if the expression returns something different than CHIP_NO_ERROR.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:198</div></div>
+<div class="ttc" id="a_c_h_i_p_device_controller-_j_n_i_8cpp_html_af3965ccdfc573b047dd5a95c7fe3022d"><div class="ttname"><a href="_c_h_i_p_device_controller-_j_n_i_8cpp.html#af3965ccdfc573b047dd5a95c7fe3022d">channel</a></div><div class="ttdeci">JNIEnv jobject jlong jint channel</div><div class="ttdef"><b>Definition:</b> CHIPDeviceController-JNI.cpp:352</div></div>
+<div class="ttc" id="a_code_utils_8h_html_a670a2aeb107e6cc4df69083384bd85d0"><div class="ttname"><a href="_code_utils_8h.html#a670a2aeb107e6cc4df69083384bd85d0">VerifyOrDie</a></div><div class="ttdeci">#define VerifyOrDie(aCondition)</div><div class="ttdoc">This checks for the specified condition, which is expected to commonly be true and forces an immediat...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:442</div></div>
+<div class="ttc" id="a_code_utils_8h_html_a1cc302484de2f71bce360f97cad5751d"><div class="ttname"><a href="_code_utils_8h.html#a1cc302484de2f71bce360f97cad5751d">ReturnErrorCodeIf</a></div><div class="ttdeci">#define ReturnErrorCodeIf(expr, code)</div><div class="ttdoc">Returns a specified error code if expression evaluates to true.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:272</div></div>
 <div class="ttc" id="anamespacechip_html_a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03"><div class="ttname"><a href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03">chip::NotSpecified</a></div><div class="ttdeci">@ NotSpecified</div><div class="ttdef"><b>Definition:</b> CHIPVendorIdentifiers.hpp:41</div></div>
-<div class="ttc" id="a_code_utils_8h_html_ac4a38a77adf7accad0c23273ff9e86ae"><div class="ttname"><a href="_code_utils_8h.html#ac4a38a77adf7accad0c23273ff9e86ae">chipDie</a></div><div class="ttdeci">void chipDie(void) __attribute((noreturn))</div><div class="ttdoc">This is invoked when a VerifyOrDie or VerifyOrDieWithMsg assertion expression evaluates to false.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:284</div></div>
-<div class="ttc" id="a_c_h_i_p_device_controller-_j_n_i_8cpp_html_a812d267488c8f2ce02852c12158fb87f"><div class="ttname"><a href="_c_h_i_p_device_controller-_j_n_i_8cpp.html#a812d267488c8f2ce02852c12158fb87f">err</a></div><div class="ttdeci">err</div><div class="ttdef"><b>Definition:</b> CHIPDeviceController-JNI.cpp:295</div></div>
-<div class="ttc" id="a_code_utils_8h_html_a0a31bd399e232b983cd039634a678ccc"><div class="ttname"><a href="_code_utils_8h.html#a0a31bd399e232b983cd039634a678ccc">VerifyOrDieWithMsg</a></div><div class="ttdeci">#define VerifyOrDieWithMsg(aCondition, aModule, aMessage,...)</div><div class="ttdoc">This checks for the specified condition, which is expected to commonly be true and both prints aMessa...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:356</div></div>
-<div class="ttc" id="a_code_utils_8h_html_a21878993864e49b5954d0777a0e0e824"><div class="ttname"><a href="_code_utils_8h.html#a21878993864e49b5954d0777a0e0e824">ArraySize</a></div><div class="ttdeci">#define ArraySize(a)</div><div class="ttdoc">Returns the size of an array in number of elements.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:374</div></div>
+<div class="ttc" id="a_c_h_i_p_error_8h_html_a16861ed332933820e629940561f47104"><div class="ttname"><a href="_c_h_i_p_error_8h.html#a16861ed332933820e629940561f47104">CHIP_ERROR_INVALID_ARGUMENT</a></div><div class="ttdeci">#define CHIP_ERROR_INVALID_ARGUMENT</div><div class="ttdoc">An argument is invalid.</div><div class="ttdef"><b>Definition:</b> CHIPError.h:526</div></div>
+<div class="ttc" id="a_code_utils_8h_html_a086c6eaaca7876489f691abbda75e15e"><div class="ttname"><a href="_code_utils_8h.html#a086c6eaaca7876489f691abbda75e15e">VerifyOrReturnError</a></div><div class="ttdeci">#define VerifyOrReturnError(expr, code)</div><div class="ttdoc">Returns a specified error code if expression evaluates to false.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:247</div></div>
+<div class="ttc" id="a_code_utils_8h_html_ab7eac32a4eff11925cac2aea1eaee6e0"><div class="ttname"><a href="_code_utils_8h.html#ab7eac32a4eff11925cac2aea1eaee6e0">ReturnErrorOnFailure</a></div><div class="ttdeci">#define ReturnErrorOnFailure(expr)</div><div class="ttdoc">Returns the error code if the expression returns something different than CHIP_NO_ERROR.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:174</div></div>
+<div class="ttc" id="a_code_utils_8h_html_a037c2295bf352e271ab7aba5b4ef8b47"><div class="ttname"><a href="_code_utils_8h.html#a037c2295bf352e271ab7aba5b4ef8b47">VerifyOrReturn</a></div><div class="ttdeci">#define VerifyOrReturn(expr,...)</div><div class="ttdoc">Returns from the void function if expression evaluates to false.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:222</div></div>
+<div class="ttc" id="a_code_utils_8h_html_ac4a38a77adf7accad0c23273ff9e86ae"><div class="ttname"><a href="_code_utils_8h.html#ac4a38a77adf7accad0c23273ff9e86ae">chipDie</a></div><div class="ttdeci">void chipDie(void) __attribute((noreturn))</div><div class="ttdoc">This is invoked when a VerifyOrDie or VerifyOrDieWithMsg assertion expression evaluates to false.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:406</div></div>
+<div class="ttc" id="a_c_h_i_p_device_controller-_j_n_i_8cpp_html_a812d267488c8f2ce02852c12158fb87f"><div class="ttname"><a href="_c_h_i_p_device_controller-_j_n_i_8cpp.html#a812d267488c8f2ce02852c12158fb87f">err</a></div><div class="ttdeci">err</div><div class="ttdef"><b>Definition:</b> CHIPDeviceController-JNI.cpp:294</div></div>
+<div class="ttc" id="a_code_utils_8h_html_a0a31bd399e232b983cd039634a678ccc"><div class="ttname"><a href="_code_utils_8h.html#a0a31bd399e232b983cd039634a678ccc">VerifyOrDieWithMsg</a></div><div class="ttdeci">#define VerifyOrDieWithMsg(aCondition, aModule, aMessage,...)</div><div class="ttdoc">This checks for the specified condition, which is expected to commonly be true and both prints aMessa...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:478</div></div>
+<div class="ttc" id="a_c_h_i_p_error_8h_html_a255ed42b89227e34eef134084739716e"><div class="ttname"><a href="_c_h_i_p_error_8h.html#a255ed42b89227e34eef134084739716e">CHIP_NO_ERROR</a></div><div class="ttdeci">#define CHIP_NO_ERROR</div><div class="ttdoc">This defines the CHIP error code for success or no error. This value may be configured via CHIP_CONFI...</div><div class="ttdef"><b>Definition:</b> CHIPError.h:45</div></div>
+<div class="ttc" id="a_code_utils_8h_html_a21878993864e49b5954d0777a0e0e824"><div class="ttname"><a href="_code_utils_8h.html#a21878993864e49b5954d0777a0e0e824">ArraySize</a></div><div class="ttdeci">#define ArraySize(a)</div><div class="ttdoc">Returns the size of an array in number of elements.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:496</div></div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_c85d3e3c5052e9ad9ce18c6863244a25.html">lib</a></li><li class="navelem"><a class="el" href="dir_07debba6119e8fae289f5c0650c95439.html">support</a></li><li class="navelem"><a class="el" href="_code_utils_8h.html">CodeUtils.h</a></li>
-    <li class="footer">Generated on Tue Mar 23 2021 09:51:09 for Connected Home over IP by
+    <li class="footer">Generated on Tue Mar 23 2021 10:28:52 for Connected Home over IP by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

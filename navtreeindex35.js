@@ -1,7 +1,5 @@
 var NAVTREEINDEX35 =
 {
-"classmdns_1_1_minimal_1_1_bit_packed_flags.html#a6ab16e63031893d4b9cfb573b2a74ac9":[10,0,3,0,2,5],
-"classmdns_1_1_minimal_1_1_bit_packed_flags.html#a7e5c303ff57964e8c8eed598ddc34075":[10,0,3,0,2,4],
 "classmdns_1_1_minimal_1_1_bit_packed_flags.html#a94123405a87b6b34880c0c5c4326f783":[10,0,3,0,2,6],
 "classmdns_1_1_minimal_1_1_bit_packed_flags.html#ab7a09587713f89944b403ef259175b5a":[10,0,3,0,2,1],
 "classmdns_1_1_minimal_1_1_bit_packed_flags.html#ab99df675fbd3765d1f25664e94b7ca5e":[10,0,3,0,2,8],
@@ -249,5 +247,7 @@ var NAVTREEINDEX35 =
 "classmdns_1_1_minimal_1_1_srv_record.html#a6ea433672d42553c61e0dafde9216d31":[10,0,3,0,35,4],
 "classmdns_1_1_minimal_1_1_srv_record.html#a9cbdf8e07ecdafa467f4f89fcea8f072":[10,0,3,0,35,0],
 "classmdns_1_1_minimal_1_1_srv_record.html#ae576f91587bad07eb74386eab75e58a3":[10,0,3,0,35,2],
-"classmdns_1_1_minimal_1_1_srv_resource_record.html":[10,0,3,0,36]
+"classmdns_1_1_minimal_1_1_srv_resource_record.html":[10,0,3,0,36],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#a326457f4234b70406460f0463dc6d823":[10,0,3,0,36,1],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#a789ee7808dc5a7d4c41f7f3c6bb1ce48":[10,0,3,0,36,6]
 };

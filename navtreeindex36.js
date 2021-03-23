@@ -1,7 +1,5 @@
 var NAVTREEINDEX36 =
 {
-"classmdns_1_1_minimal_1_1_srv_resource_record.html#a326457f4234b70406460f0463dc6d823":[10,0,3,0,36,1],
-"classmdns_1_1_minimal_1_1_srv_resource_record.html#a789ee7808dc5a7d4c41f7f3c6bb1ce48":[10,0,3,0,36,6],
 "classmdns_1_1_minimal_1_1_srv_resource_record.html#a99edd6e6e6d06452a544248b6719c8d7":[10,0,3,0,36,0],
 "classmdns_1_1_minimal_1_1_srv_resource_record.html#aa23eb3b15ce6edb639c6c87226b0b3d4":[10,0,3,0,36,2],
 "classmdns_1_1_minimal_1_1_srv_resource_record.html#aa29216eccbf60c83ce372cfdcb54055c":[10,0,3,0,36,8],
@@ -249,5 +247,7 @@ var NAVTREEINDEX36 =
 "freertos__bluetooth_8h.html":[11,0,7,2,17],
 "freertos__bluetooth_8h.html#a251f5312e2c400e0f3c670ee878ce639":[11,0,7,2,17,4],
 "freertos__bluetooth_8h.html#a30373a5462be7c79fe83bf9e6590e227":[11,0,7,2,17,5],
-"freertos__bluetooth_8h.html#a34331c74b0be386cb38cc52a0e726c1d":[11,0,7,2,17,11]
+"freertos__bluetooth_8h.html#a34331c74b0be386cb38cc52a0e726c1d":[11,0,7,2,17,11],
+"freertos__bluetooth_8h.html#a38c068697396dd71ecc9353e3db2417e":[11,0,7,2,17,3],
+"freertos__bluetooth_8h.html#a5900d8856b7e0eb3c61b7bd72c566f69":[11,0,7,2,17,0]
 };
