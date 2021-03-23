@@ -1,5 +1,9 @@
 var NAVTREEINDEX41 =
 {
+"streamer__zephyr_8cpp.html#ac0d640c8d3a5a83294803c8ac78d3d17":[11,0,6,2,7,0],
+"struct_avahi_timeout.html":[10,0,8],
+"struct_avahi_timeout.html#a13156b7cf56da4eb4c6be5fa08a9b342":[10,0,8,0],
+"struct_avahi_timeout.html#a7cc8a98d3f52ef029374cdb09c811be1":[10,0,8,4],
 "struct_avahi_timeout.html#acdbca01b224077fce326fe9dac261e71":[10,0,8,3],
 "struct_avahi_timeout.html#af23c27653d8f950b2e40b8003db665ff":[10,0,8,1],
 "struct_avahi_timeout.html#afc4eeab8341016771d0d43d83f5df199":[10,0,8,2],
@@ -245,9 +249,5 @@ var NAVTREEINDEX41 =
 "structchip_1_1_mdns_1_1_register_context.html#ad99df8194e632f4fa0bd994769bc8237":[10,0,1,21,11,0],
 "structchip_1_1_mdns_1_1_resolve_context.html":[10,0,1,21,12],
 "structchip_1_1_mdns_1_1_resolve_context.html#a9251099b8c539f269957d47b76125210":[10,0,1,21,12,1],
-"structchip_1_1_mdns_1_1_resolve_context.html#afaad4b07aa4e39867b25f0e8e06f2648":[10,0,1,21,12,0],
-"structchip_1_1_mdns_1_1_resolved_node_data.html":[10,0,1,21,13],
-"structchip_1_1_mdns_1_1_resolved_node_data.html#a0f9b7304029fdd2c20501130dbb8ae62":[10,0,1,21,13,1],
-"structchip_1_1_mdns_1_1_resolved_node_data.html#ab70cf48de043e12f5e94d7e0f29f51bf":[10,0,1,21,13,2],
-"structchip_1_1_mdns_1_1_resolved_node_data.html#adcd383927ed4f7bb2166a44536e100c7":[10,0,1,21,13,0]
+"structchip_1_1_mdns_1_1_resolve_context.html#afaad4b07aa4e39867b25f0e8e06f2648":[10,0,1,21,12,0]
 };

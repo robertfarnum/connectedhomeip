@@ -203,18 +203,18 @@ var NAVTREEINDEX =
 "classchip_1_1_device_layer_1_1_thread_stack_manager.html",
 "classchip_1_1_inet_1_1_i_p_address.html#af22653b0ee7cbece8ddbae2a68237d99",
 "classchip_1_1_mdns_1_1_mdns_avahi.html",
-"classchip_1_1_rendezvous_device_credentials_delegate.html",
-"classchip_1_1_system_1_1_layer.html#a67a7b9588a31572d5026edcd2f83ae8c",
-"classchip_1_1_t_l_v_1_1_t_l_v_updater.html#a519ea85bd50f5912ca790eb299f242fa",
-"classchip_1_1_transport_1_1_raw_transport_delegate.html",
-"classmdns_1_1_minimal_1_1_bytes_range.html#ae8930c59f812c431b25ab13f89d80b07",
-"classmdns_1_1_minimal_1_1_txt_record_delegate.html#a6460b49caa1217febfae1c35f02dacef",
-"freertos__bluetooth_8h.html#af8fd03a1a754dade58d251d6a0bc64fe",
-"k32w-chip-mbedtls-config_8h_source.html",
-"namespacechip_1_1devicecontroller.html",
-"qpg6100_2_c_h_i_p_device_platform_config_8h.html",
-"struct_avahi_timeout.html#acdbca01b224077fce326fe9dac261e71",
-"structchip_1_1_mdns_1_1_text_entry.html"
+"classchip_1_1_rendezvous_advertisement_delegate.html#a53b14e704201c5efb78618bfcb8ccd28",
+"classchip_1_1_system_1_1_layer.html#a5fc8e7d83684dfbf9ebcccd687dde163",
+"classchip_1_1_t_l_v_1_1_t_l_v_updater.html#a4f692413589d73b4d679dd2c97679df9",
+"classchip_1_1_transport_1_1_peer_connections.html#ad8701fbf1b597956c16ec2d8e79bbec2",
+"classmdns_1_1_minimal_1_1_bytes_range.html#a850effa5df7f9ccd60ac8410e19c469e",
+"classmdns_1_1_minimal_1_1_srv_responder.html#a55a9895ca39da1d822e375222f7b79ac",
+"freertos__bluetooth_8h.html#ae84bf03a2acc9d3c7e7cbcd32f22bd79",
+"k32w-chip-mbedtls-config_8h.html",
+"namespacechip_1_1ble_1_1types.html",
+"qpg6100_2_ble_platform_config_8h.html#acb6e2ad865d7c11a97ad1410b95ff192",
+"streamer__zephyr_8cpp.html#ac0d640c8d3a5a83294803c8ac78d3d17",
+"structchip_1_1_mdns_1_1_resolved_node_data.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

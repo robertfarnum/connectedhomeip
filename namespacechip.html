@@ -27,7 +27,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">Connected Home over IP
-   &#160;<span id="projectnumber">1de2b73</span>
+   &#160;<span id="projectnumber">f0b7f2b</span>
    </div>
   </td>
  </tr>
@@ -342,15 +342,15 @@ Typedefs</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="enum-members"></a>
 Enumerations</h2></td></tr>
-<tr class="memitem:aa4fb8e014e043de99e174942088ff8f9"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacechip.html#aa4fb8e014e043de99e174942088ff8f9">ChipVendorId</a> { <br />
-&#160;&#160;<a class="el" href="namespacechip.html#aa4fb8e014e043de99e174942088ff8f9a7bc1bfd229ec45e37f99cb3f9d9dac74">kChipVendor_Common</a> = 0x0000, 
+<tr class="memitem:a1c5fa245b96c3550247445b34387bbd3"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3">VendorId</a> : uint16_t { <br />
+&#160;&#160;<a class="el" href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3a566f7a5fdce7b67d4960b778215719ee">Common</a> = 0x0000u, 
 <br />
-&#160;&#160;<a class="el" href="namespacechip.html#aa4fb8e014e043de99e174942088ff8f9ac34456e930fc12c18bb28e22ef07a216">kChipVendor_NestLabs</a> = 0x235A, 
+&#160;&#160;<a class="el" href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3a27f4da662060e939fd91b1124452a6e9">NestLabs</a> = 0x235Au, 
 <br />
-&#160;&#160;<a class="el" href="namespacechip.html#aa4fb8e014e043de99e174942088ff8f9ac8882f70283333aa3004ab0de0fffe3c">kChipVendor_NotSpecified</a> = 0xFFFF
+&#160;&#160;<a class="el" href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03">NotSpecified</a> = 0xFFFFu
 <br />
  }</td></tr>
-<tr class="separator:aa4fb8e014e043de99e174942088ff8f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="separator:a1c5fa245b96c3550247445b34387bbd3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae410888206461422e1abe0407f1b020a"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom">{ <br />
 &#160;&#160;<a class="el" href="namespacechip.html#ae410888206461422e1abe0407f1b020aa4d8fbbde66a76541f9bae6220031a874">kDaysFromMarch1ToDecember31</a> = 306, 
 <br />
@@ -1096,25 +1096,6 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a id="aa4fb8e014e043de99e174942088ff8f9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa4fb8e014e043de99e174942088ff8f9">&#9670;&nbsp;</a></span>ChipVendorId</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">enum <a class="el" href="namespacechip.html#aa4fb8e014e043de99e174942088ff8f9">chip::ChipVendorId</a></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<table class="fieldtable">
-<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="aa4fb8e014e043de99e174942088ff8f9a7bc1bfd229ec45e37f99cb3f9d9dac74"></a>kChipVendor_Common&#160;</td><td class="fielddoc"></td></tr>
-<tr><td class="fieldname"><a id="aa4fb8e014e043de99e174942088ff8f9ac34456e930fc12c18bb28e22ef07a216"></a>kChipVendor_NestLabs&#160;</td><td class="fielddoc"></td></tr>
-<tr><td class="fieldname"><a id="aa4fb8e014e043de99e174942088ff8f9ac8882f70283333aa3004ab0de0fffe3c"></a>kChipVendor_NotSpecified&#160;</td><td class="fielddoc"></td></tr>
-</table>
-
-</div>
-</div>
 <a id="af01e14e9a7cf70c1be1c9f5f0f5523a3"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#af01e14e9a7cf70c1be1c9f5f0f5523a3">&#9670;&nbsp;</a></span>optionalQRCodeInfoType</h2>
 
@@ -1193,6 +1174,25 @@ Variables</h2></td></tr>
 <tr><td class="fieldname"><a id="a3031c4ccd3dd1e57298250fe30c3ee6ba24706b751f1cf1abb92c3647b6b099bb"></a>SetupPayloadKey_RendezVousInformation&#160;</td><td class="fielddoc"></td></tr>
 <tr><td class="fieldname"><a id="a3031c4ccd3dd1e57298250fe30c3ee6ba8fe3d4b44b60cff15b721541ae226976"></a>SetupPayloadKey_Discriminator&#160;</td><td class="fielddoc"></td></tr>
 <tr><td class="fieldname"><a id="a3031c4ccd3dd1e57298250fe30c3ee6ba92716744a277c6a1b3831db4396ed716"></a>SetupPayloadKey_SetupPINCode&#160;</td><td class="fielddoc"></td></tr>
+</table>
+
+</div>
+</div>
+<a id="a1c5fa245b96c3550247445b34387bbd3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1c5fa245b96c3550247445b34387bbd3">&#9670;&nbsp;</a></span>VendorId</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum <a class="el" href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3">chip::VendorId</a> : uint16_t</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a1c5fa245b96c3550247445b34387bbd3a566f7a5fdce7b67d4960b778215719ee"></a>Common&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a1c5fa245b96c3550247445b34387bbd3a27f4da662060e939fd91b1124452a6e9"></a>NestLabs&#160;</td><td class="fielddoc"></td></tr>
+<tr><td class="fieldname"><a id="a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03"></a>NotSpecified&#160;</td><td class="fielddoc"></td></tr>
 </table>
 
 </div>
@@ -6297,7 +6297,7 @@ Here is the call graph for this function:</div>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="namespacechip.html">chip</a></li>
-    <li class="footer">Generated on Mon Mar 22 2021 23:28:30 for Connected Home over IP by
+    <li class="footer">Generated on Tue Mar 23 2021 00:12:31 for Connected Home over IP by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

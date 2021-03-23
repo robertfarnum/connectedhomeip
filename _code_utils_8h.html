@@ -27,7 +27,7 @@
   <td id="projectlogo"><img alt="Logo" src="logo.svg"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">Connected Home over IP
-   &#160;<span id="projectnumber">1de2b73</span>
+   &#160;<span id="projectnumber">f0b7f2b</span>
    </div>
   </td>
  </tr>
@@ -651,7 +651,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 <b>Value:</b><div class="fragment"><div class="line">    <span class="keywordflow">do</span>                                                                                    \</div>
 <div class="line">    {                                                                                     \</div>
-<div class="line">        ChipLogError(NotSpecified,                                                       \</div>
+<div class="line">        ChipLogError(<a class="code" href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03">NotSpecified</a>,                                                       \</div>
 <div class="line">                      CHIP_ASSERT_LOG_FORMAT_DEFAULT,                                       \</div>
 <div class="line">                      aPrefix,                                                            \</div>
 <div class="line">                      (((aName) == 0) || (*(aName) == <span class="charliteral">&#39;\0&#39;</span>)) ? <span class="stringliteral">&quot;&quot;</span> : aName,                \</div>
@@ -848,6 +848,7 @@ Functions</h2></td></tr>
 </div><!-- doc-content -->
 <div class="ttc" id="a_code_utils_8h_html_a196f1b0a05fd8473de9e5ef6d7abb21e"><div class="ttname"><a href="_code_utils_8h.html#a196f1b0a05fd8473de9e5ef6d7abb21e">IgnoreUnusedVariable</a></div><div class="ttdeci">#define IgnoreUnusedVariable(aVariable)</div><div class="ttdoc">This casts the specified aVariable to void to quell any compiler-issued unused variable warnings or e...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:157</div></div>
 <div class="ttc" id="a_code_utils_8h_html_a670a2aeb107e6cc4df69083384bd85d0"><div class="ttname"><a href="_code_utils_8h.html#a670a2aeb107e6cc4df69083384bd85d0">VerifyOrDie</a></div><div class="ttdeci">#define VerifyOrDie(aCondition)</div><div class="ttdoc">This checks for the specified condition, which is expected to commonly be true and forces an immediat...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:320</div></div>
+<div class="ttc" id="anamespacechip_html_a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03"><div class="ttname"><a href="namespacechip.html#a1c5fa245b96c3550247445b34387bbd3afd2fecec0f14904c737f491d0a855e03">chip::NotSpecified</a></div><div class="ttdeci">@ NotSpecified</div><div class="ttdef"><b>Definition:</b> CHIPVendorIdentifiers.hpp:41</div></div>
 <div class="ttc" id="a_code_utils_8h_html_ac4a38a77adf7accad0c23273ff9e86ae"><div class="ttname"><a href="_code_utils_8h.html#ac4a38a77adf7accad0c23273ff9e86ae">chipDie</a></div><div class="ttdeci">void chipDie(void) __attribute((noreturn))</div><div class="ttdoc">This is invoked when a VerifyOrDie or VerifyOrDieWithMsg assertion expression evaluates to false.</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:284</div></div>
 <div class="ttc" id="a_c_h_i_p_device_controller-_j_n_i_8cpp_html_a812d267488c8f2ce02852c12158fb87f"><div class="ttname"><a href="_c_h_i_p_device_controller-_j_n_i_8cpp.html#a812d267488c8f2ce02852c12158fb87f">err</a></div><div class="ttdeci">err</div><div class="ttdef"><b>Definition:</b> CHIPDeviceController-JNI.cpp:295</div></div>
 <div class="ttc" id="a_code_utils_8h_html_a0a31bd399e232b983cd039634a678ccc"><div class="ttname"><a href="_code_utils_8h.html#a0a31bd399e232b983cd039634a678ccc">VerifyOrDieWithMsg</a></div><div class="ttdeci">#define VerifyOrDieWithMsg(aCondition, aModule, aMessage,...)</div><div class="ttdoc">This checks for the specified condition, which is expected to commonly be true and both prints aMessa...</div><div class="ttdef"><b>Definition:</b> CodeUtils.h:356</div></div>
@@ -856,7 +857,7 @@ Functions</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="dir_c85d3e3c5052e9ad9ce18c6863244a25.html">lib</a></li><li class="navelem"><a class="el" href="dir_07debba6119e8fae289f5c0650c95439.html">support</a></li><li class="navelem"><a class="el" href="_code_utils_8h.html">CodeUtils.h</a></li>
-    <li class="footer">Generated on Mon Mar 22 2021 23:28:29 for Connected Home over IP by
+    <li class="footer">Generated on Tue Mar 23 2021 00:12:31 for Connected Home over IP by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.17 </li>
   </ul>

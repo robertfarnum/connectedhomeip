@@ -1,5 +1,9 @@
 var NAVTREEINDEX42 =
 {
+"structchip_1_1_mdns_1_1_resolved_node_data.html":[10,0,1,21,13],
+"structchip_1_1_mdns_1_1_resolved_node_data.html#a0f9b7304029fdd2c20501130dbb8ae62":[10,0,1,21,13,1],
+"structchip_1_1_mdns_1_1_resolved_node_data.html#ab70cf48de043e12f5e94d7e0f29f51bf":[10,0,1,21,13,2],
+"structchip_1_1_mdns_1_1_resolved_node_data.html#adcd383927ed4f7bb2166a44536e100c7":[10,0,1,21,13,0],
 "structchip_1_1_mdns_1_1_text_entry.html":[10,0,1,21,17],
 "structchip_1_1_mdns_1_1_text_entry.html#a1bfc17fe27acd727482505a2f38f11e3":[10,0,1,21,17,2],
 "structchip_1_1_mdns_1_1_text_entry.html#a58e9e54ffa2a492db9b0254d195a1345":[10,0,1,21,17,1],
