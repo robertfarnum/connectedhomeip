@@ -1,5 +1,16 @@
 var NAVTREEINDEX30 =
 {
+"classchip_1_1_mdns_1_1_commission_advertising_parameters.html#aeee757944d687a99f0f6e7349ce0ac44":[10,0,1,21,2,2],
+"classchip_1_1_mdns_1_1_commission_advertising_parameters.html#af4b881811527953880fe6eeae398d048":[10,0,1,21,2,8],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html":[10,0,1,21,3],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a18ad3466e0cb296fca6cae3802abb8f2":[10,0,1,21,3,4],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a19d5a9174437b347f9bc0ef9af58bc67":[10,0,1,21,3,2],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a89a1e367aeb6713ab3c038438853bc36":[10,0,1,21,3,3],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a9519fa8a8d9da6c80c34b893279c4f55":[10,0,1,21,3,7],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a973b4bac9eb9a03ea581590dd1d54c0c":[10,0,1,21,3,6],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#a9fe46e764b4f6ddcfe99ff1436f741ea":[10,0,1,21,3,1],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#ab7f84db2ce42c779486230aad7357ded":[10,0,1,21,3,0],
+"classchip_1_1_mdns_1_1_discovery_impl_platform.html#acd1bdeb67c3955f0a4fd771ac9d9daf8":[10,0,1,21,3,5],
 "classchip_1_1_mdns_1_1_mdns_avahi.html":[10,0,1,21,6],
 "classchip_1_1_mdns_1_1_mdns_avahi.html#a0804f2c4a879accea023c290bc5ed6d1":[10,0,1,21,6,4],
 "classchip_1_1_mdns_1_1_mdns_avahi.html#a31e54633962a40be616ec257fd531357":[10,0,1,21,6,6],
@@ -238,16 +249,5 @@ var NAVTREEINDEX30 =
 "classchip_1_1_q_r_code_setup_payload_generator.html":[10,0,1,62],
 "classchip_1_1_q_r_code_setup_payload_generator.html#a1c779b26f5ae29933b9f943b7b846cec":[10,0,1,62,2],
 "classchip_1_1_q_r_code_setup_payload_generator.html#a836021ecdda075944c25a64defdbe8b0":[10,0,1,62,0],
-"classchip_1_1_q_r_code_setup_payload_generator.html#ae4273ace72fdff5988258c8fd82537af":[10,0,1,62,1],
-"classchip_1_1_q_r_code_setup_payload_parser.html":[10,0,1,63],
-"classchip_1_1_q_r_code_setup_payload_parser.html#a4e246df2b743c823d0a94f8fcad8a6cb":[10,0,1,63,1],
-"classchip_1_1_q_r_code_setup_payload_parser.html#aecc5111d64cc73e6cd3d6c02840c6cdf":[10,0,1,63,0],
-"classchip_1_1_reference_counted.html":[10,0,1,64],
-"classchip_1_1_reference_counted.html#a55cb27804713da7e307645c12802877f":[10,0,1,64,3],
-"classchip_1_1_reference_counted.html#a5b3b701def14594f55efbd3546b1b0f5":[10,0,1,64,0],
-"classchip_1_1_reference_counted.html#a5d45ad64f1ee5b644a79bc7d5066107a":[10,0,1,64,1],
-"classchip_1_1_reference_counted.html#a745d292ebd8c29b1c3a60874fee1010e":[10,0,1,64,2],
-"classchip_1_1_rendezvous_advertisement_delegate.html":[10,0,1,65],
-"classchip_1_1_rendezvous_advertisement_delegate.html#a009b7cbd5e4df6f413290840dd713144":[10,0,1,65,1],
-"classchip_1_1_rendezvous_advertisement_delegate.html#a50359a97ff02dfc0f1e0f23d1dfa9695":[10,0,1,65,3]
+"classchip_1_1_q_r_code_setup_payload_generator.html#ae4273ace72fdff5988258c8fd82537af":[10,0,1,62,1]
 };

@@ -1,5 +1,16 @@
 var NAVTREEINDEX31 =
 {
+"classchip_1_1_q_r_code_setup_payload_parser.html":[10,0,1,63],
+"classchip_1_1_q_r_code_setup_payload_parser.html#a4e246df2b743c823d0a94f8fcad8a6cb":[10,0,1,63,1],
+"classchip_1_1_q_r_code_setup_payload_parser.html#aecc5111d64cc73e6cd3d6c02840c6cdf":[10,0,1,63,0],
+"classchip_1_1_reference_counted.html":[10,0,1,64],
+"classchip_1_1_reference_counted.html#a55cb27804713da7e307645c12802877f":[10,0,1,64,3],
+"classchip_1_1_reference_counted.html#a5b3b701def14594f55efbd3546b1b0f5":[10,0,1,64,0],
+"classchip_1_1_reference_counted.html#a5d45ad64f1ee5b644a79bc7d5066107a":[10,0,1,64,1],
+"classchip_1_1_reference_counted.html#a745d292ebd8c29b1c3a60874fee1010e":[10,0,1,64,2],
+"classchip_1_1_rendezvous_advertisement_delegate.html":[10,0,1,65],
+"classchip_1_1_rendezvous_advertisement_delegate.html#a009b7cbd5e4df6f413290840dd713144":[10,0,1,65,1],
+"classchip_1_1_rendezvous_advertisement_delegate.html#a50359a97ff02dfc0f1e0f23d1dfa9695":[10,0,1,65,3],
 "classchip_1_1_rendezvous_advertisement_delegate.html#a53b14e704201c5efb78618bfcb8ccd28":[10,0,1,65,0],
 "classchip_1_1_rendezvous_advertisement_delegate.html#aafe82e18e6815ff596bab18e3e51f4fd":[10,0,1,65,2],
 "classchip_1_1_rendezvous_device_credentials_delegate.html":[10,0,1,66],
@@ -238,16 +249,5 @@ var NAVTREEINDEX31 =
 "classchip_1_1_system_1_1_layer.html#a0d7ae2bcef7d6fcb67fa60af7e4697ba":[10,0,1,29,2,15],
 "classchip_1_1_system_1_1_layer.html#a19033f4aa5a044e75c7a1301d426ffdc":[10,0,1,29,2,19],
 "classchip_1_1_system_1_1_layer.html#a1e45df49a5658dfa25167c01c70756fb":[10,0,1,29,2,3],
-"classchip_1_1_system_1_1_layer.html#a2ac38607d7e12c251f1e33719c718f16":[10,0,1,29,2,12],
-"classchip_1_1_system_1_1_layer.html#a3d037a56e901fdf68e5007470710ec34":[10,0,1,29,2,22],
-"classchip_1_1_system_1_1_layer.html#a3e818ec97dfca132e3bda30b72b35c25":[10,0,1,29,2,2],
-"classchip_1_1_system_1_1_layer.html#a482b00a32044071226670d8e0b52c539":[10,0,1,29,2,30],
-"classchip_1_1_system_1_1_layer.html#a484dd8680d68c3b749b8808dc57cb406":[10,0,1,29,2,4],
-"classchip_1_1_system_1_1_layer.html#a4c05ea0fbe3353e42a0d38e220c5716e":[10,0,1,29,2,26],
-"classchip_1_1_system_1_1_layer.html#a4e7f00d99b3649e589409bac4e8497c3":[10,0,1,29,2,13],
-"classchip_1_1_system_1_1_layer.html#a50de43af5bed41f30c071d8cce0e81bc":[10,0,1,29,2,33],
-"classchip_1_1_system_1_1_layer.html#a5476d77cc7dc6dfaeee391e33ec8e016":[10,0,1,29,2,29],
-"classchip_1_1_system_1_1_layer.html#a5aacd2ebdd526dcccbc75c48bc13fe98":[10,0,1,29,2,11],
-"classchip_1_1_system_1_1_layer.html#a5c9d5217af674bac407bcd6b47bd1239":[10,0,1,29,2,28],
-"classchip_1_1_system_1_1_layer.html#a5f672c83294b883d3c7a0527eebd9ac8":[10,0,1,29,2,23]
+"classchip_1_1_system_1_1_layer.html#a2ac38607d7e12c251f1e33719c718f16":[10,0,1,29,2,12]
 };

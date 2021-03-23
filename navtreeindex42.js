@@ -1,5 +1,16 @@
 var NAVTREEINDEX42 =
 {
+"structchip_1_1_mdns_1_1_mdns_service.html#a5bf2f5e60ef08a2c0e118a6a1f6321ee":[10,0,1,21,8,2],
+"structchip_1_1_mdns_1_1_mdns_service.html#aa04db8af6e058af0c915a2a194117b4e":[10,0,1,21,8,9],
+"structchip_1_1_mdns_1_1_mdns_service.html#aa6fff81639aee7de67dc410e030039c1":[10,0,1,21,8,4],
+"structchip_1_1_mdns_1_1_mdns_service.html#aa768337caca05bee1c48d8ce7e2948aa":[10,0,1,21,8,3],
+"structchip_1_1_mdns_1_1_mdns_service.html#ac029c6a9b16ded13ec1c6dc60cf07c56":[10,0,1,21,8,1],
+"structchip_1_1_mdns_1_1_mdns_service.html#af0de63876450eec96ecb1441c84a5029":[10,0,1,21,8,6],
+"structchip_1_1_mdns_1_1_register_context.html":[10,0,1,21,11],
+"structchip_1_1_mdns_1_1_register_context.html#ad99df8194e632f4fa0bd994769bc8237":[10,0,1,21,11,0],
+"structchip_1_1_mdns_1_1_resolve_context.html":[10,0,1,21,12],
+"structchip_1_1_mdns_1_1_resolve_context.html#a9251099b8c539f269957d47b76125210":[10,0,1,21,12,1],
+"structchip_1_1_mdns_1_1_resolve_context.html#afaad4b07aa4e39867b25f0e8e06f2648":[10,0,1,21,12,0],
 "structchip_1_1_mdns_1_1_resolved_node_data.html":[10,0,1,21,13],
 "structchip_1_1_mdns_1_1_resolved_node_data.html#a0f9b7304029fdd2c20501130dbb8ae62":[10,0,1,21,13,1],
 "structchip_1_1_mdns_1_1_resolved_node_data.html#ab70cf48de043e12f5e94d7e0f29f51bf":[10,0,1,21,13,2],

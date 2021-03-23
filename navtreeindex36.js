@@ -1,5 +1,16 @@
 var NAVTREEINDEX36 =
 {
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#a326457f4234b70406460f0463dc6d823":[10,0,3,0,36,1],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#a789ee7808dc5a7d4c41f7f3c6bb1ce48":[10,0,3,0,36,6],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#a99edd6e6e6d06452a544248b6719c8d7":[10,0,3,0,36,0],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#aa23eb3b15ce6edb639c6c87226b0b3d4":[10,0,3,0,36,2],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#aa29216eccbf60c83ce372cfdcb54055c":[10,0,3,0,36,8],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#aa647c4387c0e09c43c0e2862e16b86c8":[10,0,3,0,36,4],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#ab88bc5af27b1ec3f209f0cb8b137c155":[10,0,3,0,36,7],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#ac7d2468602d6748e75ab2fc63f9d6179":[10,0,3,0,36,3],
+"classmdns_1_1_minimal_1_1_srv_resource_record.html#ae912594573a2d1c711e7bf2d5d730b3e":[10,0,3,0,36,5],
+"classmdns_1_1_minimal_1_1_srv_responder.html":[10,0,3,0,37],
+"classmdns_1_1_minimal_1_1_srv_responder.html#a14d933f2d49005041d842542d5f1a826":[10,0,3,0,37,0],
 "classmdns_1_1_minimal_1_1_srv_responder.html#a55a9895ca39da1d822e375222f7b79ac":[10,0,3,0,37,1],
 "classmdns_1_1_minimal_1_1_txt_record_delegate.html":[10,0,3,0,38],
 "classmdns_1_1_minimal_1_1_txt_record_delegate.html#a6460b49caa1217febfae1c35f02dacef":[10,0,3,0,38,0],
@@ -238,16 +249,5 @@ var NAVTREEINDEX36 =
 "freertos__bluetooth_8h.html":[11,0,7,2,17],
 "freertos__bluetooth_8h.html#a251f5312e2c400e0f3c670ee878ce639":[11,0,7,2,17,4],
 "freertos__bluetooth_8h.html#a30373a5462be7c79fe83bf9e6590e227":[11,0,7,2,17,5],
-"freertos__bluetooth_8h.html#a34331c74b0be386cb38cc52a0e726c1d":[11,0,7,2,17,11],
-"freertos__bluetooth_8h.html#a38c068697396dd71ecc9353e3db2417e":[11,0,7,2,17,3],
-"freertos__bluetooth_8h.html#a5900d8856b7e0eb3c61b7bd72c566f69":[11,0,7,2,17,0],
-"freertos__bluetooth_8h.html#a85f4aa62df5edf618b6ee3931ac6a0ff":[11,0,7,2,17,15],
-"freertos__bluetooth_8h.html#a8983cc08bab0c5c47346e2f6a3e814de":[11,0,7,2,17,1],
-"freertos__bluetooth_8h.html#aa504760657855bfbf497e8ef662b60cb":[11,0,7,2,17,12],
-"freertos__bluetooth_8h.html#ac88651fb499b8455af3284548fe608cf":[11,0,7,2,17,6],
-"freertos__bluetooth_8h.html#acec711a04bc90fb90b052c57c4b4f2f0":[11,0,7,2,17,7],
-"freertos__bluetooth_8h.html#adb602b4ed278d1cee27ec5fa23a44651":[11,0,7,2,17,16],
-"freertos__bluetooth_8h.html#ae08d3e7c5e7509283470ed21ef1d3ac6":[11,0,7,2,17,8],
-"freertos__bluetooth_8h.html#ae1a519b8b478644e7273e38d438174e9":[11,0,7,2,17,2],
-"freertos__bluetooth_8h.html#ae7a6d074595992ee1ba082633ee29a7c":[11,0,7,2,17,9]
+"freertos__bluetooth_8h.html#a34331c74b0be386cb38cc52a0e726c1d":[11,0,7,2,17,11]
 };

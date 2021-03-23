@@ -57,6 +57,8 @@ var dir_07debba6119e8fae289f5c0650c95439 =
       [ "StaticAllocatorBitmap", "classchip_1_1_static_allocator_bitmap.html", "classchip_1_1_static_allocator_bitmap" ],
       [ "BitMapObjectPool", "classchip_1_1_bit_map_object_pool.html", "classchip_1_1_bit_map_object_pool" ]
     ] ],
+    [ "PrivateHeap.cpp", "_private_heap_8cpp.html", "_private_heap_8cpp" ],
+    [ "PrivateHeap.h", "_private_heap_8h.html", "_private_heap_8h" ],
     [ "RandUtils.cpp", "_rand_utils_8cpp.html", "_rand_utils_8cpp" ],
     [ "RandUtils.h", "_rand_utils_8h.html", "_rand_utils_8h" ],
     [ "ReturnMacros.h", "_return_macros_8h.html", "_return_macros_8h" ],
