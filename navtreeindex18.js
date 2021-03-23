@@ -1,5 +1,6 @@
 var NAVTREEINDEX18 =
 {
+"class_verhoeff16.html#af14262780b0f595422ab6d50e6c43b55":[10,0,20,3],
 "class_verhoeff32.html":[10,0,21],
 "class_verhoeff32.html#a3545bed26d875c4982f40d9fe2a8f8aa":[10,0,21,7],
 "class_verhoeff32.html#a35ee487355ca8b815856464d25dada99":[10,0,21,6],
@@ -248,6 +249,5 @@ var NAVTREEINDEX18 =
 "classchip_1_1_c_a_s_e_session.html#a498cae087d14f279f9e3282fc5100ce0":[10,0,1,38,1],
 "classchip_1_1_c_a_s_e_session.html#a54bf984cfe919f13144c35d194bbca04":[10,0,1,38,8],
 "classchip_1_1_c_a_s_e_session.html#a5b24b6e40cfbd058542d5de0eae8076b":[10,0,1,38,11],
-"classchip_1_1_c_a_s_e_session.html#a63a9be2d074b270724abb158bc492515":[10,0,1,38,7],
-"classchip_1_1_c_a_s_e_session.html#a75a0c55aab60b4957690d5be2625aac8":[10,0,1,38,15]
+"classchip_1_1_c_a_s_e_session.html#a63a9be2d074b270724abb158bc492515":[10,0,1,38,7]
 };

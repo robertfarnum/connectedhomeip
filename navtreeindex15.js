@@ -1,5 +1,6 @@
 var NAVTREEINDEX15 =
 {
+"_system_layer_8cpp.html#a4c3282f11fe6bf42888f1dedaf3fecc9":[11,0,9,9,5],
 "_system_layer_8cpp.html#a503171917a1c25ce848a94a839fc6961":[11,0,9,9,10],
 "_system_layer_8cpp.html#a54207a20651108b4b6018b5c7db3ee39":[11,0,9,9,6],
 "_system_layer_8cpp.html#a5548b26dd472fbb4631d4e48cd5d8c71":[11,0,9,9,3],
@@ -248,6 +249,5 @@ var NAVTREEINDEX15 =
 "_zephyr_2_b_l_e_manager_impl_8cpp.html":[11,0,7,11,0],
 "_zephyr_2_b_l_e_manager_impl_8h.html":[11,0,7,11,1],
 "_zephyr_2_b_l_e_manager_impl_8h_source.html":[11,0,7,11,1],
-"_zephyr_2_c_h_i_p_device_platform_event_8h.html":[11,0,7,11,2],
-"_zephyr_2_c_h_i_p_device_platform_event_8h.html#a4cbbf8da21943033fc2967e8aa475e52":[11,0,7,11,2,6]
+"_zephyr_2_c_h_i_p_device_platform_event_8h.html":[11,0,7,11,2]
 };

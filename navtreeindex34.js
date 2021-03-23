@@ -1,5 +1,6 @@
 var NAVTREEINDEX34 =
 {
+"classchip_1_1_transport_1_1_peer_connections.html":[10,0,1,33,8],
 "classchip_1_1_transport_1_1_peer_connections.html#a0188b8748e6625edbc1f9983fc9f3278":[10,0,1,33,8,7],
 "classchip_1_1_transport_1_1_peer_connections.html#a050a0d30176269abdc81e28ebe761144":[10,0,1,33,8,8],
 "classchip_1_1_transport_1_1_peer_connections.html#a42ab561803ff6cc0dfa16f09b0a6c5af":[10,0,1,33,8,10],
@@ -248,6 +249,5 @@ var NAVTREEINDEX34 =
 "classmdns_1_1_minimal_1_1_bit_packed_flags.html":[10,0,3,0,2],
 "classmdns_1_1_minimal_1_1_bit_packed_flags.html#a0371a8bcf73d78a676d1def82d5bdabb":[10,0,3,0,2,3],
 "classmdns_1_1_minimal_1_1_bit_packed_flags.html#a06ce5079c26ac87765b93a2c2856e56e":[10,0,3,0,2,7],
-"classmdns_1_1_minimal_1_1_bit_packed_flags.html#a6ab16e63031893d4b9cfb573b2a74ac9":[10,0,3,0,2,5],
-"classmdns_1_1_minimal_1_1_bit_packed_flags.html#a7e5c303ff57964e8c8eed598ddc34075":[10,0,3,0,2,4]
+"classmdns_1_1_minimal_1_1_bit_packed_flags.html#a6ab16e63031893d4b9cfb573b2a74ac9":[10,0,3,0,2,5]
 };
