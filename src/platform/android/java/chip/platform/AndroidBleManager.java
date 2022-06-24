@@ -119,6 +119,7 @@ public class AndroidBleManager implements BleManager {
           @Override
           public void onCharacteristicChanged(
               BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+
             byte[] svcIdBytes = convertUUIDToBytes(characteristic.getService().getUuid());
             byte[] charIdBytes = convertUUIDToBytes(characteristic.getUuid());
             int connId = getConnId(gatt);
@@ -154,9 +155,12 @@ public class AndroidBleManager implements BleManager {
               return;
             }
 
-            if (desc.getValue() == BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) {
+            if (desc.getValue() == BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) {
               mPlatform.handleSubscribeComplete(
-                  connId, svcIdBytes, charIdBytes, status == BluetoothGatt.GATT_SUCCESS);
+                      connId, svcIdBytes, charIdBytes, status == BluetoothGatt.GATT_SUCCESS);
+            } else if (desc.getValue() == BluetoothGattDescriptor.ENABLE_INDICATION_VALUE) {
+              mPlatform.handleSubscribeComplete(
+                      connId, svcIdBytes, charIdBytes, status == BluetoothGatt.GATT_SUCCESS);
             } else if (desc.getValue() == BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE) {
               mPlatform.handleUnsubscribeComplete(
                   connId, svcIdBytes, charIdBytes, status == BluetoothGatt.GATT_SUCCESS);
@@ -283,11 +287,29 @@ public class AndroidBleManager implements BleManager {
 
     BluetoothGattDescriptor descriptor =
         subscribeChar.getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIG));
-    descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
     if (!bluetoothGatt.writeDescriptor(descriptor)) {
       Log.e(TAG, "writeDescriptor failed");
       return false;
     }
+//    descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+//    if (!bluetoothGatt.writeDescriptor(descriptor)) {
+//      Log.e(TAG, "writeDescriptor failed");
+//      return false;
+//    }
+
+
+
+
+
+
+
+
+
+
+
+
+
     return true;
   }
 

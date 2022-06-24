@@ -87,7 +87,7 @@ pthread_t sIOThread = PTHREAD_NULL;
 
 jclass sChipDeviceControllerExceptionCls = NULL;
 
-const char * PARAMS_CLASS = "()Lchip/devicecontroller/ControllerParams;";
+//const char * PARAMS_CLASS = "()Lchip/devicecontroller/ControllerParams;";
 
 } // namespace
 
@@ -166,27 +166,27 @@ JNI_METHOD(jlong, newDeviceController)(JNIEnv * env, jobject self, jobject contr
 
     // Retrieve initialization params.
     jmethodID getUdpListenPort;
-    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getUdpListenPort", PARAMS_CLASS, &getUdpListenPort);
+    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getUdpListenPort", "()I", &getUdpListenPort);
     SuccessOrExit(err);
 
     jmethodID getKeypairDelegate;
-    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getKeypairDelegate", PARAMS_CLASS,
+    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getKeypairDelegate", "()Lchip/devicecontroller/KeypairDelegate;",
                                                         &getKeypairDelegate);
 
     jmethodID getRootCertificate;
-    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getRootCertificate", PARAMS_CLASS,
+    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getRootCertificate", "()[B",
                                                         &getRootCertificate);
 
     jmethodID getIntermediateCertificate;
-    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getIntermediateCertificate", PARAMS_CLASS,
+    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getIntermediateCertificate", "()[B",
                                                         &getIntermediateCertificate);
 
     jmethodID getOperationalCertificate;
-    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getOperationalCertificate", PARAMS_CLASS,
+    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getOperationalCertificate", "()[B",
                                                         &getOperationalCertificate);
 
     jmethodID getIpk;
-    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getIpk", PARAMS_CLASS, &getIpk);
+    err = chip::JniReferences::GetInstance().FindMethod(env, controllerParams, "getIpk", "()[B", &getIpk);
 
     {
         uint16_t listenPort                = env->CallIntMethod(controllerParams, getUdpListenPort);
