@@ -150,10 +150,7 @@ def bundle(platform: str, device_name: str) -> None:
         flush_print(f"No bundle function for {platform}!")
         exit(1)
     flush_print(f"Copying {matter_file}")
-    src_item = os.path.join(_REPO_BASE_PATH,
-                            "zzz_generated",
-                            "chef-"+device_name,
-                            "zap-generated",
+    src_item = os.path.join(_DEVICE_FOLDER,
                             matter_file)
     dest_item = os.path.join(_CD_STAGING_DIR, matter_file)
     shutil.copy(src_item, dest_item)
@@ -322,6 +319,8 @@ def main(argv: Sequence[str]) -> None:
                       dest="use_zzz", action="store_true")
     parser.add_option("", "--build_all", help="For use in CD only. Builds and bundles all chef examples for the specified platform. Uses --use_zzz. Chef exits after completion.",
                       dest="build_all", action="store_true")
+    parser.add_option("-k", "--keep_going", help="For use in CD only. Continues building all sample apps in the event of an error.",
+                      dest="keep_going", action="store_true")
     parser.add_option(
         "", "--ci", help="Builds Chef examples defined in cicd_config. Uses --use_zzz. Uses specified target from -t. Chef exits after completion.", dest="ci", action="store_true")
 
@@ -387,13 +386,17 @@ def main(argv: Sequence[str]) -> None:
                 except RuntimeError as build_fail_error:
                     failed_builds.append((device_name, platform, "build"))
                     flush_print(str(build_fail_error))
-                    break
+                    if not options.keep_going:
+                        exit(1)
+                    continue
                 try:
                     bundle(platform, device_name)
                 except FileNotFoundError as bundle_fail_error:
                     failed_builds.append((device_name, platform, "bundle"))
                     flush_print(str(bundle_fail_error))
-                    break
+                    if not options.keep_going:
+                        exit(1)
+                    continue
                 archive_name = f"{label}-{device_name}"
                 archive_full_name = archive_prefix + archive_name + archive_suffix
                 flush_print(f"Adding build output to archive {archive_full_name}")
@@ -501,6 +504,7 @@ def main(argv: Sequence[str]) -> None:
     #
 
     if options.do_build:
+        sw_ver_string = ""
         if options.do_automated_test_stamp:
             branch = ""
             for branch_text in shell.run_cmd("git branch", return_cmd_output=True).split("\n"):
@@ -543,9 +547,9 @@ def main(argv: Sequence[str]) -> None:
 
         else:
             flush_print("RPC PW disabled")
-        if (options.build_target == "esp32"):
-            shell.run_cmd(
-                f"export SDKCONFIG_DEFAULTS={_CHEF_SCRIPT_PATH}/esp32/sdkconfig.defaults")
+            if (options.build_target == "esp32"):
+                shell.run_cmd(
+                    f"export SDKCONFIG_DEFAULTS={_CHEF_SCRIPT_PATH}/esp32/sdkconfig.defaults")
 
         flush_print(
             f"Product ID 0x{options.pid:02X} / Vendor ID 0x{options.vid:02X}")
@@ -557,7 +561,8 @@ def main(argv: Sequence[str]) -> None:
                         set(CONFIG_DEVICE_VENDOR_ID {options.vid})
                         set(CONFIG_DEVICE_PRODUCT_ID {options.pid})
                         set(CONFIG_ENABLE_PW_RPC {"1" if options.do_rpc else "0"})
-                        set(SAMPLE_NAME {options.sample_device_type_name})"""))
+                        set(SAMPLE_NAME {options.sample_device_type_name})
+                        set(CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING \"{sw_ver_string}\")"""))
 
         if options.build_target == "esp32":
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}/esp32")
@@ -592,7 +597,7 @@ def main(argv: Sequence[str]) -> None:
         elif options.build_target == "linux":
             shell.run_cmd(f"cd {_CHEF_SCRIPT_PATH}/linux")
             with open(f"{_CHEF_SCRIPT_PATH}/linux/args.gni", "w") as f:
-                sw_ver_string_config_text = f"chip_device_config_device_software_version_string = \"{sw_ver_string}\"" if options.do_automated_test_stamp else ""
+                sw_ver_string_config_text = f"chip_device_config_device_software_version_string = \"{sw_ver_string}\"" if sw_ver_string else ""
                 f.write(textwrap.dedent(f"""\
                         import("//build_overrides/chip.gni")
                         import("${{chip_root}}/config/standalone/args.gni")

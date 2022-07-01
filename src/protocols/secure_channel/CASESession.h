@@ -26,13 +26,10 @@
 #pragma once
 
 #include <credentials/CHIPCert.h>
-#include <crypto/CHIPCryptoPAL.h>
-#if CHIP_CRYPTO_HSM
-#include <crypto/hsm/CHIPCryptoPALHsm.h>
-#endif
 #include <credentials/CertificateValidityPolicy.h>
 #include <credentials/FabricTable.h>
 #include <credentials/GroupDataProvider.h>
+#include <crypto/CHIPCryptoPAL.h>
 #include <lib/core/CHIPTLV.h>
 #include <lib/core/ScopedNodeId.h>
 #include <lib/support/Base64.h>
@@ -49,10 +46,6 @@
 #include <transport/raw/PeerAddress.h>
 
 namespace chip {
-
-#ifdef ENABLE_HSM_CASE_EPHEMERAL_KEY
-#define CASE_EPHEMERAL_KEY 0xCA5EECD0
-#endif
 
 // TODO: temporary derive from Messaging::UnsolicitedMessageHandler, actually the CASEServer should be the umh, it will be fixed
 // when implementing concurrent CASE session.
@@ -80,15 +73,16 @@ public:
      * @param previouslyEstablishedPeer     If a session had previously been established successfully to a peer, this should
      *                                      be set to its scoped node-id. Else, this should be initialized to a
      *                                      default-constructed ScopedNodeId().
-     * @param mrpConfig                     MRP configuration to encode into Sigma2. If not provided, it won't be encoded.
+     * @param mrpLocalConfig                MRP configuration to encode into Sigma2. If not provided, it won't be encoded.
      *
      * @return CHIP_ERROR     The result of initialization
      */
-    CHIP_ERROR PrepareForSessionEstablishment(
-        SessionManager & sessionManager, FabricTable * fabricTable, SessionResumptionStorage * sessionResumptionStorage,
-        Credentials::CertificateValidityPolicy * policy, SessionEstablishmentDelegate * delegate,
-        const ScopedNodeId & previouslyEstablishedPeer,
-        Optional<ReliableMessageProtocolConfig> mrpConfig = Optional<ReliableMessageProtocolConfig>::Missing());
+    CHIP_ERROR PrepareForSessionEstablishment(SessionManager & sessionManager, FabricTable * fabricTable,
+                                              SessionResumptionStorage * sessionResumptionStorage,
+                                              Credentials::CertificateValidityPolicy * policy,
+                                              SessionEstablishmentDelegate * delegate,
+                                              const ScopedNodeId & previouslyEstablishedPeer,
+                                              Optional<ReliableMessageProtocolConfig> mrpLocalConfig);
 
     /**
      * @brief
@@ -107,7 +101,7 @@ public:
     EstablishSession(SessionManager & sessionManager, FabricTable * fabricTable, ScopedNodeId peerScopedNodeId,
                      Messaging::ExchangeContext * exchangeCtxt, SessionResumptionStorage * sessionResumptionStorage,
                      Credentials::CertificateValidityPolicy * policy, SessionEstablishmentDelegate * delegate,
-                     Optional<ReliableMessageProtocolConfig> mrpConfig = Optional<ReliableMessageProtocolConfig>::Missing());
+                     Optional<ReliableMessageProtocolConfig> mrpLocalConfig);
 
     /**
      * @brief Set the Group Data Provider which will be used to look up IPKs
@@ -168,22 +162,12 @@ public:
     void OnSessionReleased() override;
 
     //// FabricTable::Delegate Implementation ////
-    void OnFabricDeletedFromStorage(FabricTable & fabricTable, FabricIndex fabricIndex) override
+    void OnFabricRemoved(const FabricTable & fabricTable, FabricIndex fabricIndex) override
     {
         (void) fabricTable;
         InvalidateIfPendingEstablishmentOnFabric(fabricIndex);
     }
-    void OnFabricRetrievedFromStorage(FabricTable & fabricTable, FabricIndex fabricIndex) override
-    {
-        (void) fabricTable;
-        (void) fabricIndex;
-    }
-    void OnFabricPersistedToStorage(FabricTable & fabricTable, FabricIndex fabricIndex) override
-    {
-        (void) fabricTable;
-        (void) fabricIndex;
-    }
-    void OnFabricNOCUpdated(chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override
+    void OnFabricUpdated(const chip::FabricTable & fabricTable, chip::FabricIndex fabricIndex) override
     {
         (void) fabricTable;
         InvalidateIfPendingEstablishmentOnFabric(fabricIndex);
@@ -197,7 +181,7 @@ public:
     void Clear();
 
 private:
-    friend class CASESessionForTest;
+    friend class TestCASESession;
     enum class State : uint8_t
     {
         kInitialized       = 0,
@@ -278,11 +262,7 @@ private:
 
     Crypto::Hash_SHA256_stream mCommissioningHash;
     Crypto::P256PublicKey mRemotePubKey;
-#ifdef ENABLE_HSM_CASE_EPHEMERAL_KEY
-    Crypto::P256KeypairHSM mEphemeralKey;
-#else
-    Crypto::P256Keypair mEphemeralKey;
-#endif
+    Crypto::P256Keypair * mEphemeralKey = nullptr;
     Crypto::P256ECDHDerivedSecret mSharedSecret;
     Credentials::ValidationContext mValidContext;
     Credentials::GroupDataProvider * mGroupDataProvider = nullptr;

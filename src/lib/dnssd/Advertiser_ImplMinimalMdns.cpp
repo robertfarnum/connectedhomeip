@@ -222,7 +222,7 @@ private:
     CHIP_ERROR AddCommonTxtEntries(const BaseAdvertisingParams<Derived> & params, CommonTxtEntryStorage & storage,
                                    char ** txtFields, size_t & numTxtFields)
     {
-        auto optionalMrp = params.GetMRPConfig();
+        auto optionalMrp = params.GetLocalMRPConfig();
 
         if (optionalMrp.HasValue())
         {
@@ -323,7 +323,7 @@ void AdvertiserMinMdns::OnQuery(const QueryData & data)
     CHIP_ERROR err = mResponseSender.Respond(mMessageId, data, mCurrentSource, defaultResponseConfiguration);
     if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(Discovery, "Failed to reply to query: %s", ErrorStr(err));
+        ChipLogError(Discovery, "Failed to reply to query: %" CHIP_ERROR_FORMAT, err.Format());
     }
 }
 
@@ -936,7 +936,7 @@ void AdvertiserMinMdns::AdvertiseRecords(BroadcastAdvertiseType type)
         CHIP_ERROR err = mResponseSender.Respond(0, queryData, &packetInfo, responseConfiguration);
         if (err != CHIP_NO_ERROR)
         {
-            ChipLogError(Discovery, "Failed to advertise records: %s", ErrorStr(err));
+            ChipLogError(Discovery, "Failed to advertise records: %" CHIP_ERROR_FORMAT, err.Format());
         }
     }
 

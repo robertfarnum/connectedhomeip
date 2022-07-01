@@ -101,7 +101,7 @@ public:
     /**
      * Encode the provided MRP parameters using the provided TLV tag.
      */
-    static CHIP_ERROR EncodeMRPParameters(TLV::Tag tag, const ReliableMessageProtocolConfig & mrpConfig,
+    static CHIP_ERROR EncodeMRPParameters(TLV::Tag tag, const ReliableMessageProtocolConfig & mrpLocalConfig,
                                           TLV::TLVWriter & tlvWriter);
 
 protected:
@@ -151,7 +151,7 @@ protected:
         CHIP_ERROR err = exchangeCtxt->SendMessage(Protocols::SecureChannel::MsgType::StatusReport, std::move(msg));
         if (err != CHIP_NO_ERROR)
         {
-            ChipLogError(SecureChannel, "Failed to send status report message. %s", ErrorStr(err));
+            ChipLogError(SecureChannel, "Failed to send status report message: %" CHIP_ERROR_FORMAT, err.Format());
         }
     }
 
@@ -204,7 +204,7 @@ protected:
     // mLocalMRPConfig is our config which is sent to the other end and used by the peer session.
     // mRemoteMRPConfig is received from other end and set to our session.
     Optional<ReliableMessageProtocolConfig> mLocalMRPConfig;
-    ReliableMessageProtocolConfig mRemoteMRPConfig = GetLocalMRPConfig();
+    ReliableMessageProtocolConfig mRemoteMRPConfig = GetDefaultMRPConfig();
 
 private:
     Optional<uint16_t> mPeerSessionId;

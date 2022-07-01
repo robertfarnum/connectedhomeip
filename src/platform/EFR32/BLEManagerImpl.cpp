@@ -691,7 +691,6 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
     sl_status_t ret;
     uint32_t interval_min;
     uint32_t interval_max;
-    uint32_t BleAdvTimeoutMs;
     uint16_t numConnectionss = NumConnections();
     uint8_t connectableAdv =
         (numConnectionss < kMaxConnections) ? sl_bt_advertiser_connectable_scannable : sl_bt_advertiser_scannable_non_connectable;
@@ -706,14 +705,10 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
         ChipLogDetail(DeviceLayer, "Start BLE advertissement");
     }
 
-#ifndef EFR32MG24
-    // set_random_address causes issues in BLE driver later on with MG24 family.
-    // To be remove when updateing to GSDK4.0
     const uint8_t kResolvableRandomAddrType = 2; // Private resolvable random address type
     bd_addr unusedBdAddr;                        // We can ignore this field when setting random address.
     sl_bt_advertiser_set_random_address(advertising_set_handle, kResolvableRandomAddrType, unusedBdAddr, &unusedBdAddr);
     (void) unusedBdAddr;
-#endif
 
     err = ConfigureAdvertisingData();
     SuccessOrExit(err);
@@ -722,15 +717,13 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
 
     if (mFlags.Has(Flags::kFastAdvertisingEnabled))
     {
-        interval_min    = CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_INTERVAL_MIN;
-        interval_max    = CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_INTERVAL_MAX;
-        BleAdvTimeoutMs = CHIP_DEVICE_CONFIG_BLE_ADVERTISING_INTERVAL_CHANGE_TIME;
+        interval_min = CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_INTERVAL_MIN;
+        interval_max = CHIP_DEVICE_CONFIG_BLE_FAST_ADVERTISING_INTERVAL_MAX;
     }
     else
     {
-        interval_min    = CHIP_DEVICE_CONFIG_BLE_SLOW_ADVERTISING_INTERVAL_MIN;
-        interval_max    = CHIP_DEVICE_CONFIG_BLE_SLOW_ADVERTISING_INTERVAL_MAX;
-        BleAdvTimeoutMs = CHIP_DEVICE_CONFIG_BLE_ADVERTISING_TIMEOUT;
+        interval_min = CHIP_DEVICE_CONFIG_BLE_SLOW_ADVERTISING_INTERVAL_MIN;
+        interval_max = CHIP_DEVICE_CONFIG_BLE_SLOW_ADVERTISING_INTERVAL_MAX;
     }
 
     ret = sl_bt_advertiser_set_timing(advertising_set_handle, interval_min, interval_max, 0, 0);
@@ -742,7 +735,10 @@ CHIP_ERROR BLEManagerImpl::StartAdvertising(void)
 
     if (SL_STATUS_OK == ret)
     {
-        StartBleAdvTimeoutTimer(BleAdvTimeoutMs);
+        if (mFlags.Has(Flags::kFastAdvertisingEnabled))
+        {
+            StartBleAdvTimeoutTimer(CHIP_DEVICE_CONFIG_BLE_ADVERTISING_INTERVAL_CHANGE_TIME);
+        }
         mFlags.Set(Flags::kAdvertising);
     }
 
@@ -1079,12 +1075,6 @@ void BLEManagerImpl::BleAdvTimeoutHandler(TimerHandle_t xTimer)
     {
         ChipLogDetail(DeviceLayer, "bleAdv Timeout : Start slow advertissment");
         BLEMgr().SetAdvertisingMode(BLEAdvertisingMode::kSlowAdvertising);
-    }
-    else if (BLEMgrImpl().mFlags.Has(Flags::kAdvertising))
-    {
-        // Advertisement time expired. Stop advertising
-        ChipLogDetail(DeviceLayer, "bleAdv Timeout : Stop advertissement");
-        BLEMgr().SetAdvertisingEnabled(false);
     }
 }
 

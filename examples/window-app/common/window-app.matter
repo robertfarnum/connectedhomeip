@@ -931,7 +931,9 @@ server cluster SoftwareDiagnostics = 52 {
   }
 
   info event SoftwareFault = 0 {
-    SoftwareFaultStruct softwareFault = 0;
+    INT64U id = 0;
+    optional CHAR_STRING name = 1;
+    optional OCTET_STRING faultRecording = 2;
   }
 
   readonly attribute ThreadMetrics threadMetrics[] = 0;
@@ -1672,7 +1674,7 @@ endpoint 0 {
     callback attribute generatedCommandList;
     callback attribute acceptedCommandList;
     callback attribute attributeList;
-    ram      attribute featureMap default = 6;
+    ram      attribute featureMap;
     ram      attribute clusterRevision default = 1;
   }
 

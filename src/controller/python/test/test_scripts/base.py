@@ -370,24 +370,103 @@ class BaseTestHelper:
         # of eviction, just that allocation and CASE session establishment proceeds successfully on both
         # the controller and target.
         #
-        for x in range(minimumSupportedFabrics * minimumCASESessionsPerFabric * 3):
+        for x in range(minimumSupportedFabrics * minimumCASESessionsPerFabric * 2):
             self.devCtrl.CloseSession(nodeid)
             await self.devCtrl.ReadAttribute(nodeid, [(Clusters.Basic.Attributes.ClusterRevision)])
 
         self.logger.info("Testing CASE defunct logic")
 
         #
-        # This tests establishing a subscription on a given CASE session, then mark it defunct (to simulate
+        # This tests establishes a subscription on a given CASE session, then marks it defunct (to simulate
         # encountering a transport timeout on the session).
         #
-        # At the max interval, we should still have a valid subscription.
+        # Then, we write to the attribute that was subscribed to from a *different* fabric and check to ensure we still get a report
+        # on the sub we established previously. Since it was just marked defunct, it should return back to being
+        # active and a report should get delivered.
         #
-        sub = await self.devCtrl.ReadAttribute(nodeid, [(Clusters.Basic.Attributes.ClusterRevision)], reportInterval=(0, 2))
-        await asyncio.sleep(2)
+        sawValueChange = False
+
+        def OnValueChange(path: Attribute.TypedAttributePath, transaction: Attribute.SubscriptionTransaction) -> None:
+            nonlocal sawValueChange
+            self.logger.info("Saw value change!")
+            if (path.AttributeType == Clusters.TestCluster.Attributes.Int8u and path.Path.EndpointId == 1):
+                sawValueChange = True
+
+        self.logger.info("Testing CASE defunct logic")
+
+        sub = await self.devCtrl.ReadAttribute(nodeid, [(Clusters.TestCluster.Attributes.Int8u)], reportInterval=(0, 1))
+        sub.SetAttributeUpdateCallback(OnValueChange)
+
+        #
+        # This marks the session defunct.
+        #
         self.devCtrl.CloseSession(nodeid)
-        await asyncio.sleep(4)
+
+        #
+        # Now write the attribute from fabric2, give it some time before checking if the report
+        # was received.
+        #
+        await self.devCtrl2.WriteAttribute(nodeid, [(1, Clusters.TestCluster.Attributes.Int8u(4))])
+        time.sleep(2)
 
         sub.Shutdown()
+
+        if sawValueChange is False:
+            self.logger.error("Didn't see value change in time, likely because sub got terminated due to unexpected session eviction!")
+            return False
+
+        #
+        # In this test, we're going to setup a subscription on fabric1 through devCtl, then, constantly keep
+        # evicting sessions on fabric2 (devCtl2) by cycling through closing sessions followed by issuing a Read. This
+        # should result in evictions on the server on fabric2, but not affect any sessions on fabric1. To test this,
+        # we're going to setup a subscription to an attribute prior to the cycling reads, and check at the end of the
+        # test that it's still valid by writing to an attribute from a *different* fabric, and validating that we see
+        # the change on the established subscription. That proves that the session from fabric1 is still valid and untouched.
+        #
+        self.logger.info("Testing fabric-isolated CASE eviction")
+
+        sawValueChange = False
+        sub = await self.devCtrl.ReadAttribute(nodeid, [(Clusters.TestCluster.Attributes.Int8u)], reportInterval=(0, 1))
+        sub.SetAttributeUpdateCallback(OnValueChange)
+
+        for x in range(minimumSupportedFabrics * minimumCASESessionsPerFabric * 2):
+            self.devCtrl2.CloseSession(nodeid)
+            await self.devCtrl2.ReadAttribute(nodeid, [(Clusters.Basic.Attributes.ClusterRevision)])
+
+        #
+        # Now write the attribute from fabric2, give it some time before checking if the report
+        # was received.
+        #
+        await self.devCtrl2.WriteAttribute(nodeid, [(1, Clusters.TestCluster.Attributes.Int8u(4))])
+        time.sleep(2)
+
+        sub.Shutdown()
+
+        if sawValueChange is False:
+            self.logger.error("Didn't see value change in time, likely because sub got terminated due to other fabric (fabric1)")
+            return False
+
+        #
+        # Do the same test again, but reversing the roles of fabric1 and fabric2.
+        #
+        self.logger.info("Testing fabric-isolated CASE eviction (reverse)")
+
+        sawValueChange = False
+        sub = await self.devCtrl2.ReadAttribute(nodeid, [(Clusters.TestCluster.Attributes.Int8u)], reportInterval=(0, 1))
+        sub.SetAttributeUpdateCallback(OnValueChange)
+
+        for x in range(minimumSupportedFabrics * minimumCASESessionsPerFabric * 2):
+            self.devCtrl.CloseSession(nodeid)
+            await self.devCtrl.ReadAttribute(nodeid, [(Clusters.Basic.Attributes.ClusterRevision)])
+
+        await self.devCtrl.WriteAttribute(nodeid, [(1, Clusters.TestCluster.Attributes.Int8u(4))])
+        time.sleep(2)
+
+        sub.Shutdown()
+
+        if sawValueChange is False:
+            self.logger.error("Didn't see value change in time, likely because sub got terminated due to other fabric (fabric2)")
+            return False
 
         return True
 
@@ -410,14 +489,7 @@ class BaseTestHelper:
             return False
 
         #
-        # Shutting down controllers results in races where the resolver still delivers
-        # resolution results to a now destroyed controller. Add a sleep for now to work around
-        # it while #14555 is being resolved.
-        time.sleep(1)
-
-        #
-        # Shut-down all the controllers (which will free them up as well as de-initialize the
-        # stack as well.
+        # Shut-down all the controllers (which will free them up)
         #
         self.logger.info(
             "Shutting down controllers & fabrics and re-initing stack...")

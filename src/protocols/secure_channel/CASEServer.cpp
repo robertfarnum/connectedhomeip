@@ -132,8 +132,7 @@ void CASEServer::PrepareForSessionEstablishment(const ScopedNodeId & previouslyE
     //
     VerifyOrDie(GetSession().PrepareForSessionEstablishment(*mSessionManager, mFabrics, mSessionResumptionStorage,
                                                             mCertificateValidityPolicy, this, previouslyEstablishedPeer,
-                                                            Optional<ReliableMessageProtocolConfig>::Value(GetLocalMRPConfig())) ==
-                CHIP_NO_ERROR);
+                                                            GetLocalMRPConfig()) == CHIP_NO_ERROR);
 
     //
     // PairingSession::mSecureSessionHolder is a weak-reference. If MarkForEviction is called on this session, the session is
@@ -156,7 +155,7 @@ void CASEServer::PrepareForSessionEstablishment(const ScopedNodeId & previouslyE
 
 void CASEServer::OnSessionEstablishmentError(CHIP_ERROR err)
 {
-    ChipLogError(Inet, "CASE Session establishment failed: %s", ErrorStr(err));
+    ChipLogError(Inet, "CASE Session establishment failed: %" CHIP_ERROR_FORMAT, err.Format());
 
     //
     // We're not allowed to call methods that will eventually result in calling SessionManager::AllocateSecureSession

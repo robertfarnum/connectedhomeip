@@ -68,12 +68,12 @@ function getManualTests() {
   const Groups = [
     'TestGroupDemoCommand',
     'TestGroupDemoConfig',
-    'Test_TC_GR_1_1',
-    'Test_TC_GR_2_1',
-    'Test_TC_GR_2_2',
-    'Test_TC_GR_2_3',
-    'Test_TC_GR_3_1',
-    'Test_TC_GR_3_2',
+    'Test_TC_G_1_1',
+    'Test_TC_G_2_1',
+    'Test_TC_G_2_2',
+    'Test_TC_G_2_3',
+    'Test_TC_G_3_1',
+    'Test_TC_G_3_2',
   ];
 
   const BulkDataExchangeProtocol = [
@@ -94,12 +94,6 @@ function getManualTests() {
     'Test_TC_BR_1',
     'Test_TC_BR_2',
     'Test_TC_BR_3',
-  ];
-
-  const BridgedActions = [
-    'Test_TC_BRAC_2_1',
-    'Test_TC_BRAC_2_2',
-    'Test_TC_BRAC_3_1',
   ];
 
   const DeviceAttestation = [
@@ -169,7 +163,10 @@ function getManualTests() {
   ];
 
   const GeneralDiagnostics = [
-    'Test_TC_GENDIAG_1_2',
+    'Test_TC_DGGEN_2_2',
+    'Test_TC_DGGEN_2_3',
+    'Test_TC_DGGEN_3_1',
+    'Test_TC_DGGEN_3_2',
   ];
 
   const Identify = [
@@ -250,6 +247,12 @@ function getManualTests() {
     'Test_TC_MF_1_26',
     'Test_TC_MF_1_27',
     'Test_TC_MF_1_28',
+    // Slow tests that should not run in CI because they take many minutes each
+    'Test_TC_MF_1_5',
+    'Test_TC_MF_1_6',
+    'Test_TC_MF_1_9',
+    'Test_TC_MF_1_10',
+    'Test_TC_MF_1_15',
   ];
 
   const ModeSelect = [
@@ -260,6 +263,7 @@ function getManualTests() {
     'Test_TC_MOD_3_1',
     'Test_TC_MOD_3_2',
     'Test_TC_MOD_3_3',
+    'Test_TC_MOD_3_4',
   ];
 
   const OTASoftwareUpdate = [
@@ -365,6 +369,10 @@ function getManualTests() {
     'Test_TC_CC_6_4',
     'Test_TC_CC_7_5',
     'Test_TC_CC_9_4',
+    // Slow tests that should not run in CI because they take many minutes each
+    'Test_TC_CC_9_1',
+    'Test_TC_CC_9_2',
+    'Test_TC_CC_9_3',
   ];
 
   const DoorLock = [
@@ -401,6 +409,7 @@ function getManualTests() {
     'Test_TC_SWTCH_1_1',
     'Test_TC_SWTCH_2_2',
     'Test_TC_SWTCH_3_1',
+    'Test_TC_SWTCH_3_2',
   ];
 
   const TemperatureMeasurement = [
@@ -418,14 +427,16 @@ function getManualTests() {
   ];
 
   const ThreadNetworkDiagnostics = [
-    'Test_TC_DIAG_TH_NW_2_6',
-    'Test_TC_DIAG_TH_NW_2_7',
-    'Test_TC_DIAG_TH_NW_2_8',
-    'Test_TC_DIAG_TH_NW_2_9',
+    'Test_TC_DIAG_TH_NW_1_1',
+    'Test_TC_DIAG_TH_NW_2_5',
+    'Test_TC_DIAG_TH_NW_3_1',
+    'Test_TC_DIAG_TH_NW_3_2',
+    'Test_TC_DIAG_TH_NW_3_3',
+    'Test_TC_DIAG_TH_NW_3_4',
+    'Test_TC_DIAG_TH_NW_3_5',
   ];
 
   const Actions = [
-    'Test_TC_ACT_1_1',
     'Test_TC_ACT_2_1',
     'Test_TC_ACT_2_2',
     'Test_TC_ACT_3_1',
@@ -435,14 +446,14 @@ function getManualTests() {
     'Test_TC_TFL_1_1',
     'Test_TC_TFL_1_2',
     'Test_TC_TFL_2_1',
-    'Test_TC_TFL_2_2',
+    'Test_TC_TFL_3_1',
   ];
 
   const UnitLocalization = [
     'Test_TC_UL_1_1',
     'Test_TC_UL_1_2',
     'Test_TC_UL_2_1',
-    'Test_TC_UL_2_2',
+    'Test_TC_UL_3_1',
   ];
 
   const FixedLabel = [
@@ -464,12 +475,15 @@ function getManualTests() {
     'Test_TC_S_3_1',
   ];
 
+  const PumpConfigurationControl = [
+    'Test_TC_PCC_3_1',
+  ];
+
   const tests = [
     DeviceDiscovery,
     Groups,
     BulkDataExchangeProtocol,
     bridge,
-    BridgedActions,
     DeviceAttestation,
     DeviceManagement,
     DiagnosticsLogs,
@@ -511,6 +525,7 @@ function getManualTests() {
     FixedLabel,
     Binding,
     Scenes,
+    PumpConfigurationControl,
   ].flat(1);
 
   tests.disable = disable.bind(tests);
@@ -522,19 +537,13 @@ function getTests() {
     'TestAccessControlCluster',
   ];
 
-  const BinaryInput = [
-    'Test_TC_BI_1_1',
-    'Test_TC_BI_2_1',
-    'Test_TC_BI_2_2',
-  ];
-
   const BooleanState = [
     'Test_TC_BOOL_1_1',
     'Test_TC_BOOL_2_1',
   ];
 
-  const BridgedActions = [
-    'Test_TC_BRAC_1_1',
+  const Actions = [
+    'Test_TC_ACT_1_1',
   ];
 
   const ColorControl = [
@@ -558,9 +567,6 @@ function getTests() {
     'Test_TC_CC_7_3',
     'Test_TC_CC_7_4',
     'Test_TC_CC_8_1',
-    'Test_TC_CC_9_1',
-    'Test_TC_CC_9_2',
-    'Test_TC_CC_9_3',
   ];
 
   const DeviceManagement = [
@@ -569,11 +575,6 @@ function getTests() {
 
   const Descriptor = [
     'Test_TC_DESC_1_1',
-  ];
-
-
-  const ElectricalMeasurement = [
-    'Test_TC_EMR_1_1',
   ];
 
   const EthernetNetworkDiagnostics = [
@@ -677,11 +678,6 @@ function getTests() {
   const MultipleFabrics = [
     'Test_TC_MF_1_3',
     'Test_TC_MF_1_4',
-    'Test_TC_MF_1_5',
-    'Test_TC_MF_1_6',
-    'Test_TC_MF_1_9',
-    'Test_TC_MF_1_10',
-    'Test_TC_MF_1_15',
   ];
 
   const OTASoftwareUpdate = [
@@ -748,10 +744,10 @@ function getTests() {
   ];
 
   const ThreadNetworkDiagnostics = [
-    'Test_TC_DIAG_TH_NW_1_1',
-    'Test_TC_DIAG_TH_NW_1_2',
+    'Test_TC_DIAG_TH_NW_2_1',
     'Test_TC_DIAG_TH_NW_2_2',
     'Test_TC_DIAG_TH_NW_2_3',
+    'Test_TC_DIAG_TH_NW_2_4',
   ];
 
   const WiFiNetworkDiagnostics = [
@@ -851,13 +847,11 @@ function getTests() {
 
   const tests = [
     AccessControl,
-    BinaryInput,
     BooleanState,
-    BridgedActions,
+    Actions,
     ColorControl,
     DeviceManagement,
     Descriptor,
-    ElectricalMeasurement,
     EthernetNetworkDiagnostics,
     FlowMeasurement,
     GeneralCommissioning,
