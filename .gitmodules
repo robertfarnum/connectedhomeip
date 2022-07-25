@@ -266,3 +266,9 @@ path = third_party/silabs/wiseconnect-wifi-bt-sdk
 url = https://github.com/SiliconLabs/wiseconnect-wifi-bt-sdk.git
 branch = master
 platforms = efr32
+[submodule "editline"]
+path = third_party/editline/repo
+url = https://github.com/troglobit/editline.git
+[submodule "third_party/boringssl/repo/src"]
+path = third_party/boringssl/repo/src
+url = https://github.com/google/boringssl.git
