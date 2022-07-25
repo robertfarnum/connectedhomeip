@@ -55,7 +55,7 @@ void CommissioningWindowManager::OnPlatformEvent(const DeviceLayer::ChipDeviceEv
         DeviceLayer::SystemLayer().CancelTimer(HandleCommissioningWindowTimeout, this);
         mCommissioningTimeoutTimerArmed = false;
         Cleanup();
-        mServer->GetSecureSessionManager().ExpireAllPASEPairings();
+        mServer->GetSecureSessionManager().ExpireAllPASESessions();
         // That should have cleared out mPASESession.
 #if CONFIG_NETWORK_LAYER_BLE
         mServer->GetBleLayerObject()->CloseAllBleConnections();
@@ -195,7 +195,7 @@ CHIP_ERROR CommissioningWindowManager::OpenCommissioningWindow(Seconds16 commiss
     VerifyOrReturnError(commissioningTimeout <= MaxCommissioningTimeout() && commissioningTimeout >= MinCommissioningTimeout(),
                         CHIP_ERROR_INVALID_ARGUMENT);
     auto & failSafeContext = Server::GetInstance().GetFailSafeContext();
-    VerifyOrReturnError(!failSafeContext.IsFailSafeArmed(), CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(failSafeContext.IsFailSafeFullyDisarmed(), CHIP_ERROR_INCORRECT_STATE);
 
     ReturnErrorOnFailure(Dnssd::ServiceAdvertiser::Instance().UpdateCommissionableInstanceName());
 

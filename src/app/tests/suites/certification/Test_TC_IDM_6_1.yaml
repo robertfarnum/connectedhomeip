@@ -13,7 +13,7 @@
 # limitations under the License.
 # Auto-generated scripts for harness use only, please review before automation. The endpoints and cluster names are currently set to default
 
-name: 20.6.1. [TC-IDM-6.1] Events Read Interaction from TH to DUT
+name: 3.6.1. [TC-IDM-6.1] Events Read Interaction from TH to DUT. [{DUT_Server}]
 
 config:
     nodeId: 0x12344321
@@ -24,10 +24,15 @@ tests:
     - label:
           "TH sends Read Request Message to DUT with EventRequests set to a
           specific event from a specific cluster on a specific endpoint on a
-          specific node i.e. [Node = Specific, Endpoint = Specific, Cluster =
-          Specific, Event = Specific]."
+          specific node that is, [Node = Specific, Endpoint = Specific, Cluster
+          = Specific, Event = Specific]."
       verification: |
+          The cluster used in the below command is an example, User can use any supported chip cluster.
+
+
           sudo ./chip-tool basic read-event start-up 1  0
+
+          On TH verify DUT sends  Report Data Message with the data for specific event in Read Request Message.
 
           [1653051591.078855][11664:11669] CHIP:DMG: ReportDataMessage =
           [1653051591.078885][11664:11669] CHIP:DMG: {
@@ -72,13 +77,13 @@ tests:
     - label:
           "TH sends Read Request Message to DUT with EventRequests set to all
           events from a specific cluster on a specific endpoint on a specific
-          node i.e. [Node = Specific, Endpoint = Specific, Cluster = Specific,
-          Event = Wildcard]."
+          node that is, [Node = Specific, Endpoint = Specific, Cluster =
+          Specific, Event = Wildcard]."
       verification: |
-          In case of chip tool, here is an example command to use
+          The cluster used in the below command is an example, User can use any supported chip cluster.
 
            ./chip-tool any read-event-by-id 0x0028 0x0FFFFFFFF 1 0
-
+          On TH verify DUT sends  Report Data Message with the data for specific event in Read Request Message.
           [1652420332.235228][6031:6036] CHIP:DMG: ReportDataMessage =
           [1652420332.235259][6031:6036] CHIP:DMG: {
           [1652420332.235283][6031:6036] CHIP:DMG:         EventReportIBs =
@@ -122,12 +127,12 @@ tests:
     - label:
           "TH sends Read Request Message to DUT with EventRequests set to all
           events from all clusters on a specific endpoint on a specific node
-          i.e. [Node = Specific, Endpoint = Specific, Cluster = Wildcard, Event
-          = Wildcard]."
+          that is, [Node = Specific, Endpoint = Specific, Cluster = Wildcard,
+          Event = Wildcard]."
       verification: |
-          In case of chip tool, here is an example command to use
-
           ./chip-tool any read-event-by-id 0xFFFFFFFF 0xFFFFFFFF 1 0
+
+          On TH verify DUT sends  Report Data Message with the data for specific event in Read Request Message.
           [1651584987.671229][2932:2937] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_0028 Event 0x0000_0000
           [1651584987.671263][2932:2937] CHIP:TOO:          Event number: 0
           [1651584987.671294][2932:2937] CHIP:TOO:          Priority: Critical
@@ -165,10 +170,14 @@ tests:
     - label:
           "TH sends Read Request Message to DUT with EventRequests set to a
           specific event from a specific cluster on all endpoints on a specific
-          node i.e. [Node = Specific, Endpoint = Wildcard, Cluster = Specific,
-          Event = Specific]."
+          node that is, [Node = Specific, Endpoint = Wildcard, Cluster =
+          Specific, Event = Specific]."
       verification: |
+          The cluster used in the below command is an example, User can use any supported chip cluster.
+
           sudo ./chip-tool basic read-event start-up 1  0xFFFF
+
+          On TH, verify DUT sends  Report Data Message with the data for specific event in Read Request Message.
 
           [1653051642.744722][11676:11681] CHIP:DMG: ReportDataMessage =
           [1653051642.744736][11676:11681] CHIP:DMG: {
@@ -213,10 +222,14 @@ tests:
     - label:
           "TH sends Read Request Message to DUT with EventRequests set to all
           events from a specific cluster on all endpoints on a specific node
-          i.e. [Node = Specific, Endpoint = Wildcard, Cluster = Specific, Event
-          = Wildcard]."
+          that is, [Node = Specific, Endpoint = Wildcard, Cluster = Specific,
+          Event = Wildcard]."
       verification: |
+          The cluster used in the below command is an example, User can use any supported chip cluster.
+
           sudo ./chip-tool basic read-event-by-id 0xFFFFFFFF 1  0xFFFF
+          On TH verify DUT sends  Report Data Message with the data for specific event in Read Request Message.
+
           [1653051699.893049][11691:11696] CHIP:DMG: ReportDataMessage =
           [1653051699.893068][11691:11696] CHIP:DMG: {
           [1653051699.893079][11691:11696] CHIP:DMG:         EventReportIBs =
@@ -259,12 +272,12 @@ tests:
 
     - label:
           "TH sends Read Request Message to DUT with EventRequests set to all
-          events from all clusters on all endpoints on a specific node i.e.
+          events from all clusters on all endpoints on a specific node that is,
           [Node = Specific, Endpoint = Wildcard, Cluster = Wildcard, Event =
           Wildcard]."
       verification: |
           sudo ./chip-tool any read-event-by-id 0xFFFFFFFF 0xFFFFFFFF 1  0xFFFF
-
+          On TH verify DUT sends  Report Data Message with the data for specific event in Read Request Message.
           [1653051769.144914][11706:11711] CHIP:DMG: ReportDataMessage =
           [1653051769.144939][11706:11711] CHIP:DMG: {
           [1653051769.144954][11706:11711] CHIP:DMG:         EventReportIBs =
@@ -399,8 +412,17 @@ tests:
           which requires a privilege that is not granted for the cluster in the
           path."
       verification: |
-          ./chip-tool accesscontrol write acl '[{"fabricIndex": 1, "privilege": 5, "authMode": 2, "subjects": [1234], "targets": null}]' 1 0
+          The cluster used in the below command is an example, User can use any supported chip cluster.
+
+          To Setup the TH such that it should not have the privilege for the cluster in the path. , 1st we need to send below mentioned ACL command
+          Here by sending below mentioned ACL command giving only access for identify cluster(3), So except identify cluster command if try to send any other command will get status as unsupported access.
+
+          ./chip-tool accesscontrol write acl '[{"fabricIndex": 1, "privilege": 5, "authMode": 2, "subjects": [112233], "targets":[{ "cluster": 3, "endpoint": 1, "deviceType": null }]}]' 1 0
+
            ./chip-tool any read-event-by-id 0x28 0 1 0
+
+          verify DUT is responsds with UNSUPPORTED_ACCESS  for the data sent in the above command
+
           [1653054249.514825][12265:12270] CHIP:DMG: ReportDataMessage =
           [1653054249.514833][12265:12270] CHIP:DMG: {
           [1653054249.514840][12265:12270] CHIP:DMG:         EventReportIBs =
@@ -430,6 +452,8 @@ tests:
           [1653054249.515083][12265:12270] CHIP:DMG:         SuppressResponse = true,
           [1653054249.515090][12265:12270] CHIP:DMG:         InteractionModelRevision = 1
           [1653054249.515102][12265:12270] CHIP:DMG: }
+
+          With the above command, we are overwriting the default privilege that chip-tool has as an admin. After this test step you need to factory reset the DUT and reprovision the DUT again, Otherwise the below steps can not be executed.
       disabled: true
 
     - label:
@@ -437,13 +461,20 @@ tests:
           Wildcard path where reading an event in the path requires a privilege
           that is not granted for the cluster in the path."
       verification: |
+          To Setup the TH such that there is no accessing fabric, 1st we need to send below mentioned ACL command
+
           ./chip-tool accesscontrol write acl '[{"fabricIndex": 1, "privilege": 5, "authMode": 2, "subjects": [1234], "targets": null}]' 1 0
           ./chip-tool any read-event-by-id 0xFFFFFFFF 0xFFFFFFFF 1 0xFFFF
+          On TH verify DUT sends Report Data Message with no entry for that event in EventReports list.
+
           [1653054297.608259][12300:12305] CHIP:DMG: ReportDataMessage =
           [1653054297.608278][12300:12305] CHIP:DMG: {
           [1653054297.608292][12300:12305] CHIP:DMG:         SuppressResponse = true,
           [1653054297.608306][12300:12305] CHIP:DMG:         InteractionModelRevision = 1
           [1653054297.608317][12300:12305] CHIP:DMG: }
+
+
+          With the above command, we are overwriting the default privilege that chip-tool has as an admin. After this test step you need to factory reset the DUT and reprovision the DUT again, Otherwise the below steps can not be executed.
       disabled: true
 
     - label:
@@ -453,52 +484,69 @@ tests:
           EventMin field set to a number less than what was received in the
           previous step."
       verification: |
-          ./chip-tool softwarediagnostics read-by-id 0x0 1 0
+          sudo ./chip-tool any read-event-by-id 0xFFFFFFFF 0xFFFFFFFF 1 0xFFFF
 
-          [1651583857.832820][2932:2937] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_0034 Attribute 0x0000_0000 DataVersion: 440941735
-          [1651583857.832964][2932:2937] CHIP:TOO:   ThreadMetrics: 6 entries
-          [1651583857.833044][2932:2937] CHIP:TOO:     [1]: {
-          [1651583857.833093][2932:2937] CHIP:TOO:       Id: 2357
-          [1651583857.833125][2932:2937] CHIP:TOO:       Name: 2357
-          [1651583857.833157][2932:2937] CHIP:TOO:       StackFreeCurrent: 0
-          [1651583857.833188][2932:2937] CHIP:TOO:       StackFreeMinimum: 0
-          [1651583857.833219][2932:2937] CHIP:TOO:       StackSize: 0
-          [1651583857.833250][2932:2937] CHIP:TOO:      }
-          [1651583857.833292][2932:2937] CHIP:TOO:     [2]: {
-          [1651583857.833324][2932:2937] CHIP:TOO:       Id: 2356
-          [1651583857.833353][2932:2937] CHIP:TOO:       Name: 2356
-          [1651583857.833382][2932:2937] CHIP:TOO:       StackFreeCurrent: 0
-          [1651583857.833412][2932:2937] CHIP:TOO:       StackFreeMinimum: 0
-          [1651583857.833442][2932:2937] CHIP:TOO:       StackSize: 0
-          [1651583857.833471][2932:2937] CHIP:TOO:      }
-          [1651583857.833511][2932:2937] CHIP:TOO:     [3]: {
-          [1651583857.833624][2932:2937] CHIP:TOO:       Id: 2355
-          [1651583857.833657][2932:2937] CHIP:TOO:       Name: 2355
-          [1651583857.833687][2932:2937] CHIP:TOO:       StackFreeCurrent: 0
-          [1651583857.833718][2932:2937] CHIP:TOO:       StackFreeMinimum: 0
-          [1651583857.833748][2932:2937] CHIP:TOO:       StackSize: 0
-          [1651583857.833777][2932:2937] CHIP:TOO:      }
-          [1651583857.833819][2932:2937] CHIP:TOO:     [4]: {
-          [1651583857.833851][2932:2937] CHIP:TOO:       Id: 2354
-          [1651583857.833880][2932:2937] CHIP:TOO:       Name: 2354
-          [1651583857.833909][2932:2937] CHIP:TOO:       StackFreeCurrent: 0
-          [1651583857.833939][2932:2937] CHIP:TOO:       StackFreeMinimum: 0
-          [1651583857.833969][2932:2937] CHIP:TOO:       StackSize: 0
-          [1651583857.833998][2932:2937] CHIP:TOO:      }
-          [1651583857.834037][2932:2937] CHIP:TOO:     [5]: {
-          [1651583857.834068][2932:2937] CHIP:TOO:       Id: 2353
-          [1651583857.834097][2932:2937] CHIP:TOO:       Name: 2353
-          [1651583857.834126][2932:2937] CHIP:TOO:       StackFreeCurrent: 0
-          [1651583857.834156][2932:2937] CHIP:TOO:       StackFreeMinimum: 0
-          [1651583857.834186][2932:2937] CHIP:TOO:       StackSize: 0
-          [1651583857.834215][2932:2937] CHIP:TOO:      }
-          [1651583857.834254][2932:2937] CHIP:TOO:     [6]: {
-          [1651583857.834284][2932:2937] CHIP:TOO:       Id: 2352
-          [1651583857.834313][2932:2937] CHIP:TOO:       Name: 2352
-          [1651583857.834343][2932:2937] CHIP:TOO:       StackFreeCurrent: 0
-          [1651583857.834372][2932:2937] CHIP:TOO:       StackFreeMinimum: 0
-          [1651583857.834402][2932:2937] CHIP:TOO:       StackSize: 0
-          [1651583857.834431][2932:2937] CHIP:TOO:      }
+
+          On TH verify that the DUT sends Report Data Message with EventReports
+
+          [1655986008.400642][4813:4818] CHIP:DMG: }
+          [1655986008.400859][4813:4818] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_0028 Event 0x0000_0000
+          [1655986008.400893][4813:4818] CHIP:TOO:          Event number: 0
+          [1655986008.400923][4813:4818] CHIP:TOO:          Priority: Critical
+          [1655986008.400952][4813:4818] CHIP:TOO:          Timestamp: 4896714
+          [1655986008.401039][4813:4818] CHIP:TOO:   StartUp: {
+          [1655986008.401083][4813:4818] CHIP:TOO:     SoftwareVersion: 1
+          [1655986008.401116][4813:4818] CHIP:TOO:    }
+          [1655986008.401259][4813:4818] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_001F Event 0x0000_0000
+          [1655986008.401291][4813:4818] CHIP:TOO:          Event number: 1
+          [1655986008.401321][4813:4818] CHIP:TOO:          Priority: Info
+          [1655986008.401425][4813:4818] CHIP:TOO:          Timestamp: 4971265
+          [1655986008.401494][4813:4818] CHIP:TOO:   AccessControlEntryChanged: {
+          [1655986008.401529][4813:4818] CHIP:TOO:     AdminNodeID: null
+          [1655986008.401561][4813:4818] CHIP:TOO:     AdminPasscodeID: 0
+          [1655986008.401592][4813:4818] CHIP:TOO:     ChangeType: 1
+          [1655986008.401623][4813:4818] CHIP:TOO:     LatestValue: {
+          [1655986008.401648][4813:4818] CHIP:TOO:       Privilege: 5
+          [1655986008.401675][4813:4818] CHIP:TOO:       AuthMode: 2
+          [1655986008.401712][4813:4818] CHIP:TOO:       Subjects: 1 entries
+          [1655986008.401750][4813:4818] CHIP:TOO:         [1]: 112233
+          [1655986008.401786][4813:4818] CHIP:TOO:       Targets: null
+          [1655986008.401816][4813:4818] CHIP:TOO:       FabricIndex: 1
+          [1655986008.401845][4813:4818] CHIP:TOO:      }
+          [1655986008.401876][4813:4818] CHIP:TOO:     AdminFabricIndex: 1
+          [1655986008.401906][4813:4818] CHIP:TOO:    }
+          [1655986008.402045][4813:4818] CHIP:EM: Sending Standalone Ack for MessageCounter:51662085 on exchange 4386i
+
+          sudo ./chip-tool any read-event-by-id 0xFFFFFFFF 0xFFFFFFFF 1 0xFFFF --event-min 0
+
+          On TH verify that the DUT sends Report Data Message with EventReports for event numbers higher than the EventMin field.
+
+          [1655986113.735628][4843:4848] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_0028 Event 0x0000_0000
+          [1655986113.735661][4843:4848] CHIP:TOO:          Event number: 0
+          [1655986113.735690][4843:4848] CHIP:TOO:          Priority: Critical
+          [1655986113.735718][4843:4848] CHIP:TOO:          Timestamp: 4896714
+          [1655986113.735803][4843:4848] CHIP:TOO:   StartUp: {
+          [1655986113.735848][4843:4848] CHIP:TOO:     SoftwareVersion: 1
+          [1655986113.735878][4843:4848] CHIP:TOO:    }
+          [1655986113.736018][4843:4848] CHIP:TOO: Endpoint: 0 Cluster: 0x0000_001F Event 0x0000_0000
+          [1655986113.736049][4843:4848] CHIP:TOO:          Event number: 1
+          [1655986113.736078][4843:4848] CHIP:TOO:          Priority: Info
+          [1655986113.736106][4843:4848] CHIP:TOO:          Timestamp: 4971265
+          [1655986113.736168][4843:4848] CHIP:TOO:   AccessControlEntryChanged: {
+          [1655986113.736200][4843:4848] CHIP:TOO:     AdminNodeID: null
+          [1655986113.736231][4843:4848] CHIP:TOO:     AdminPasscodeID: 0
+          [1655986113.736261][4843:4848] CHIP:TOO:     ChangeType: 1
+          [1655986113.736291][4843:4848] CHIP:TOO:     LatestValue: {
+          [1655986113.736320][4843:4848] CHIP:TOO:       Privilege: 5
+          [1655986113.736348][4843:4848] CHIP:TOO:       AuthMode: 2
+          [1655986113.736384][4843:4848] CHIP:TOO:       Subjects: 1 entries
+          [1655986113.736420][4843:4848] CHIP:TOO:         [1]: 112233
+          [1655986113.736454][4843:4848] CHIP:TOO:       Targets: null
+          [1655986113.736483][4843:4848] CHIP:TOO:       FabricIndex: 1
+          [1655986113.736511][4843:4848] CHIP:TOO:      }
+          [1655986113.736540][4843:4848] CHIP:TOO:     AdminFabricIndex: 1
+          [1655986113.736568][4843:4848] CHIP:TOO:    }
+          [1655986113.736707][4843:4848] CHIP:EM: Sending Standalone Ack for MessageCounter:245457747 on exchange 9028i
       disabled: true
 
     - label:
@@ -508,9 +556,10 @@ tests:
           EventMin field set to a number much greater than what was received in
           the previous step."
       verification: |
+          The cluster used in the below command is an example, User can use any supported chip cluster.
           sudo ./chip-tool basic read-event start-up 1 0 --event-min 131073
 
-
+          On TH verify that the DUT sends  Report Data Message with empty EventReports
           [1650622225.700153][3069:3074] CHIP:DMG: ReportDataMessage =
           [1650622225.700193][3069:3074] CHIP:DMG: {
           [1650622225.700227][3069:3074] CHIP:DMG:         SuppressResponse = true,
@@ -524,5 +573,78 @@ tests:
           event data. For every chunked data message received, DUT sends a
           status response."
       verification: |
-          https://github.com/CHIP-Specifications/chip-test-plans/issues/1365
+          Try to verify this step in  doorlock app, below mentioned  wildcard command to  read-event  from TH to DUT.
+
+           ./chip-tool any read-event-by-id 0xFFFFFFFF 0xFFFFFFFF 1 0xFFFF
+          The message flow  can expect as mentioned below
+            TH -> DUT ReadRequest
+              DUT -> TH ReportData, not last chunk
+              TH -> DUT StatusResponse
+              Possibly repeat steps 2 & 3 a few times
+              DUT -> TH ReportData, last chunk, SuppressResponse set to true
+              TH -> DUT standalone ack
+
+          On TH verify that  The last chunked message should not receive any status response from the DUT
+
+          [1656510389.524811][20396:20396] CHIP:DMG: Fetched 16 events
+          [1656510389.524838][20396:20396] CHIP:DMG: <RE> Sending report (payload has 973 bytes)...
+          [1656510389.524864][20396:20396] CHIP:DMG: IM RH moving to [AwaitingReportResponse]
+
+          [1656510389.553113][20396:20396] CHIP:EM: Found matching exchange: 51910r, Delegate: 0xaaab0b90c330
+          [1656510389.553190][20396:20396] CHIP:EM: Rxd Ack; Removing MessageCounter:206023646 from Retrans Table on exchange 51910r
+          [1656510389.553248][20396:20396] CHIP:EM: Removed CHIP MessageCounter:206023646 from RetransTable on exchange 51910r
+          [1656510389.553347][20396:20396] CHIP:DMG: StatusResponseMessage =
+          [1656510389.553413][20396:20396] CHIP:DMG: {
+          [1656510389.553472][20396:20396] CHIP:DMG:      Status = 0x00 (SUCCESS),
+          [1656510389.553534][20396:20396] CHIP:DMG:      InteractionModelRevision = 1
+          [1656510389.553592][20396:20396] CHIP:DMG: }
+          [1656510389.553648][20396:20396] CHIP:IM: Received status response, status is 0x00 (SUCCESS)
+          [1656510389.553711][20396:20396] CHIP:DMG: <RE> OnReportConfirm: NumReports = 0
+          [1656510389.553770][20396:20396] CHIP:DMG: IM RH moving to [GeneratingReports]
+          [1656510389.553924][20396:20396] CHIP:DMG: Building Reports for ReadHandler with LastReportGeneration = 0 DirtyGeneration = 0
+          [1656510389.555237][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.555318][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.555503][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.555570][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.555749][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.555814][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.555990][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.556054][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.556221][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.556285][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.556456][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.556627][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.556808][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.556875][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.557055][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.557122][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.557300][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.557365][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.557538][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.557602][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.557777][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.557842][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.558015][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.558081][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.558288][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.558332][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.558515][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.558561][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.558677][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.558721][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.558836][20396:20396] CHIP:DMG: AccessControl: checking f=1 a=c s=0x000000000001B669 t= c=0x0000_0101 e=1 p=v
+          [1656510389.558878][20396:20396] CHIP:DMG: AccessControl: allowed
+          [1656510389.558964][20396:20396] CHIP:DMG: Fetched 16 events
+          [1656510389.559007][20396:20396] CHIP:DMG: <RE> Sending report (payload has 911 bytes)...
+          [1656510389.559061][20396:20396] CHIP:EM: Piggybacking Ack for MessageCounter:90464643 on exchange: 51910r
+          [1656510389.559228][20396:20396] CHIP:IN: Prepared secure message 0xaaab0b95c688 to 0x000000000001B669 (1)  of type 0x5 and protocolId (0, 1) on exchange 51910r with MessageCounter:206023647.
+          [1656510389.559287][20396:20396] CHIP:IN: Sending encrypted msg 0xaaab0b95c688 with MessageCounter:206023647 to 0x000000000001B669 (1) at monotonic time: 0000000001ECA505 msec
+          [1656510389.559519][20396:20396] CHIP:DMG: <RE> OnReportConfirm: NumReports = 0
+          [1656510389.559563][20396:20396] CHIP:DMG: <RE> ReportsInFlight = 0 with readHandler 0, RE has no more messages
+          [1656510389.559597][20396:20396] CHIP:DMG: IM RH moving to [AwaitingDestruction]
+          [1656510389.559639][20396:20396] CHIP:DMG: All ReadHandler-s are clean, clear GlobalDirtySet
+          [1656510389.586362][20396:20396] CHIP:EM: Received message of type 0x10 with protocolId (0, 0) and MessageCounter:90464644 on exchange 51910r
+          [1656510389.586431][20396:20396] CHIP:EM: Found matching exchange: 51910r, Delegate: (nil)
+          [1656510389.586492][20396:20396] CHIP:EM: Rxd Ack; Removing MessageCounter:206023647 from Retrans Table on exchange 51910r
+          [1656510389.586535][20396:20396] CHIP:EM: Removed CHIP MessageCounter:206023647 from RetransTable on exchange 51910r
       disabled: true

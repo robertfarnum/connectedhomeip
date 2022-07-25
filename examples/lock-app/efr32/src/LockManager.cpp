@@ -106,12 +106,10 @@ bool LockManager::IsValidUserIndex(uint16_t userIndex)
 
 bool LockManager::IsValidCredentialIndex(uint16_t credentialIndex, DlCredentialType type)
 {
-    // appclusters, 5.2.6.3.1: 0 is allowed index for Programming PIN credential only
     if (DlCredentialType::kProgrammingPIN == type)
     {
-        return (0 == credentialIndex);
+        return (0 == credentialIndex); // 0 is required index for Programming PIN
     }
-
     return (credentialIndex < kMaxCredentialsPerUser);
 }
 
@@ -406,22 +404,18 @@ bool LockManager::GetCredential(chip::EndpointId endpointId, uint16_t credential
                                 EmberAfPluginDoorLockCredentialInfo & credential)
 {
 
-    VerifyOrReturnValue(credentialIndex > 0, false); // indices are one-indexed
-
-    credentialIndex--;
-
-    VerifyOrReturnValue(IsValidCredentialIndex(credentialIndex, credentialType), false);
+    if (DlCredentialType::kProgrammingPIN == credentialType)
+    {
+        VerifyOrReturnValue(IsValidCredentialIndex(credentialIndex, credentialType),
+                            false); // programming pin index is only index allowed to contain 0
+    }
+    else
+    {
+        VerifyOrReturnValue(IsValidCredentialIndex(--credentialIndex, credentialType), false); // otherwise, indices are one-indexed
+    }
 
     ChipLogProgress(Zcl, "Lock App: LockManager::GetCredential [credentialType=%u], credentialIndex=%d",
                     to_underlying(credentialType), credentialIndex);
-
-    if (credentialType == DlCredentialType::kProgrammingPIN)
-    {
-        ChipLogError(Zcl, "Programming user not supported [credentialType=%u], credentialIndex=%d", to_underlying(credentialType),
-                     credentialIndex);
-
-        return true;
-    }
 
     const auto & credentialInStorage = mLockCredentials[credentialIndex];
 
@@ -453,11 +447,15 @@ bool LockManager::SetCredential(chip::EndpointId endpointId, uint16_t credential
                                 const chip::ByteSpan & credentialData)
 {
 
-    VerifyOrReturnValue(credentialIndex > 0, false); // indices are one-indexed
-
-    credentialIndex--;
-
-    VerifyOrReturnValue(IsValidCredentialIndex(credentialIndex, credentialType), false);
+    if (DlCredentialType::kProgrammingPIN == credentialType)
+    {
+        VerifyOrReturnValue(IsValidCredentialIndex(credentialIndex, credentialType),
+                            false); // programming pin index is only index allowed to contain 0
+    }
+    else
+    {
+        VerifyOrReturnValue(IsValidCredentialIndex(--credentialIndex, credentialType), false); // otherwise, indices are one-indexed
+    }
 
     ChipLogProgress(Zcl,
                     "Door Lock App: LockManager::SetCredential "
@@ -627,6 +625,8 @@ const char * LockManager::lockStateToString(DlLockState lockState) const
         return "Locked";
     case DlLockState::kUnlocked:
         return "Unlocked";
+    case DlLockState::kUnknownEnumValue:
+        break;
     }
 
     return "Unknown";
@@ -635,23 +635,6 @@ const char * LockManager::lockStateToString(DlLockState lockState) const
 bool LockManager::setLockState(chip::EndpointId endpointId, DlLockState lockState, const Optional<chip::ByteSpan> & pin,
                                DlOperationError & err)
 {
-    DlLockState curState = DlLockState::kLocked;
-    if (mState == kState_UnlockCompleted)
-        curState = DlLockState::kUnlocked;
-
-    if ((curState == lockState) && (curState == DlLockState::kLocked))
-    {
-        ChipLogDetail(Zcl, "Door Lock App: door is already locked, ignoring command to set lock state to \"%s\" [endpointId=%d]",
-                      lockStateToString(lockState), endpointId);
-        return true;
-    }
-    else if ((curState == lockState) && (curState == DlLockState::kUnlocked))
-    {
-        ChipLogDetail(Zcl,
-                      "Door Lock App: door is already unlocked, ignoring command to set unlock state to \"%s\" [endpointId=%d]",
-                      lockStateToString(lockState), endpointId);
-        return true;
-    }
 
     // Assume pin is required until told otherwise
     bool requirePin = true;
@@ -661,14 +644,12 @@ bool LockManager::setLockState(chip::EndpointId endpointId, DlLockState lockStat
     if (!pin.HasValue())
     {
         ChipLogDetail(Zcl, "Door Lock App: PIN code is not specified, but it is required [endpointId=%d]", mEndpointId);
-        curState = lockState;
 
         // If a pin code is not required
         if (!requirePin)
         {
             ChipLogDetail(Zcl, "Door Lock App: setting door lock state to \"%s\" [endpointId=%d]", lockStateToString(lockState),
                           endpointId);
-            curState = lockState;
             return true;
         }
 
@@ -689,8 +670,6 @@ bool LockManager::setLockState(chip::EndpointId endpointId, DlLockState lockStat
             ChipLogDetail(Zcl,
                           "Lock App: specified PIN code was found in the database, setting lock state to \"%s\" [endpointId=%d]",
                           lockStateToString(lockState), mEndpointId);
-
-            curState = lockState;
 
             return true;
         }
