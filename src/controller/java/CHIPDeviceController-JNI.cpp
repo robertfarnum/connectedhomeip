@@ -583,8 +583,8 @@ JNI_METHOD(jstring, getIpAddress)(JNIEnv * env, jobject self, jlong handle, jlon
     uint16_t port;
     char addrStr[50];
 
-    CHIP_ERROR err = wrapper->Controller()->GetPeerAddressAndPort(deviceId, addr, port);
 
+    CHIP_ERROR err = wrapper->Controller()->GetPeerAddressAndPort(deviceId, addr, port);
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "Failed to get device address.");
