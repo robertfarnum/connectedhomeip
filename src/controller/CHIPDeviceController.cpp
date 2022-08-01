@@ -321,14 +321,14 @@ void DeviceController::ReleaseOperationalDevice(NodeId remoteNodeId)
 {
     VerifyOrReturn(mState == State::Initialized && mFabricIndex != kUndefinedFabricIndex,
                    ChipLogError(Controller, "ReleaseOperationalDevice was called in incorrect state"));
-    mSystemState->CASESessionMgr()->ReleaseSession(PeerId(GetCompressedFabricId(), remoteNodeId));
+    mSystemState->CASESessionMgr()->ReleaseSession(GetPeerScopedId(remoteNodeId));
 }
 
 CHIP_ERROR DeviceController::DisconnectDevice(NodeId nodeId)
 {
     ChipLogProgress(Controller, "Force close session for node 0x%" PRIx64, nodeId);
 
-    OperationalDeviceProxy * proxy = mSystemState->CASESessionMgr()->FindExistingSession(PeerId(GetCompressedFabricId(), nodeId));
+    OperationalDeviceProxy * proxy = mSystemState->CASESessionMgr()->FindExistingSession(GetPeerScopedId(nodeId));
     if (proxy == nullptr)
     {
         ChipLogProgress(Controller, "Attempted to close a session that does not exist.");
@@ -353,11 +353,11 @@ CHIP_ERROR DeviceController::DisconnectDevice(NodeId nodeId)
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR DeviceController::GetPeerAddressAndPort(PeerId peerId, Inet::IPAddress & addr, uint16_t & port)
+CHIP_ERROR DeviceController::GetPeerAddressAndPort(NodeId peerId, Inet::IPAddress & addr, uint16_t & port)
 {
     VerifyOrReturnError(mState == State::Initialized, CHIP_ERROR_INCORRECT_STATE);
     Transport::PeerAddress peerAddr;
-    ReturnErrorOnFailure(mSystemState->CASESessionMgr()->GetPeerAddress(peerId, peerAddr));
+    ReturnErrorOnFailure(mSystemState->CASESessionMgr()->GetPeerAddress(GetPeerScopedId(peerId), peerAddr));
     addr = peerAddr.GetIPAddress();
     port = peerAddr.GetPort();
     return CHIP_NO_ERROR;
@@ -366,8 +366,8 @@ CHIP_ERROR DeviceController::GetPeerAddressAndPort(PeerId peerId, Inet::IPAddres
 CHIP_ERROR DeviceController::GetPeerAddress(NodeId nodeId, Transport::PeerAddress & addr)
 {
     VerifyOrReturnError(mState == State::Initialized, CHIP_ERROR_INCORRECT_STATE);
-    ReturnErrorOnFailure(mSystemState->CASESessionMgr()->GetPeerAddress(
-        PeerId().SetCompressedFabricId(GetCompressedFabricId()).SetNodeId(nodeId), addr));
+    ReturnErrorOnFailure(mSystemState->CASESessionMgr()->GetPeerAddress(GetPeerScopedId(nodeId), addr));
+
     return CHIP_NO_ERROR;
 }
 
@@ -684,7 +684,9 @@ CHIP_ERROR DeviceCommissioner::EstablishPASEConnection(NodeId remoteDeviceId, Re
         }
         else if (params.HasDiscriminator())
         {
-            SuccessOrExit(err = mSystemState->BleLayer()->NewBleConnectionByDiscriminator(params.GetDiscriminator()));
+            SetupDiscriminator discriminator;
+            discriminator.SetLongValue(params.GetDiscriminator());
+            SuccessOrExit(err = mSystemState->BleLayer()->NewBleConnectionByDiscriminator(discriminator));
         }
         else
         {
@@ -1554,6 +1556,7 @@ void DeviceCommissioner::CommissioningStageComplete(CHIP_ERROR err, Commissionin
     {
         mPairingDelegate->OnCommissioningStatusUpdate(PeerId(GetCompressedFabricId(), nodeId), mCommissioningStage, err);
     }
+
     if (mCommissioningDelegate == nullptr)
     {
         return;
@@ -1601,7 +1604,7 @@ void DeviceCommissioner::OnDeviceConnectedFn(void * context, OperationalDevicePr
     }
 }
 
-void DeviceCommissioner::OnDeviceConnectionFailureFn(void * context, PeerId peerId, CHIP_ERROR error)
+void DeviceCommissioner::OnDeviceConnectionFailureFn(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
 {
     // CASE session establishment failed.
     DeviceCommissioner * commissioner = static_cast<DeviceCommissioner *>(context);
@@ -1709,20 +1712,27 @@ void DeviceCommissioner::OnDone(app::ReadClient *)
                 {
                     if (features.Has(app::Clusters::NetworkCommissioning::NetworkCommissioningFeature::kWiFiNetworkInterface))
                     {
+                        ChipLogProgress(Controller, "----- NetworkCommissioning Features: has WiFi. endpointid = %u",
+                                        path.mEndpointId);
                         info.network.wifi.endpoint = path.mEndpointId;
                     }
                     else if (features.Has(
                                  app::Clusters::NetworkCommissioning::NetworkCommissioningFeature::kThreadNetworkInterface))
                     {
+                        ChipLogProgress(Controller, "----- NetworkCommissioning Features: has Thread. endpointid = %u",
+                                        path.mEndpointId);
                         info.network.thread.endpoint = path.mEndpointId;
                     }
                     else if (features.Has(
                                  app::Clusters::NetworkCommissioning::NetworkCommissioningFeature::kEthernetNetworkInterface))
                     {
+                        ChipLogProgress(Controller, "----- NetworkCommissioning Features: has Ethernet. endpointid = %u",
+                                        path.mEndpointId);
                         info.network.eth.endpoint = path.mEndpointId;
                     }
                     else
                     {
+                        ChipLogProgress(Controller, "----- NetworkCommissioning Features: no features.");
                         // TODO: Gross workaround for the empty feature map on all clusters. Remove.
                         if (info.network.thread.endpoint == kInvalidEndpointId)
                         {
@@ -1771,6 +1781,12 @@ void DeviceCommissioner::OnDone(app::ReadClient *)
     }
     mAttributeCache = nullptr;
     mReadClient     = nullptr;
+
+    if (mPairingDelegate != nullptr)
+    {
+        mPairingDelegate->OnReadCommissioningInfo(info);
+    }
+
     CommissioningDelegate::CommissioningReport report;
     report.Set<ReadCommissioningInfo>(info);
     CommissioningStageComplete(return_err, report);
@@ -1807,6 +1823,39 @@ void DeviceCommissioner::OnSetRegulatoryConfigResponse(
     }
     DeviceCommissioner * commissioner = static_cast<DeviceCommissioner *>(context);
     commissioner->CommissioningStageComplete(err, report);
+}
+
+void DeviceCommissioner::OnScanNetworksFailure(void * context, CHIP_ERROR error)
+{
+    ChipLogProgress(Controller, "Received ScanNetworks failure response %" CHIP_ERROR_FORMAT, error.Format());
+
+    DeviceCommissioner * commissioner = static_cast<DeviceCommissioner *>(context);
+    if (commissioner->GetPairingDelegate() != nullptr)
+    {
+        commissioner->GetPairingDelegate()->OnScanNetworksFailure(error);
+    }
+    // need to advance to next step
+    // clear error so that we don't abort the commissioning when ScanNetworks fails
+    commissioner->CommissioningStageComplete(CHIP_NO_ERROR);
+}
+
+void DeviceCommissioner::OnScanNetworksResponse(void * context,
+                                                const NetworkCommissioning::Commands::ScanNetworksResponse::DecodableType & data)
+{
+    CommissioningDelegate::CommissioningReport report;
+
+    ChipLogProgress(Controller, "Received ScanNetwork response, networkingStatus=%u debugText=%s",
+                    to_underlying(data.networkingStatus),
+                    (data.debugText.HasValue() ? std::string(data.debugText.Value().data(), data.debugText.Value().size()).c_str()
+                                               : "none provided"));
+    DeviceCommissioner * commissioner = static_cast<DeviceCommissioner *>(context);
+
+    if (commissioner->GetPairingDelegate() != nullptr)
+    {
+        commissioner->GetPairingDelegate()->OnScanNetworksSuccess(data);
+    }
+    // need to advance to next step
+    commissioner->CommissioningStageComplete(CHIP_NO_ERROR);
 }
 
 void DeviceCommissioner::OnNetworkConfigResponse(void * context,
@@ -1938,6 +1987,16 @@ void DeviceCommissioner::PerformCommissioningStep(DeviceProxy * proxy, Commissio
         mReadClient     = std::move(readClient);
     }
     break;
+    case CommissioningStage::kScanNetworks: {
+        NetworkCommissioning::Commands::ScanNetworks::Type request;
+        if (params.GetWiFiCredentials().HasValue())
+        {
+            request.ssid.Emplace(params.GetWiFiCredentials().Value().ssid);
+        }
+        request.breadcrumb.Emplace(breadcrumb);
+        SendCommand<NetworkCommissioningCluster>(proxy, request, OnScanNetworksResponse, OnScanNetworksFailure, endpoint, timeout);
+        break;
+    }
     case CommissioningStage::kConfigRegulatory: {
         // To set during config phase:
         // UTC time
@@ -2103,6 +2162,7 @@ void DeviceCommissioner::PerformCommissioningStep(DeviceProxy * proxy, Commissio
             CommissioningStageComplete(err);
             return;
         }
+
         err = proxy->SetPeerId(params.GetRootCert().Value(), params.GetNoc().Value());
         if (err != CHIP_NO_ERROR)
         {
@@ -2217,18 +2277,18 @@ CHIP_ERROR DeviceController::UpdateDevice(NodeId peerNodeId)
 {
     VerifyOrReturnError(mState == State::Initialized && mFabricIndex != kUndefinedFabricIndex, CHIP_ERROR_INCORRECT_STATE);
 
-    OperationalDeviceProxy * proxy = GetDeviceSession(PeerId(GetCompressedFabricId(), peerNodeId));
+    OperationalDeviceProxy * proxy = GetDeviceSession(GetPeerScopedId(peerNodeId));
     VerifyOrReturnError(proxy != nullptr, CHIP_ERROR_NOT_FOUND);
 
     return proxy->LookupPeerAddress();
 }
 
-OperationalDeviceProxy * DeviceController::GetDeviceSession(const PeerId & peerId)
+OperationalDeviceProxy * DeviceController::GetDeviceSession(const ScopedNodeId & peerId)
 {
     return mSystemState->CASESessionMgr()->FindExistingSession(peerId);
 }
 
-OperationalDeviceProxy * DeviceCommissioner::GetDeviceSession(const PeerId & peerId)
+OperationalDeviceProxy * DeviceCommissioner::GetDeviceSession(const ScopedNodeId & peerId)
 {
     mSystemState->CASESessionMgr()->FindOrEstablishSession(peerId, &mOnDeviceConnectedCallback,
                                                            &mOnDeviceConnectionFailureCallback);

@@ -67,6 +67,13 @@ tests:
               - name: "ms"
                 value: 1000
 
+    - label: "TH writes 0 to the Options attribute"
+      PICS: CC.S.A000f && CC.S.F02 && CC.S.F01
+      command: "writeAttribute"
+      attribute: "Options"
+      arguments:
+          value: 0
+
     - label: "Sends ColorLoopSet Command - Set all Attributes"
       command: "ColorLoopSet"
       PICS: CC.S.F02 && CC.S.F01 && CC.S.C44.Rsp
@@ -230,7 +237,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep5d
               maxValue: 65535
 
@@ -248,7 +255,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep5d
               maxValue: 65535
 
@@ -375,7 +382,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep8d
               maxValue: 65535
 
@@ -393,7 +400,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep8d
               maxValue: 65535
 
@@ -551,7 +558,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep12d
               maxValue: 65535
 
@@ -569,7 +576,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep12d
               maxValue: 65535
 
@@ -696,7 +703,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep15d
               maxValue: 65535
 
@@ -714,7 +721,7 @@ tests:
       PICS: CC.S.F02 && CC.S.F01 && CC.S.A4000 && CC.S.C44.Rsp
       response:
           constraints:
-              type: uint16
+              type: int16u
               minValue: ColorLoopStartEnhancedHueStep15d
               maxValue: 65535
 
