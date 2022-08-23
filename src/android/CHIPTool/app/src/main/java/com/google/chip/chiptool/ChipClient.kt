@@ -34,7 +34,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-/** Lazily instantiates [ChipDeviceController] and holds a reference to it. */
+/** Lazily instantiates [ChipDeviceController] and   holds a reference to it. */
 object ChipClient {
   private const val TAG = "ChipClient"
   private lateinit var chipDeviceController: ChipDeviceController
