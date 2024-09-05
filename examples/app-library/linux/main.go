@@ -1,13 +1,10 @@
 package main
 
-// #cgo LDFLAGS: -L. -lAppLibrary
-// #include "include/AppLibrary.h"
-import "C"
-
-func StartMatterApp(int argc, string[] argv) {
-	LIB_StartMatterApp(C.int(argc), argv)
-}
+import (
+	. "github.com/robertfarnum/matter-app-bridge/bridge"
+)
 
 func main() {
-	StartMatterApp(0, nil)
+    NewBridge()
+	start(0, NULL)
 }

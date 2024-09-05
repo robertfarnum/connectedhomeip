@@ -1,4 +1,4 @@
-libmatter.so: matter-bridge.cpp
+libmatter.so: AppLibrary.cpp
 	g++ \
 		-I/workspaces/connectedhomeip/third_party/nlio/repo/include \
 		-I/workspaces/connectedhomeip/third_party/nlassert/repo/include \

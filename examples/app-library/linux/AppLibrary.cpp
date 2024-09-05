@@ -8,7 +8,14 @@ void ApplicationInit() {}
 
 void ApplicationShutdown() {}
 
-int LIB_StartMatterApp(int argc, char ** argv)
+class Bridge
+{
+public:
+    virtual ~Bridge() { std::cout << "Bridge::~Bridge()" << std::endl; }
+    virtual void cb() { std::cout << "Bridge::cb()" << std::endl; }
+};
+
+int start(int argc, char **argv)
 {
     VerifyOrReturnValue(ChipLinuxAppInit(argc, argv) == 0, -1);
     ChipLinuxAppMainLoop();
