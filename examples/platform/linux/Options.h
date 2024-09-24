@@ -91,6 +91,7 @@ struct LinuxDeviceOptions
     chip::Optional<std::vector<chip::Access::AccessRestrictionProvider::Entry>> commissioningArlEntries;
     chip::Optional<std::vector<chip::Access::AccessRestrictionProvider::Entry>> arlEntries;
 #endif
+    const char * chipToolKvs = nullptr;
     static LinuxDeviceOptions & GetInstance();
 };
 

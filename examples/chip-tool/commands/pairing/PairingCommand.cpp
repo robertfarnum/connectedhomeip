@@ -103,6 +103,7 @@ CommissioningParameters PairingCommand::GetCommissioningParameters()
 {
     auto params = CommissioningParameters();
     params.SetSkipCommissioningComplete(mSkipCommissioningComplete.ValueOr(false));
+    params.SetJointFabric(mFilterType == chip::Dnssd::DiscoveryFilterType::kJointFabricMode);
     if (mBypassAttestationVerifier.ValueOr(false))
     {
         params.SetDeviceAttestationDelegate(this);
@@ -346,6 +347,9 @@ CHIP_ERROR PairingCommand::PairWithMdns(NodeId remoteId)
     case chip::Dnssd::DiscoveryFilterType::kInstanceName:
         filter.code         = 0;
         filter.instanceName = mDiscoveryFilterInstanceName;
+        break;
+    case chip::Dnssd::DiscoveryFilterType::kJointFabricMode:
+        filter.code = 1;
         break;
     }
 

@@ -32,6 +32,7 @@ namespace Controller {
 typedef void (*OnNOCChainGeneration)(void * context, CHIP_ERROR status, const ByteSpan & noc, const ByteSpan & icac,
                                      const ByteSpan & rcac, Optional<Crypto::IdentityProtectionKeySpan> ipk,
                                      Optional<NodeId> adminSubject);
+typedef void (*OnNOCIssuerSigned)(void * context, CHIP_ERROR status, const ByteSpan & icac);
 
 inline constexpr uint32_t kMaxCHIPDERCertLength = 600;
 inline constexpr size_t kCSRNonceLength         = 32;
@@ -66,6 +67,12 @@ public:
                                         const ByteSpan & attestationSignature, const ByteSpan & attestationChallenge,
                                         const ByteSpan & DAC, const ByteSpan & PAI,
                                         Callback::Callback<OnNOCChainGeneration> * onCompletion) = 0;
+
+    virtual CHIP_ERROR SignNOCIssuer(const ByteSpan & icaCsr, Callback::Callback<OnNOCIssuerSigned> * onCompletion) = 0;
+
+    virtual CHIP_ERROR SignNOC(const ByteSpan & icac, const ByteSpan & nocCsr, MutableByteSpan & noc) = 0;
+
+    virtual CHIP_ERROR ObtainIcaCsr(MutableByteSpan & icaCsr) = 0;
 
     /**
      *   This function sets the node ID for which the next NOC Chain would be requested. The node ID is

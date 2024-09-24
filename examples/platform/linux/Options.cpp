@@ -119,6 +119,9 @@ enum
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
     kDeviceOption_WiFi_PAF,
 #endif
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    kDeviceOption_ChipToolKvs,
+#endif
 };
 
 constexpr unsigned kAppUsageLength = 64;
@@ -190,6 +193,9 @@ OptionDef sDeviceOptionDefs[] = {
 #endif
 #if CHIP_WITH_NLFAULTINJECTION
     { "faults", kArgumentRequired, kDeviceOption_FaultInjection },
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    { "chip-tool-kvs", kArgumentRequired, kDeviceOption_ChipToolKvs },
 #endif
     {}
 };
@@ -339,6 +345,10 @@ const char * sDeviceOptionHelp =
 #if CHIP_WITH_NLFAULTINJECTION
     "  --faults <fault-string,...>\n"
     "       Inject specified fault(s) at runtime.\n"
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    "  --chip-tool-kvs <filepath>\n"
+    "       A file to sync Key Value Store items with chip-tool.\n"
 #endif
     "\n";
 
@@ -684,6 +694,11 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
         LinuxDeviceOptions::GetInstance().mWiFiPAFExtCmds = aValue;
         break;
     }
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    case kDeviceOption_ChipToolKvs:
+        LinuxDeviceOptions::GetInstance().chipToolKvs = aValue;
+        break;
 #endif
     default:
         PrintArgError("%s: INTERNAL ERROR: Unhandled option: %s\n", aProgram, aName);

@@ -61,8 +61,7 @@ public:
     PairingCommand(const char * commandName, PairingMode mode, PairingNetworkType networkType,
                    CredentialIssuerCommands * credIssuerCmds,
                    chip::Dnssd::DiscoveryFilterType filterType = chip::Dnssd::DiscoveryFilterType::kNone) :
-        CHIPCommand(commandName, credIssuerCmds),
-        mPairingMode(mode), mNetworkType(networkType), mFilterType(filterType),
+        CHIPCommand(commandName, credIssuerCmds), mPairingMode(mode), mNetworkType(networkType), mFilterType(filterType),
         mRemoteAddr{ IPAddress::Any, chip::Inet::InterfaceId::Null() }, mComplex_TimeZones(&mTimeZoneList),
         mComplex_DSTOffsets(&mDSTOffsetList), mCurrentFabricRemoveCallback(OnCurrentFabricRemove, this)
     {
@@ -176,6 +175,7 @@ public:
             break;
         case chip::Dnssd::DiscoveryFilterType::kCommissioningMode:
         case chip::Dnssd::DiscoveryFilterType::kCommissioner:
+        case chip::Dnssd::DiscoveryFilterType::kJointFabricMode:
             break;
         case chip::Dnssd::DiscoveryFilterType::kDeviceType:
             AddArgument("device-type", 0, UINT16_MAX, &mDiscoveryFilterCode);

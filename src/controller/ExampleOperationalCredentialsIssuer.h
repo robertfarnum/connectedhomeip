@@ -59,6 +59,12 @@ public:
                                 const ByteSpan & attestationChallenge, const ByteSpan & DAC, const ByteSpan & PAI,
                                 Callback::Callback<OnNOCChainGeneration> * onCompletion) override;
 
+    CHIP_ERROR SignNOCIssuer(const ByteSpan & icaCsr, Callback::Callback<OnNOCIssuerSigned> * onCompletion) override;
+
+    CHIP_ERROR SignNOC(const ByteSpan & icac, const ByteSpan & nocCsr, MutableByteSpan & noc) override;
+
+    CHIP_ERROR ObtainIcaCsr(MutableByteSpan & icaCsr) override;
+
     void SetNodeIdForNextNOCRequest(NodeId nodeId) override
     {
         mNextRequestedNodeId = nodeId;
@@ -109,6 +115,8 @@ public:
                                                MutableByteSpan & noc);
                              
     void SetAdminNodeId(NodeId nodeId) { mAdminSubjectNodeId = nodeId; }
+
+    CHIP_ERROR SignNOCIssuerAfterValidation(const ByteSpan & icaCsr, MutableByteSpan & icac);
 
 private:
     Crypto::P256Keypair mIssuer;

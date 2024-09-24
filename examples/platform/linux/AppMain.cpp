@@ -118,8 +118,15 @@
 #include <platform/Linux/NetworkCommissioningDriver.h>
 #endif // CHIP_DEVICE_LAYER_TARGET_LINUX
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+#include <app/clusters/joint-fabric-pki-server/joint-fabric-pki-server.h>
+#include <controller/ExampleOperationalCredentialsIssuer.h>
+#include <controller/ExamplePersistentStorage.h>
+#endif
+
 using namespace chip;
 using namespace chip::ArgParser;
+using namespace chip::Controller;
 using namespace chip::Credentials;
 using namespace chip::DeviceLayer;
 using namespace chip::Inet;
@@ -518,6 +525,28 @@ exit:
     return 0;
 }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+namespace {
+ExampleOperationalCredentialsIssuer gOpCredsIssuer;
+PersistentStorage gStorage;
+
+CHIP_ERROR OnPrepareCredentialsIssuer()
+{
+    ReturnErrorOnFailure(gStorage.Init(nullptr, LinuxDeviceOptions::GetInstance().chipToolKvs));
+    ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gStorage));
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PrepareJointFabricCluster()
+{
+    SetOperationalCredentialsIssuer(&gOpCredsIssuer);
+    SetPrepareCredentialsIssuerCallback(OnPrepareCredentialsIssuer);
+    return CHIP_NO_ERROR;
+}
+} // namespace
+#endif
+
 void ChipLinuxAppMainLoop(AppMainLoopImplementation * impl)
 {
     gMainLoopImplementation = impl;
@@ -608,6 +637,10 @@ void ChipLinuxAppMainLoop(AppMainLoopImplementation * impl)
 
     // Init ZCL Data Model and CHIP App Server
     Server::GetInstance().Init(initParams);
+
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    VerifyOrDie(PrepareJointFabricCluster() == CHIP_NO_ERROR);
+#endif
 
 #if CHIP_CONFIG_USE_ACCESS_RESTRICTIONS
     if (LinuxDeviceOptions::GetInstance().commissioningArlEntries.HasValue())
