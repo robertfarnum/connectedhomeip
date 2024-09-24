@@ -6991,6 +6991,67 @@ cluster LowPower = 1288 {
   command Sleep(): DefaultSuccess = 0;
 }
 
+/** Joint Fabric Pki Cluster. */
+cluster JointFabricPki = 1875 {
+  revision 1; // NOTE: Default/not specifically set
+
+  enum ICACSigningRequestStatusEnum : enum8 {
+    kOK = 0;
+    kInvalidIcaCsrFormat = 1;
+    kInvalidIcaCsrSignature = 2;
+    kFailedDclVendorIdValidation = 3;
+    kNotAnIcac = 4;
+    kBusyAnchorTransfer = 5;
+    kIcaCsrSigningFailed = 6;
+    kIcaCsrRequestNoUserConsent = 7;
+  }
+
+  enum TransferAnchorResponseStatusEnum : enum8 {
+    kOK = 0;
+    kTransferAnchorStatusDatastoreBusy = 1;
+    kTransferAnchorStatusNoUserConsent = 2;
+  }
+
+  readonly attribute command_id generatedCommandList[] = 65528;
+  readonly attribute command_id acceptedCommandList[] = 65529;
+  readonly attribute event_id eventList[] = 65530;
+  readonly attribute attrib_id attributeList[] = 65531;
+  readonly attribute bitmap32 featureMap = 65532;
+  readonly attribute int16u clusterRevision = 65533;
+
+  response struct ICACSRResponse = 1 {
+    octet_string<400> NOCIssuerCSR = 0;
+  }
+
+  request struct AddICACRequest {
+    ICACSigningRequestStatusEnum statusCode = 0;
+    octet_string<400> NOCIssuerCert = 1;
+    node_id nodeId = 2;
+    fabric_id fabricId = 3;
+    vendor_id adminVendorId = 4;
+    int64u caseAdminSubject = 5;
+  }
+
+  response struct AddICACResponse = 3 {
+    ICACSigningRequestStatusEnum statusCode = 0;
+    optional fabric_idx fabricIndex = 1;
+    optional char_string<128> debugText = 2;
+  }
+
+  response struct TransferAnchorResponse = 5 {
+    TransferAnchorResponseStatusEnum statusCode = 0;
+  }
+
+  /** Client requests Server's ICA CSR. */
+  command access(invoke: administer) ICACSRRequest(): ICACSRResponse = 0;
+  /** Joint Fabric ICAC generated. */
+  command access(invoke: administer) AddICAC(AddICACRequest): AddICACResponse = 2;
+  /** JF Admin candidate requests transfer of the Anchor Fabric. */
+  command access(invoke: administer) TransferAnchorRequest(): TransferAnchorResponse = 4;
+  /** Transfer Anchor complete. */
+  command access(invoke: administer) TransferAnchorComplete(): DefaultSuccess = 6;
+}
+
 /** The Test Cluster is meant to validate the generated code */
 internal cluster UnitTesting = 4294048773 {
   revision 1; // NOTE: Default/not specifically set
@@ -8036,6 +8097,23 @@ endpoint 0 {
     ram      attribute maxMeasuredValue default = 0x2710;
     ram      attribute featureMap default = 0;
     ram      attribute clusterRevision default = 3;
+  }
+
+  server cluster JointFabricPki {
+    callback attribute generatedCommandList;
+    callback attribute acceptedCommandList;
+    callback attribute eventList;
+    callback attribute attributeList;
+    ram      attribute featureMap default = 0;
+    ram      attribute clusterRevision default = 1;
+
+    handle command ICACSRRequest;
+    handle command ICACSRResponse;
+    handle command AddICAC;
+    handle command AddICACResponse;
+    handle command TransferAnchorRequest;
+    handle command TransferAnchorResponse;
+    handle command TransferAnchorComplete;
   }
 
   server cluster FaultInjection {

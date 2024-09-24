@@ -378,6 +378,12 @@ NSString * MTRClusterNameForID(MTRClusterIDType clusterID)
     case MTRClusterIDTypeCommissionerControlID:
         result = @"CommissionerControl";
         break;
+    case MTRClusterIDTypeJointFabricDatastoreID:
+        result = @"JointFabricDatastore";
+        break;
+    case MTRClusterIDTypeJointFabricPkiID:
+        result = @"JointFabricPki";
+        break;
     case MTRClusterIDTypeUnitTestingID:
         result = @"UnitTesting";
         break;
@@ -8268,6 +8274,112 @@ NSString * MTRAttributeNameForID(MTRClusterIDType clusterID, MTRAttributeIDType 
         }
         break;
 
+    case MTRClusterIDTypeJointFabricDatastoreID:
+
+        switch (attributeID) {
+
+            // Cluster JointFabricDatastore attributes
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeAnchorRootCaID:
+            result = @"AnchorRootCa";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeAnchorNodeIdID:
+            result = @"AnchorNodeId";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeAnchorVendorIdID:
+            result = @"AnchorVendorId";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeFriendlyNameID:
+            result = @"FriendlyName";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeGroupKeyListID:
+            result = @"GroupKeyList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeGroupListID:
+            result = @"GroupList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeNodeListID:
+            result = @"NodeList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeAdminListID:
+            result = @"AdminList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeStatusEntryID:
+            result = @"StatusEntry";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeGeneratedCommandListID:
+            result = @"GeneratedCommandList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeAcceptedCommandListID:
+            result = @"AcceptedCommandList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeEventListID:
+            result = @"EventList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeAttributeListID:
+            result = @"AttributeList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeFeatureMapID:
+            result = @"FeatureMap";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricDatastoreAttributeClusterRevisionID:
+            result = @"ClusterRevision";
+            break;
+
+        default:
+            result = [NSString stringWithFormat:@"<Unknown attributeID %d>", attributeID];
+            break;
+        }
+        break;
+
+    case MTRClusterIDTypeJointFabricPkiID:
+
+        switch (attributeID) {
+
+            // Cluster JointFabricPki attributes
+        case MTRAttributeIDTypeClusterJointFabricPkiAttributeGeneratedCommandListID:
+            result = @"GeneratedCommandList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricPkiAttributeAcceptedCommandListID:
+            result = @"AcceptedCommandList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricPkiAttributeEventListID:
+            result = @"EventList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricPkiAttributeAttributeListID:
+            result = @"AttributeList";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricPkiAttributeFeatureMapID:
+            result = @"FeatureMap";
+            break;
+
+        case MTRAttributeIDTypeClusterJointFabricPkiAttributeClusterRevisionID:
+            result = @"ClusterRevision";
+            break;
+
+        default:
+            result = [NSString stringWithFormat:@"<Unknown attributeID %d>", attributeID];
+            break;
+        }
+        break;
+
     case MTRClusterIDTypeUnitTestingID:
 
         switch (attributeID) {
@@ -10365,6 +10477,26 @@ NSString * MTREventNameForID(MTRClusterIDType clusterID, MTREventIDType eventID)
         case MTREventIDTypeClusterCommissionerControlEventCommissioningRequestResultID:
             result = @"CommissioningRequestResult";
             break;
+
+        default:
+            result = [NSString stringWithFormat:@"<Unknown eventID %d>", eventID];
+            break;
+        }
+        break;
+
+    case MTRClusterIDTypeJointFabricDatastoreID:
+
+        switch (eventID) {
+
+        default:
+            result = [NSString stringWithFormat:@"<Unknown eventID %d>", eventID];
+            break;
+        }
+        break;
+
+    case MTRClusterIDTypeJointFabricPkiID:
+
+        switch (eventID) {
 
         default:
             result = [NSString stringWithFormat:@"<Unknown eventID %d>", eventID];

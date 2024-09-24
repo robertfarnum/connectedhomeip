@@ -1151,6 +1151,24 @@ static BOOL CommandNeedsTimedInvokeInCommissionerControlCluster(AttributeId aAtt
     }
     }
 }
+static BOOL CommandNeedsTimedInvokeInJointFabricDatastoreCluster(AttributeId aAttributeId)
+{
+    using namespace Clusters::JointFabricDatastore;
+    switch (aAttributeId) {
+    default: {
+        return NO;
+    }
+    }
+}
+static BOOL CommandNeedsTimedInvokeInJointFabricPkiCluster(AttributeId aAttributeId)
+{
+    using namespace Clusters::JointFabricPki;
+    switch (aAttributeId) {
+    default: {
+        return NO;
+    }
+    }
+}
 static BOOL CommandNeedsTimedInvokeInUnitTestingCluster(AttributeId aAttributeId)
 {
     using namespace Clusters::UnitTesting;
@@ -1529,6 +1547,12 @@ BOOL MTRCommandNeedsTimedInvoke(NSNumber * _Nonnull aClusterID, NSNumber * _Nonn
     }
     case Clusters::CommissionerControl::Id: {
         return CommandNeedsTimedInvokeInCommissionerControlCluster(commandID);
+    }
+    case Clusters::JointFabricDatastore::Id: {
+        return CommandNeedsTimedInvokeInJointFabricDatastoreCluster(commandID);
+    }
+    case Clusters::JointFabricPki::Id: {
+        return CommandNeedsTimedInvokeInJointFabricPkiCluster(commandID);
     }
     case Clusters::UnitTesting::Id: {
         return CommandNeedsTimedInvokeInUnitTestingCluster(commandID);
