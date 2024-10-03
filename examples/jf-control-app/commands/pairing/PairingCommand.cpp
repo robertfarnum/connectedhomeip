@@ -415,6 +415,11 @@ void PairingCommand::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
     if (err == CHIP_NO_ERROR)
     {
         ChipLogProgress(chipTool, "Device commissioning completed with success");
+
+        if (mSkipCommissioningComplete.ValueOr(false))
+        {
+            ChipLogProgress(chipTool, "RPC Call to jf-admin-app. Params: node-id of the newly commissioned device: %lu", mNodeId);
+        }
     }
     else
     {
