@@ -61,6 +61,8 @@ static_library("jf-control-app-utils") {
     "commands/common/HexConversion.h",
     "commands/common/RemoteDataModelLogger.cpp",
     "commands/common/RemoteDataModelLogger.h",
+    "commands/joint-fabric/JointFabricCommand.cpp",
+    "commands/joint-fabric/JointFabricCommand.h",
     "commands/icd/ICDCommand.cpp",
     "commands/icd/ICDCommand.h",
     "commands/pairing/OpenCommissioningWindowCommand.cpp",
