@@ -1,0 +1,209 @@
+diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/BUILD.gn b/pw_grpc/BUILD.gn
+--- a/pw_grpc/BUILD.gn	2024-10-07 16:12:57.185131000 +0300
++++ b/pw_grpc/BUILD.gn	2024-10-07 16:16:47.244762199 +0300
+@@ -11,142 +11,150 @@
+ # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ # License for the specific language governing permissions and limitations under
+ # the License.
+ 
+ import("//build_overrides/pigweed.gni")
+ 
+ import("$dir_pw_build/error.gni")
+ import("$dir_pw_build/target_types.gni")
+ import("$dir_pw_docgen/docs.gni")
+ import("$dir_pw_unit_test/test.gni")
+ 
+ config("public_include_path") {
+   include_dirs = [ "public" ]
+   visibility = [ ":*" ]
+ }
+ 
+ pw_source_set("connection") {
+   sources = [ "connection.cc" ]
+   public_configs = [ ":public_include_path" ]
+   public = [ "public/pw_grpc/connection.h" ]
++  public_deps = [
++    "$dir_pw_allocator:allocator",
++    "$dir_pw_async:dispatcher",
++    "$dir_pw_async_basic:dispatcher",
++    "$dir_pw_thread:thread",
++    "$dir_pw_thread:thread_core"
++  ]
+   deps = [
+     ":hpack",
+     ":send_queue",
++    "$dir_pw_allocator:allocator",
+     "$dir_pw_assert",
+-    "$dir_pw_async:dispatcher",
+-    "$dir_pw_async_basic:dispatcher",
+     "$dir_pw_bytes",
+     "$dir_pw_function",
+     "$dir_pw_log",
+     "$dir_pw_result",
+     "$dir_pw_span",
+     "$dir_pw_status",
+     "$dir_pw_stream",
+     "$dir_pw_string",
+     "$dir_pw_sync:inline_borrowable",
+-    "$dir_pw_thread:thread",
+-    "$dir_pw_thread:thread_core",
+   ]
+ }
+ 
+ pw_source_set("send_queue") {
+   sources = [ "send_queue.cc" ]
+   public = [ "public/pw_grpc/send_queue.h" ]
+   public_configs = [ ":public_include_path" ]
+   deps = [
+     "$dir_pw_async:dispatcher",
+     "$dir_pw_async_basic:dispatcher",
+     "$dir_pw_bytes",
+     "$dir_pw_chrono:system_clock",
+     "$dir_pw_function",
+     "$dir_pw_log",
+     "$dir_pw_result",
+     "$dir_pw_span",
+     "$dir_pw_status",
+     "$dir_pw_stream",
+     "$dir_pw_string",
+     "$dir_pw_sync:lock_annotations",
+     "$dir_pw_sync:mutex",
+     "$dir_pw_thread:thread",
+     "$dir_pw_thread:thread_core",
+   ]
+ }
+ 
+ pw_source_set("grpc_channel_output") {
+   public = [ "public/pw_grpc/grpc_channel_output.h" ]
+   public_configs = [ ":public_include_path" ]
++  public_deps = [
++    "$dir_pw_async:dispatcher",
++    "$dir_pw_async_basic:dispatcher"
++  ]
+   deps = [
+     ":connection",
+     "$dir_pw_bytes",
+-    "$dir_pw_rpc",
++    "$dir_pw_rpc:common"
+   ]
+ }
+ 
+ pw_source_set("pw_rpc_handler") {
+   public = [ "public/pw_grpc/pw_rpc_handler.h" ]
+   sources = [ "pw_rpc_handler.cc" ]
+   public_configs = [ ":public_include_path" ]
+   deps = [
+     ":connection",
+     ":grpc_channel_output",
+     "$dir_pw_bytes",
+     "$dir_pw_log",
+-    "$dir_pw_rpc",
++    "$dir_pw_rpc:common",
+     "$dir_pw_rpc_transport:rpc_transport",
+     "$dir_pw_string",
+   ]
++  defines = [ "PW_RPC_METHOD_STORES_TYPE=1" ]
+ }
+ 
+ pw_source_set("hpack") {
+   sources = [
+     "hpack.autogen.inc",
+     "hpack.cc",
+     "pw_grpc_private/hpack.h",
+   ]
+   deps = [
+     "$dir_pw_assert",
+     "$dir_pw_bytes",
+     "$dir_pw_log",
+     "$dir_pw_result",
+     "$dir_pw_span",
+     "$dir_pw_status",
+     "$dir_pw_string",
+   ]
+ }
+ 
+ pw_test("hpack_test") {
+   sources = [ "hpack_test.cc" ]
+   deps = [ ":hpack" ]
+ }
+ 
+ pw_executable("test_pw_rpc_server") {
+   sources = [ "test_pw_rpc_server.cc" ]
+   deps = [
+     ":connection",
+-    ":echo_cc.pwpb_rpc",
+     ":grpc_channel_output",
+     ":pw_rpc_handler",
+-    "$dir_pw_assert_basic:pw_assert_basic_handler",
++    "$dir_pw_assert_basic:basic_handler",
+     "$dir_pw_assert_log:assert_backend",
+     "$dir_pw_assert_log:check_backend",
+     "$dir_pw_bytes",
+     "$dir_pw_log",
+     "$dir_pw_result",
+-    "$dir_pw_rpc",
++    "$dir_pw_rpc:common",
+     "$dir_pw_rpc_transport:service_registry",
+     "$dir_pw_span",
+     "$dir_pw_status",
+     "$dir_pw_stream",
+     "$dir_pw_stream:socket_stream",
+     "$dir_pw_string",
+     "$dir_pw_thread:test_thread_context",
+     "$dir_pw_thread:thread",
+   ]
+ }
+ 
+ pw_doc_group("docs") {
+   sources = [ "docs.rst" ]
+ }
+ 
+ pw_test_group("tests") {
+   group_deps = []
+ }
+diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/public/pw_grpc/grpc_channel_output.h b/pw_grpc/public/pw_grpc/grpc_channel_output.h
+--- a/pw_grpc/public/pw_grpc/grpc_channel_output.h	2024-10-07 16:13:12.995831000 +0300
++++ b/pw_grpc/public/pw_grpc/grpc_channel_output.h	2024-10-07 16:16:12.941414687 +0300
+@@ -12,40 +12,42 @@
+ // License for the specific language governing permissions and limitations under
+ // the License.
+ #pragma once
+ 
+ #include <cstdint>
+ #include <optional>
+ 
+ #include "pw_bytes/span.h"
+ #include "pw_grpc/connection.h"
+ #include "pw_rpc/channel.h"
+ #include "pw_rpc/internal/packet.h"
+ 
+ namespace pw::grpc {
+ 
+ class GrpcChannelOutput : public rpc::ChannelOutput {
+  public:
+   GrpcChannelOutput() : pw::rpc::ChannelOutput("grpc") {}
+ 
+   class StreamCallbacks {
+    public:
++    virtual ~StreamCallbacks() = default;
++
+     // Called when a stream is completed from the server. Called on the same
+     // thread as Send is called on.
+     virtual void OnClose(StreamId) = 0;
+   };
+ 
+   void set_callbacks(StreamCallbacks& callbacks) { callbacks_ = callbacks; }
+ 
+   void set_connection(Connection& conn) { connection_ = conn; }
+ 
+   Status Send(ConstByteSpan data) override {
+     using pw::rpc::internal::pwpb::PacketType;
+ 
+     if (!connection_.has_value()) {
+       return Status::FailedPrecondition();
+     }
+     // TODO: b/319162657 - Avoid this extra decode
+     PW_TRY_ASSIGN(rpc::internal::Packet packet,
+                   rpc::internal::Packet::FromBuffer(data));
+ 
+     switch (packet.type()) {
