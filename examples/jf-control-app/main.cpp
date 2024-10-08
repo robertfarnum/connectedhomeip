@@ -25,6 +25,7 @@
 #include "commands/clusters/SubscriptionsCommands.h"
 #include "commands/icd/ICDCommand.h"
 #include "commands/interactive/Commands.h"
+#include "commands/joint-fabric/Commands.h"
 #include "commands/pairing/Commands.h"
 
 #include <zap-generated/cluster/Commands.h>
@@ -48,6 +49,7 @@ int main(int argc, char * argv[])
     ExampleCredentialIssuerCommands credIssuerCommands;
     Commands commands;
     
+    registerCommandsJointFabric(commands, &credIssuerCommands);
     registerCommandsICD(commands, &credIssuerCommands);
     registerCommandsInteractive(commands, &credIssuerCommands);
     registerCommandsPairing(commands, &credIssuerCommands);

@@ -19,16 +19,71 @@
 #include "JointFabricCommand.h"
 #include <commands/common/RemoteDataModelLogger.h>
 #include <commands/interactive/InteractiveCommands.h>
+#include <lib/support/ScopedBuffer.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <thread>
 #include <unistd.h>
 
 using namespace ::chip;
 
-CHIP_ERROR JointFabricCommand::RunCommand(chip::Optional<chip::NodeId> jfAdminAppNodeId)
+namespace
+{
+}
+
+CHIP_ERROR JointFabricCommand::RunCommand(chip::Optional<chip::NodeId> nodeId)
 {
     fprintf(stderr,
             "Provision jf-admin-app\n");
 
-    return CHIP_NO_ERROR;
+    CHIP_ERROR err;
+
+    chip::Crypto::P256Keypair ephemeralKey;
+
+    chip::Platform::ScopedMemoryBuffer<uint8_t> jfAdminNoc;
+    chip::Platform::ScopedMemoryBuffer<uint8_t> jfAdminIcac;
+    chip::Platform::ScopedMemoryBuffer<uint8_t> jfAdminRcac;
+    MutableByteSpan jfAdminNocSpan;
+    MutableByteSpan jfAdminIcacSpan;
+    MutableByteSpan jfAdminRcacSpan;
+
+    NodeId jfAdminNodeId = JF_ADMIN_APP_NODE_ID;
+
+#if JF_GENERATE_CERTS_FOR_ANCHOR
+    /* Administrator CAT */
+    CASEAuthTag adminCAT = 0xFFFF'0001;
+
+    /* Anchor/Datastore CAT */
+    CASEAuthTag AnchorDatastoreCAT = 0xFFFC'0001;
+#endif
+
+    err = chip::Platform::MemoryInit();
+    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(Controller, "Init Memory failure: %s", chip::ErrorStr(err)));
+
+    err = ephemeralKey.Initialize(chip::Crypto::ECPKeyTarget::ECDSA);
+    SuccessOrExit(err);
+
+    VerifyOrExit(jfAdminNoc.Alloc(chip::Controller::kMaxCHIPDERCertLength), err = CHIP_ERROR_NO_MEMORY);
+    jfAdminNocSpan = MutableByteSpan(jfAdminNoc.Get(), Controller::kMaxCHIPDERCertLength);
+
+    VerifyOrExit(jfAdminIcac.Alloc(chip::Controller::kMaxCHIPDERCertLength), err = CHIP_ERROR_NO_MEMORY);
+    jfAdminIcacSpan = MutableByteSpan(jfAdminIcac.Get(), Controller::kMaxCHIPDERCertLength);
+
+    VerifyOrExit(jfAdminRcac.Alloc(chip::Controller::kMaxCHIPDERCertLength), err = CHIP_ERROR_NO_MEMORY);
+    jfAdminRcacSpan = MutableByteSpan(jfAdminRcac.Get(), Controller::kMaxCHIPDERCertLength);
+
+    if (nodeId.HasValue())
+    {
+        jfAdminNodeId = nodeId.Value();
+    }
+
+    err = mCredIssuerCmds->GenerateControllerNOCChain(
+          jfAdminNodeId, /* fabricId = */ 1, { { adminCAT, AnchorDatastoreCAT } },
+          ephemeralKey, jfAdminRcacSpan, jfAdminIcacSpan, jfAdminNocSpan);
+
+exit:
+    chip::Platform::MemoryShutdown();
+    ephemeralKey.Clear();
+
+    ChipLogProgress(Controller, "jf-control-app initialization status: %s", chip::ErrorStr(err));
+    return err;
 }

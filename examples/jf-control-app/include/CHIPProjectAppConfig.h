@@ -64,4 +64,12 @@
 // Allow us, for test purposes, to encode invalid enum values.
 #define CHIP_CONFIG_IM_ENABLE_ENCODING_SENTINEL_ENUM_VALUES 1
 
+// if the jf-admin-app is run as anchor administrator then:
+// ICAC: 'org-unit-name' has 'jf-anchor-icac' value
+// NOC: contains the Anchor/Datastore CAT
+#define JF_GENERATE_CERTS_FOR_ANCHOR 1
+
+// Node Id used by the jf-admin-app
+#define JF_ADMIN_APP_NODE_ID 1
+
 #endif /* CHIPPROJECTCONFIG_H */

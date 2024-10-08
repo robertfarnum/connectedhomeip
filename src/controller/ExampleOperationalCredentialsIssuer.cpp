@@ -238,6 +238,11 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     uint16_t rcacBufLen = static_cast<uint16_t>(std::min(rcac.size(), static_cast<size_t>(UINT16_MAX)));
     PERSISTENT_KEY_OP(mIndex, kOperationalCredentialsRootCertificateStorage, key,
                       err = mStorage->SyncGetKeyValue(key, rcac.data(), rcacBufLen));
+
+#if JF_GENERATE_CERTS_FOR_ANCHOR
+    static bool generateNOCForController = true;
+#endif
+
     // Always regenerate RCAC on maximally sized certs. The keys remain the same, so everything is fine.
     if (mUseMaximallySizedCerts)
     {
@@ -247,6 +252,12 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     if (err == CHIP_NO_ERROR)
     {
         uint64_t rcacId;
+
+#if JF_GENERATE_CERTS_FOR_ANCHOR
+        /* demo: KVS is empty during PKI generation for controller */
+        generateNOCForController = false;
+#endif
+
         // Found root certificate in the storage.
         rcac.reduce_size(rcacBufLen);
         ReturnErrorOnFailure(ExtractSubjectDNFromX509Cert(rcac, rcac_dn));
@@ -294,6 +305,10 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     {
         ReturnErrorOnFailure(icac_dn.AddAttribute_MatterICACId(mIntermediateIssuerId));
 
+#if JF_GENERATE_CERTS_FOR_ANCHOR
+        ReturnErrorOnFailure(icac_dn.AddAttribute_OrganizationalUnitName("jf-anchor-icac"_span, false));
+#endif
+
         ChipLogProgress(Controller, "Generating ICAC");
         ReturnErrorOnFailure(IssueX509Cert(mNow, mValidity, rcac_dn, icac_dn, CertType::kIcac, mUseMaximallySizedCerts,
                                            mIntermediateIssuer.Pubkey(), mIssuer, icac));
@@ -311,6 +326,19 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId(fabricId));
     ReturnErrorOnFailure(noc_dn.AddAttribute_MatterNodeId(nodeId));
     ReturnErrorOnFailure(noc_dn.AddCATs(cats));
+
+#if JF_GENERATE_CERTS_FOR_ANCHOR
+    /* controller NOC must contain the Administrator CAT */
+    if (generateNOCForController)
+    {
+        ChipLogProgress(Controller, "Adding Administrator CAT to Controller NOC.");
+
+        /* Administrator CAT */
+        CASEAuthTag adminCAT = 0xFFFF'0001;
+
+        noc_dn.AddCATs({ { adminCAT } });
+    }
+#endif
 
     ChipLogProgress(Controller, "Generating NOC");
     return IssueX509Cert(mNow, mValidity, icac_dn, noc_dn, CertType::kNoc, mUseMaximallySizedCerts, pubkey, mIntermediateIssuer,
@@ -337,6 +365,14 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChain(const ByteSpan 
     else
     {
         assignedId = mNextAvailableNodeId++;
+
+        /* make sure that the node id used for generation doesn't
+         * overlap with the node id of the administrator (if set)
+         */
+        if (assignedId == mAdminSubjectNodeId)
+        {
+            assignedId = mNextAvailableNodeId++;
+        }
     }
 
     ChipLogProgress(Controller, "Verifying Certificate Signing Request");
@@ -393,7 +429,7 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChain(const ByteSpan 
     // Callback onto commissioner.
     ChipLogProgress(Controller, "Providing certificate chain to the commissioner");
     onCompletion->mCall(onCompletion->mContext, CHIP_NO_ERROR, nocSpan, icacSpan, rcacSpan, MakeOptional(ipkSpan),
-                        Optional<NodeId>());
+                        mAdminSubjectNodeId ? MakeOptional(mAdminSubjectNodeId) : Optional<NodeId>());
     return CHIP_NO_ERROR;
 }
 

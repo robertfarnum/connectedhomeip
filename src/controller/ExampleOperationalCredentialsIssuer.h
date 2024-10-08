@@ -107,6 +107,8 @@ public:
     CHIP_ERROR GenerateNOCChainAfterValidation(NodeId nodeId, FabricId fabricId, const CATValues & cats,
                                                const Crypto::P256PublicKey & pubkey, MutableByteSpan & rcac, MutableByteSpan & icac,
                                                MutableByteSpan & noc);
+                             
+    void SetAdminNodeId(NodeId nodeId) { mAdminSubjectNodeId = nodeId; }
 
 private:
     Crypto::P256Keypair mIssuer;
@@ -128,6 +130,8 @@ private:
     CATValues mNextCATs         = kUndefinedCATs;
     bool mNodeIdRequested       = false;
     uint64_t mIndex             = 0;
+
+    NodeId mAdminSubjectNodeId = 0;
 };
 
 } // namespace Controller
