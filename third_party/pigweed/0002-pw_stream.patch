@@ -1,0 +1,35 @@
+diff -rdpF --suppress-common-lines '--unified=20' a/pw_stream/public/pw_stream/socket_stream.h b/pw_stream/public/pw_stream/socket_stream.h
+--- a/pw_stream/public/pw_stream/socket_stream.h	2024-10-09 16:48:54.581591620 +0300
++++ b/pw_stream/public/pw_stream/socket_stream.h	2024-10-09 16:48:40.214831149 +0300
+@@ -174,30 +174,30 @@ class ServerSocket {
+ 
+    private:
+     ServerSocket* server_socket_;
+     int fd_;
+     int pipe_r_fd_;
+   };
+ 
+   // Take ownership of the socket. There may be multiple owners. Each time
+   // TakeSocket is called, ReleaseSocket must be called to release ownership,
+   // even if the socket is not invalid.
+   //
+   // Returns the socket fd or kInvalidFd if the socket is not valid.
+   int TakeSocket();
+   int TakeSocketWithLockHeld() PW_EXCLUSIVE_LOCKS_REQUIRED(socket_mutex_);
+ 
+   // Release ownership of the socket. If no owners remain, close and clear the
+   // socket fds.
+   void ReleaseSocket();
+   void ReleaseSocketWithLockHeld() PW_EXCLUSIVE_LOCKS_REQUIRED(socket_mutex_);
+ 
+-  uint16_t port_ = -1;
++  uint16_t port_ = 0;
+   sync::Mutex socket_mutex_;
+   int socket_own_count_ PW_GUARDED_BY(socket_mutex_) = 0;
+   bool ready_ PW_GUARDED_BY(socket_mutex_) = false;
+   int socket_fd_ PW_GUARDED_BY(socket_mutex_) = kInvalidFd;
+   int socket_pipe_r_fd_ PW_GUARDED_BY(socket_mutex_) = kInvalidFd;
+   int socket_pipe_w_fd_ PW_GUARDED_BY(socket_mutex_) = kInvalidFd;
+ };
+ 
+ }  // namespace pw::stream
