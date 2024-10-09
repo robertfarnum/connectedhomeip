@@ -1,0 +1,20 @@
+
+/* import "pw_protobuf_protos/common.proto"; */
+
+syntax = "proto3";
+
+import 'pw_protobuf_protos/status.proto';
+
+package test;
+
+message TextMessage {
+    string msg_data = 1;
+}
+
+message ErrorCode {
+    sint32 err_code = 1;
+}
+
+service Test {
+    rpc DisplayText(TextMessage) returns (ErrorCode) {}
+}

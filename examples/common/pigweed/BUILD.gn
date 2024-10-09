@@ -133,6 +133,14 @@ pw_proto_library("wifi_service") {
   prefix = "wifi_service"
 }
 
+pw_proto_library("test") {
+  sources = [ "protos/test.proto" ]
+  inputs = [ "protos/test.options" ]
+  deps = [ "$dir_pw_protobuf:common_protos" ]
+  strip_prefix = "protos"
+  prefix = "test"
+}
+
 pw_source_set("rpc_services") {
   public_configs = [ ":default_config" ]
 }
