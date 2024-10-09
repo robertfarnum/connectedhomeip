@@ -70,6 +70,8 @@ static_library("jf-control-app-utils") {
     "commands/pairing/OpenCommissioningWindowCommand.h",
     "commands/pairing/PairingCommand.cpp",
     "commands/pairing/ToTLVCert.cpp",
+    "commands/rpc/RpcCommands.cpp",
+    "commands/rpc/RpcCommands.h",
     "RpcClient.cpp",
     "RpcClient.h",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",

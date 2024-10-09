@@ -27,6 +27,7 @@
 #include "commands/interactive/Commands.h"
 #include "commands/joint-fabric/Commands.h"
 #include "commands/pairing/Commands.h"
+#include "commands/rpc/Commands.h"
 #include "RpcClient.h"
 
 #include <zap-generated/cluster/Commands.h>
@@ -56,6 +57,7 @@ int main(int argc, char * argv[])
     registerCommandsPairing(commands, &credIssuerCommands);
     registerClusters(commands, &credIssuerCommands);
     registerCommandsSubscriptions(commands, &credIssuerCommands);
+    registerCommandsRpc(commands);
 
     std::vector<char *> c_args;
     for (auto & arg : args)
