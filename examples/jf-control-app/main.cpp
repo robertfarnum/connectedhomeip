@@ -27,6 +27,7 @@
 #include "commands/interactive/Commands.h"
 #include "commands/joint-fabric/Commands.h"
 #include "commands/pairing/Commands.h"
+#include "RpcClient.h"
 
 #include <zap-generated/cluster/Commands.h>
 
@@ -48,7 +49,7 @@ int main(int argc, char * argv[])
 
     ExampleCredentialIssuerCommands credIssuerCommands;
     Commands commands;
-    
+
     registerCommandsJointFabric(commands, &credIssuerCommands);
     registerCommandsICD(commands, &credIssuerCommands);
     registerCommandsInteractive(commands, &credIssuerCommands);
@@ -61,6 +62,9 @@ int main(int argc, char * argv[])
     {
         c_args.push_back(const_cast<char *>(arg.c_str()));
     }
+
+    /* Connect the RPC client */
+    RpcConnect();
 
     return commands.Run(static_cast<int>(c_args.size()), c_args.data());
 }
