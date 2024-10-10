@@ -72,6 +72,8 @@ static_library("jf-control-app-utils") {
     "commands/pairing/ToTLVCert.cpp",
     "commands/rpc/RpcCommands.cpp",
     "commands/rpc/RpcCommands.h",
+    "commands/rpc/RpcConnect.cpp",
+    "commands/rpc/RpcConnect.h",
     "RpcClient.cpp",
     "RpcClient.h",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",

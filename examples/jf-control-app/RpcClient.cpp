@@ -1,8 +1,6 @@
 
 #include "RpcClient.h"
 
-#include <pw_chrono/system_timer.h>
-
 #include <lib/support/logging/CHIPLogging.h>
 
 #include "RpcClientProcessor.h"
@@ -13,11 +11,7 @@
 
 using namespace pw;
 
-static void OnRpcConnect(chrono::SystemClock::time_point expired_deadline);
-
 static void OnRpcCallCompleted(const ::test_ErrorCode &result, ::pw::Status status);
-
-static chrono::SystemTimer timer(OnRpcConnect);
 
 static char rpcServerAddress[48] = { "127.0.0.1" };
 static int rpcStatus = RPC_DISCONNECTED;
@@ -25,10 +19,20 @@ static volatile bool rpcCallCompleted;
 
 void RpcConnect(void)
 {
-    rpcStatus = RPC_CONNECTING;
+   CHIP_ERROR err = CHIP_NO_ERROR;
 
-    /* Fire up the timer which connects the RPC */
-    timer.InvokeAfter(std::chrono::seconds(1));
+    rpcStatus = RPC_CONNECTING;
+    
+    chip::rpc::client::SetRpcServerAddress(rpcServerAddress);
+    chip::rpc::client::SetRpcServerPort(RPC_SERVER_PORT);
+    err = chip::rpc::client::StartPacketProcessing();
+
+    if (err != CHIP_NO_ERROR) {
+        ChipLogProgress(NotSpecified, "Unable to connect to RPC server %s!", rpcServerAddress);
+    } else {
+        rpcStatus = RPC_CONNECTED;
+        ChipLogProgress(NotSpecified, "Successfully connected to the jf-admin.");
+    }
 }
 
 void RpcSetServerAddress(const char *addr)
@@ -72,25 +76,6 @@ CHIP_ERROR RpcDisplayText(const char *message)
     do { } while (!rpcCallCompleted);
 
     return CHIP_NO_ERROR;
-}
-
-static void OnRpcConnect(chrono::SystemClock::time_point expired_deadline)
-{
-    CHIP_ERROR err;
-
-    chip::rpc::client::SetRpcServerAddress(rpcServerAddress);
-    chip::rpc::client::SetRpcServerPort(RPC_SERVER_PORT);
-    err = chip::rpc::client::StartPacketProcessing();
-
-    if (err != CHIP_NO_ERROR) {
-        ChipLogProgress(NotSpecified, "Unable to connect to RPC server %s! Trying again in 5 seconds.",
-            rpcServerAddress);
-        /* Reschedule connect timer after another 3 seconds */
-        timer.InvokeAfter(std::chrono::seconds(5));
-    } else {
-        rpcStatus = RPC_CONNECTED;
-        ChipLogProgress(NotSpecified, "Successfully connected to the jf-admin.");
-    }
 }
 
 static void OnRpcCallCompleted(const ::test_ErrorCode &result, ::pw::Status status)

@@ -65,8 +65,5 @@ int main(int argc, char * argv[])
         c_args.push_back(const_cast<char *>(arg.c_str()));
     }
 
-    /* Connect the RPC client */
-    RpcConnect();
-
     return commands.Run(static_cast<int>(c_args.size()), c_args.data());
 }
