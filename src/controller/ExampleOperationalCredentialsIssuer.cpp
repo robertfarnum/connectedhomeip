@@ -239,7 +239,7 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     PERSISTENT_KEY_OP(mIndex, kOperationalCredentialsRootCertificateStorage, key,
                       err = mStorage->SyncGetKeyValue(key, rcac.data(), rcacBufLen));
 
-#if JF_GENERATE_CERTS_FOR_ANCHOR
+#if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
     static bool generateNOCForController = true;
 #endif
 
@@ -253,7 +253,7 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     {
         uint64_t rcacId;
 
-#if JF_GENERATE_CERTS_FOR_ANCHOR
+#if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
         /* demo: KVS is empty during PKI generation for controller */
         generateNOCForController = false;
 #endif
@@ -305,7 +305,7 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     {
         ReturnErrorOnFailure(icac_dn.AddAttribute_MatterICACId(mIntermediateIssuerId));
 
-#if JF_GENERATE_CERTS_FOR_ANCHOR
+#if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
         ReturnErrorOnFailure(icac_dn.AddAttribute_OrganizationalUnitName("jf-anchor-icac"_span, false));
 #endif
 
@@ -327,7 +327,7 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     ReturnErrorOnFailure(noc_dn.AddAttribute_MatterNodeId(nodeId));
     ReturnErrorOnFailure(noc_dn.AddCATs(cats));
 
-#if JF_GENERATE_CERTS_FOR_ANCHOR
+#if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
     /* controller NOC must contain the Administrator CAT */
     if (generateNOCForController)
     {

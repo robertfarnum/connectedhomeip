@@ -1,5 +1,5 @@
 
-#include "RpcServer.h"
+#include "pigweed/rpc_services/JointFabric.h"
 #include <lib/support/logging/CHIPLogging.h>
 
 namespace test {
