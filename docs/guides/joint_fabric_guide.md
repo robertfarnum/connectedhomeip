@@ -55,7 +55,7 @@ mkdir -p /tmp/jf-kvs/secondary-jf-control-app
 
 ```
 ./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1261 --passcode 110220033 \
-    --KVS /tmp/jf-kvs/chip-jf-admin-app/acs-app --jf-control-app-kvs /tmp/jf-kvs/jf-control-app
+    --KVS /tmp/jf-kvs/chip-jf-admin-app/acs-app --chip-tool-kvs /tmp/jf-kvs/jf-control-app
 ```
 
 ### Run Ecosystem B Controller (jf-control-app B) and issue a Ecosystem B NOC Chain to Ecosystem B Admin
@@ -82,7 +82,7 @@ previous cached data as instructed above.
 
 ```
 ./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1262 --passcode 110220044 \
-    --KVS /tmp/jf-kvs/chip-jf-admin-app/secondary-acs-app --jf-control-app-kvs /tmp/jf-kvs/secondary-jf-control-app
+    --KVS /tmp/jf-kvs/chip-jf-admin-app/secondary-acs-app --chip-tool-kvs /tmp/jf-kvs/secondary-jf-control-app
 ```
 
 ### Run Ecosystem A Controller (jf-control-app A) and issue a A NOC Chain to Ecosystem A Admin
