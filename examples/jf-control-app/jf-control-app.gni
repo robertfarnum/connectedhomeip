@@ -24,6 +24,9 @@ declare_args() {
   config_use_local_storage = true
 }
 
+# TODO: For development phase only. Should remove this as soon as possible.
+treat_warnings_as_errors = false
+
 chip_device_project_config_include = "<CHIPProjectAppConfig.h>"
 chip_project_config_include = "<CHIPProjectAppConfig.h>"
 chip_system_project_config_include = "<SystemProjectConfig.h>"
