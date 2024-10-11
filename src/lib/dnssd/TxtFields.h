@@ -47,7 +47,7 @@ static constexpr size_t kKeyDeviceNameMaxLength           = 32;
 static constexpr size_t kKeyRotatingDeviceIdMaxLength     = 100;
 static constexpr size_t kKeyPairingInstructionMaxLength   = 128;
 static constexpr size_t kKeyPairingHintMaxLength          = 10;
-static constexpr size_t kKeyJointFabricModeMaxLength      = 3;
+static constexpr size_t kKeyJointFabricModeMaxLength      = 10;
 static constexpr size_t kKeyCommissionerPasscodeMaxLength = 1;
 
 enum class TxtKeyUse : uint8_t

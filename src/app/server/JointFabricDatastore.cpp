@@ -36,5 +36,34 @@ CHIP_ERROR JointFabricDatastore::AddPendingNode(FabricIndex fabricId, NodeId nod
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR JointFabricDatastore::UpdateNode(NodeId nodeId, const CharSpan & friendlyName)
+{
+    for (size_t i = 0; i < mNodeInformationEntriesCount; ++i)
+    {
+        if (mNodeInformationEntries[i].nodeID == nodeId)
+        {
+            mNodeInformationEntries[i].friendlyName = friendlyName;
+            return CHIP_NO_ERROR;
+        }
+    }
+
+    return CHIP_ERROR_KEY_NOT_FOUND;
+}
+
+CHIP_ERROR JointFabricDatastore::RemoveNode(NodeId nodeId)
+{
+    for (size_t i = 0; i < mNodeInformationEntriesCount; ++i)
+    {
+        if (mNodeInformationEntries[i].nodeID == nodeId)
+        {
+            mNodeInformationEntries[i] = mNodeInformationEntries[mNodeInformationEntriesCount - 1];
+            --mNodeInformationEntriesCount;
+            return CHIP_NO_ERROR;
+        }
+    }
+
+    return CHIP_ERROR_KEY_NOT_FOUND;
+}
+
 } // namespace app
 } // namespace chip

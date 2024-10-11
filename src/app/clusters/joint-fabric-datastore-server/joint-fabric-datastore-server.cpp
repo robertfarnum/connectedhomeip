@@ -88,19 +88,60 @@ bool emberAfJointFabricDatastoreClusterAddKeySetCallback(
     return true;
 }
 
-// TODO
 bool emberAfJointFabricDatastoreClusterRemoveNodeCallback(
     CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
     const JointFabricDatastoreCluster::Commands::RemoveNode::DecodableType & commandData)
 {
+    NodeId nodeId = commandData.nodeID;
+
+    if (commandPath.mEndpointId != kRootEndpointId)
+    {
+        ChipLogError(DataManagement, "JointFabricDatastoreCluster: invalid endpoint in AddPendingNode request");
+        commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::InvalidCommand);
+        return true;
+    }
+
+    CHIP_ERROR err = Server::GetInstance().GetJointFabricDatastore().RemoveNode(nodeId);
+
+    if (err == CHIP_NO_ERROR)
+    {
+        commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::Success);
+    }
+    else
+    {
+        ChipLogError(DataManagement, "JointFabricDatastoreCluster: failed with error: %" CHIP_ERROR_FORMAT, err.Format());
+        commandObj->AddStatus(commandPath, Protocols::InteractionModel::ClusterStatusCode(err));
+    }
+
     return true;
 }
 
-// TODO
 bool emberAfJointFabricDatastoreClusterUpdateNodeCallback(
     CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
     const JointFabricDatastoreCluster::Commands::UpdateNode::DecodableType & commandData)
 {
+    NodeId nodeId                 = commandData.nodeID;
+    const CharSpan & friendlyName = commandData.friendlyName;
+
+    if (commandPath.mEndpointId != kRootEndpointId)
+    {
+        ChipLogError(DataManagement, "JointFabricDatastoreCluster: invalid endpoint in AddPendingNode request");
+        commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::InvalidCommand);
+        return true;
+    }
+
+    CHIP_ERROR err = Server::GetInstance().GetJointFabricDatastore().UpdateNode(nodeId, friendlyName);
+
+    if (err == CHIP_NO_ERROR)
+    {
+        commandObj->AddStatus(commandPath, Protocols::InteractionModel::Status::Success);
+    }
+    else
+    {
+        ChipLogError(DataManagement, "JointFabricDatastoreCluster: failed with error: %" CHIP_ERROR_FORMAT, err.Format());
+        commandObj->AddStatus(commandPath, Protocols::InteractionModel::ClusterStatusCode(err));
+    }
+
     return true;
 }
 

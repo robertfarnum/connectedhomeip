@@ -35,6 +35,8 @@ public:
     CHIP_ERROR Init(PersistentStorageDelegate & persistentStorage);
 
     CHIP_ERROR AddPendingNode(FabricIndex fabricId, NodeId nodeId, const CharSpan & friendlyName);
+    CHIP_ERROR UpdateNode(NodeId nodeId, const CharSpan & friendlyName);
+    CHIP_ERROR RemoveNode(NodeId nodeId);
 
 private:
     static constexpr size_t kMaxNodes = 32;

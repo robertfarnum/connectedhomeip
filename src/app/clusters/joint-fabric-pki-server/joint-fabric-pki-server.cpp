@@ -233,6 +233,9 @@ bool emberAfJointFabricPkiClusterAddICACCallback(
         uint8_t nocChipBuf[Credentials::kMaxCHIPCertLength] = { 0 };
         MutableByteSpan nocChipSpan{ nocChipBuf };
 
+        uint8_t previousNocChipBuf[Credentials::kMaxCHIPCertLength] = { 0 };
+        MutableByteSpan previousNocChipSpan{ previousNocChipBuf };
+
         uint8_t icaDerCert[Credentials::kMaxDERCertLength] = { 0 };
         MutableByteSpan icaDerCertSpan{ icaDerCert };
 
@@ -241,6 +244,9 @@ bool emberAfJointFabricPkiClusterAddICACCallback(
 
         err = fabricTable.FetchRootCert(commandObj->GetAccessingFabricIndex(), rootChipSpan);
         VerifyOrExit(err == CHIP_NO_ERROR && rootChipSpan.size() > 0, nonDefaultStatus = Status::Failure);
+
+        err = fabricTable.FetchNOCCert(commandObj->GetAccessingFabricIndex(), previousNocChipSpan);
+        VerifyOrExit(err == CHIP_NO_ERROR && previousNocChipSpan.size() > 0, nonDefaultStatus = Status::Failure);
 
         fabricTable.RevertPendingFabricData();
 
@@ -260,12 +266,16 @@ bool emberAfJointFabricPkiClusterAddICACCallback(
             VerifyOrExit(gCredentialsIssuer != nullptr, nonDefaultStatus = Status::Failure);
         }
 
+        CATValues cats = kUndefinedCATs;
+        err            = ExtractCATsFromOpCert(previousNocChipSpan, cats);
+        VerifyOrExit(err == CHIP_NO_ERROR, nonDefaultStatus = Status::Failure);
+
         ChipLogProgress(Zcl, "JointFabricPki: Node Id for Next NOC Request: 0x" ChipLogFormatX64, ChipLogValueX64(nodeId));
         ChipLogProgress(Zcl, "JointFabricPki: Fabric Id for Next NOC Request: 0x" ChipLogFormatX64, ChipLogValueX64(fabricId));
 
         gCredentialsIssuer->SetNodeIdForNextNOCRequest(nodeId);
         gCredentialsIssuer->SetFabricIdForNextNOCRequest(fabricId);
-        // TODO: Set CATs for next request
+        gCredentialsIssuer->SetCATValuesForNextNOCRequest(cats);
 
         err = ConvertChipCertToX509Cert(ICACValue, icaDerCertSpan);
         VerifyOrExit(err == CHIP_NO_ERROR && icaDerCertSpan.size() > 0, nonDefaultStatus = Status::Failure);

@@ -20,6 +20,7 @@
 
 #include <app/util/basic-types.h>
 #include <crypto/CHIPCryptoPAL.h>
+#include <lib/core/CASEAuthTag.h>
 #include <lib/core/CHIPCallback.h>
 #include <lib/core/PeerId.h>
 #include <lib/support/DLLUtil.h>
@@ -87,6 +88,13 @@ public:
      *   fabric ID.
      */
     virtual void SetFabricIdForNextNOCRequest(FabricId fabricId) {}
+
+    /**
+     *   This function sets the CAT values for which the next NOC Chain should be generated. This API is
+     *   not required to be implemented if the delegate implementation has other mechanisms to find the
+     *   CAT values.
+     */
+    virtual void SetCATValuesForNextNOCRequest(CATValues cats) {}
 
     virtual CHIP_ERROR ObtainCsrNonce(MutableByteSpan & csrNonce)
     {

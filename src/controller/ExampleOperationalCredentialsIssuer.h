@@ -31,7 +31,6 @@
 
 #include <controller/OperationalCredentialsDelegate.h>
 #include <crypto/CHIPCryptoPAL.h>
-#include <lib/core/CASEAuthTag.h>
 #include <lib/core/CHIPError.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
 #include <lib/support/CodeUtils.h>
@@ -75,7 +74,7 @@ public:
 
     void SetFabricIdForNextNOCRequest(FabricId fabricId) override { mNextFabricId = fabricId; }
 
-    void SetCATValuesForNextNOCRequest(CATValues cats) { mNextCATs = cats; }
+    void SetCATValuesForNextNOCRequest(CATValues cats) override { mNextCATs = cats; }
 
     /**
      * @brief Initialize the issuer with the keypair in the storage.
