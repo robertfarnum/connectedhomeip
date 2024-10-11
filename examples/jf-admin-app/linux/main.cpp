@@ -24,24 +24,89 @@
 #include <app/server/Server.h>
 #include <lib/support/logging/CHIPLogging.h>
 
+#include <platform/DeviceInstanceInfoProvider.h>
+
 #include <string>
 
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
+using namespace chip::DeviceLayer;
 
 namespace {
 
-} // namespace
+class ExampleDeviceInstanceInfoProvider : public DeviceInstanceInfoProvider
+{
+public:
+    void Init(DeviceInstanceInfoProvider * defaultProvider) { mDefaultProvider = defaultProvider; }
+
+    CHIP_ERROR GetVendorName(char * buf, size_t bufSize) override { return mDefaultProvider->GetVendorName(buf, bufSize); }
+    CHIP_ERROR GetVendorId(uint16_t & vendorId) override { return mDefaultProvider->GetVendorId(vendorId); }
+    CHIP_ERROR GetProductName(char * buf, size_t bufSize) override { return mDefaultProvider->GetProductName(buf, bufSize); }
+    CHIP_ERROR GetProductId(uint16_t & productId) override { return mDefaultProvider->GetProductId(productId); }
+    CHIP_ERROR GetPartNumber(char * buf, size_t bufSize) override { return mDefaultProvider->GetPartNumber(buf, bufSize); }
+    CHIP_ERROR GetProductURL(char * buf, size_t bufSize) override { return mDefaultProvider->GetPartNumber(buf, bufSize); }
+    CHIP_ERROR GetProductLabel(char * buf, size_t bufSize) override { return mDefaultProvider->GetProductLabel(buf, bufSize); }
+    CHIP_ERROR GetSerialNumber(char * buf, size_t bufSize) override { return mDefaultProvider->GetSerialNumber(buf, bufSize); }
+    CHIP_ERROR GetManufacturingDate(uint16_t & year, uint8_t & month, uint8_t & day) override
+    {
+        return mDefaultProvider->GetManufacturingDate(year, month, day);
+    }
+    CHIP_ERROR GetHardwareVersion(uint16_t & hardwareVersion) override
+    {
+        return mDefaultProvider->GetHardwareVersion(hardwareVersion);
+    }
+    CHIP_ERROR GetHardwareVersionString(char * buf, size_t bufSize) override
+    {
+        return mDefaultProvider->GetHardwareVersionString(buf, bufSize);
+    }
+    CHIP_ERROR GetRotatingDeviceIdUniqueId(MutableByteSpan & uniqueIdSpan) override
+    {
+        return mDefaultProvider->GetRotatingDeviceIdUniqueId(uniqueIdSpan);
+    }
+    CHIP_ERROR GetProductFinish(Clusters::BasicInformation::ProductFinishEnum * finish) override
+    {
+         return mDefaultProvider->GetProductFinish(finish);
+    }
+    CHIP_ERROR GetProductPrimaryColor(Clusters::BasicInformation::ColorEnum * primaryColor) override
+    {
+        return mDefaultProvider->GetProductPrimaryColor(primaryColor);
+    }
+
+    // TODO: Add new JointFabric Key to ConfigurationManager
+    CHIP_ERROR GetJointFabricMode(uint8_t & jointFabricMode) override
+    {
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        jointFabricMode = 1;
+        return CHIP_NO_ERROR;
+#else
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+#endif
+    }
+
+private:
+    DeviceInstanceInfoProvider * mDefaultProvider;
+};
+
+}
 
 void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & attributePath, uint8_t type, uint16_t size,
                                        uint8_t * value)
 {
 }
 
+ExampleDeviceInstanceInfoProvider gExampleDeviceInstanceInfoProvider;
+
 void ApplicationInit()
 {
     ChipLogProgress(NotSpecified, "ApplicationInit");
+
+    auto * defaultProvider = GetDeviceInstanceInfoProvider();
+    if (defaultProvider != &gExampleDeviceInstanceInfoProvider)
+    {
+        gExampleDeviceInstanceInfoProvider.Init(defaultProvider);
+        SetDeviceInstanceInfoProvider(&gExampleDeviceInstanceInfoProvider);
+    }
 }
 
 void ApplicationShutdown()
