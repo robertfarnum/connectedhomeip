@@ -270,12 +270,15 @@ bool emberAfJointFabricPkiClusterAddICACCallback(
         err            = ExtractCATsFromOpCert(previousNocChipSpan, cats);
         VerifyOrExit(err == CHIP_NO_ERROR, nonDefaultStatus = Status::Failure);
 
+        /* Administrator CAT */
+        CASEAuthTag adminCAT = 0xFFFF'0001;
+
         ChipLogProgress(Zcl, "JointFabricPki: Node Id for Next NOC Request: 0x" ChipLogFormatX64, ChipLogValueX64(nodeId));
         ChipLogProgress(Zcl, "JointFabricPki: Fabric Id for Next NOC Request: 0x" ChipLogFormatX64, ChipLogValueX64(fabricId));
 
         gCredentialsIssuer->SetNodeIdForNextNOCRequest(nodeId);
         gCredentialsIssuer->SetFabricIdForNextNOCRequest(fabricId);
-        gCredentialsIssuer->SetCATValuesForNextNOCRequest(cats);
+        gCredentialsIssuer->SetCATValuesForNextNOCRequest({{ adminCAT }});
 
         err = ConvertChipCertToX509Cert(ICACValue, icaDerCertSpan);
         VerifyOrExit(err == CHIP_NO_ERROR && icaDerCertSpan.size() > 0, nonDefaultStatus = Status::Failure);
