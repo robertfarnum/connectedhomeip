@@ -11,7 +11,7 @@
 
 using namespace pw;
 
-static void OnRpcCallCompleted(const ::test_ErrorCode &result, ::pw::Status status);
+static void OnRpcCallCompleted(const ::joint_fabric_ErrorCode &result, ::pw::Status status);
 
 static char rpcServerAddress[48] = { "127.0.0.1" };
 static int rpcStatus = RPC_DISCONNECTED;
@@ -48,8 +48,8 @@ int RpcGetStatus(void)
 
 CHIP_ERROR RpcDisplayText(const char *message)
 {
-    ::test_TextMessage request;
-    test::pw_rpc::nanopb::Test::Client rpcClient(
+    ::joint_fabric_TextMessage request;
+    joint_fabric::pw_rpc::nanopb::Test::Client rpcClient(
         chip::rpc::client::GetDefaultRpcClient(),
         DEFAULT_RPC_CHANNEL);
 
@@ -78,7 +78,7 @@ CHIP_ERROR RpcDisplayText(const char *message)
     return CHIP_NO_ERROR;
 }
 
-static void OnRpcCallCompleted(const ::test_ErrorCode &result, ::pw::Status status)
+static void OnRpcCallCompleted(const ::joint_fabric_ErrorCode &result, ::pw::Status status)
 {
     if (status.ok()) {
         ChipLogProgress(NotSpecified, "RPC call successful (server err_code = %d).",

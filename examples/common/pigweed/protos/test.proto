@@ -1,14 +1,28 @@
 
-/* import "pw_protobuf_protos/common.proto"; */
-
 syntax = "proto3";
 
 import 'pw_protobuf_protos/status.proto';
 
-package test;
+package joint_fabric;
 
 message TextMessage {
     string msg_data = 1;
+}
+
+/* OpenCommissioningWindow command parameters and response */
+message OpenCommissioningWindowIn {
+    uint32 window_timeout = 1;
+}
+
+message OpenCommissioningWindowOut {
+    string vendorId = 1;
+    string productId = 2;
+}
+
+/* CommissionDevice command parameters and response */
+message CommissionDeviceIn {
+    string manualCode = 1;
+    string duration = 2;
 }
 
 message ErrorCode {
@@ -17,4 +31,13 @@ message ErrorCode {
 
 service Test {
     rpc DisplayText(TextMessage) returns (ErrorCode) {}
+}
+
+service JointFabric {
+    rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (ErrorCode) {}
+}
+
+service JointFabricControl {
+    rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (OpenCommissioningWindowOut) {}
+    rpc CommissionDevice(CommissionDeviceIn) returns (ErrorCode) {}
 }
