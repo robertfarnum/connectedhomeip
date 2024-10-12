@@ -29,3 +29,5 @@
 
 // include the CHIPProjectConfig from config/standalone
 #include <CHIPProjectConfig.h>
+
+#define JF_GENERATE_CERTS_FOR_ANCHOR 1

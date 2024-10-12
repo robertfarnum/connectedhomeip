@@ -35,6 +35,8 @@ constexpr char kOperationalCredentialsIntermediateIssuerKeypairStorage[] = "Exam
 constexpr char kOperationalCredentialsRootCertificateStorage[]           = "ExampleCARootCert";
 constexpr char kOperationalCredentialsIntermediateCertificateStorage[]   = "ExampleCAIntermediateCert";
 
+constexpr char kNOC[]           = "ExampleNOC";
+
 using namespace Credentials;
 using namespace Crypto;
 using namespace TLV;
@@ -240,7 +242,8 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
                       err = mStorage->SyncGetKeyValue(key, rcac.data(), rcacBufLen));
 
 #if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
-    static bool generateNOCForController = true;
+    /* first initialization: special NOC/ICAC needed for Controller/Admin */
+    static bool generateNOCForControllerAdmin = true;
 #endif
 
     // Always regenerate RCAC on maximally sized certs. The keys remain the same, so everything is fine.
@@ -255,7 +258,7 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
 
 #if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
         /* demo: KVS is empty during PKI generation for controller */
-        generateNOCForController = false;
+        generateNOCForControllerAdmin = false;
 #endif
 
         // Found root certificate in the storage.
@@ -329,14 +332,17 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
 
 #if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
     /* controller NOC must contain the Administrator CAT */
-    if (generateNOCForController)
+    if (generateNOCForControllerAdmin)
     {
         ChipLogProgress(Controller, "Adding Administrator CAT to Controller NOC.");
 
         /* Administrator CAT */
         CASEAuthTag adminCAT = 0xFFFF'0001;
 
-        noc_dn.AddCATs({ { adminCAT } });
+        /* Datastore CAT */
+        CASEAuthTag anchorDatastoreCAT = 0xFFFC'0001;
+
+        noc_dn.AddCATs({ { adminCAT, anchorDatastoreCAT} });
     }
 #endif
 

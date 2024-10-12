@@ -138,7 +138,7 @@ private:
     bool mNodeIdRequested       = false;
     uint64_t mIndex             = 0;
 
-    NodeId mAdminSubjectNodeId = 0;
+    NodeId mAdminSubjectNodeId = 0xFFFF'FFFD'FFFF'0001ULL;
 };
 
 } // namespace Controller
