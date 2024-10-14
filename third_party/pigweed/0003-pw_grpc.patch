@@ -1,0 +1,101 @@
+diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/pw_rpc_handler.cc b/pw_grpc/pw_rpc_handler.cc
+--- a/pw_grpc/pw_rpc_handler.cc	2024-10-14 08:42:34.303004000 +0300
++++ b/pw_grpc/pw_rpc_handler.cc	2024-10-14 08:48:28.969502000 +0300
+@@ -36,88 +36,96 @@ Status PwRpcHandler::OnNew(StreamId id,
+                 full_method_name.c_str());
+     return Status::NotFound();
+   }
+ 
+   // Look up method in the server.
+   std::string_view service_name = view.substr(1, split_pos - 1);
+   std::string_view method_name = view.substr(split_pos + 1);
+   uint32_t service_id = rpc::internal::Hash(service_name);
+   uint32_t method_id = rpc::internal::Hash(method_name);
+   const auto [service, method] = server_.FindMethod(service_id, method_id);
+   if (service == nullptr || method == nullptr) {
+     PW_LOG_WARN("Unknown method '%s'", full_method_name.c_str());
+     return Status::NotFound();
+   }
+ 
+   return CreateStream(id, service_id, method_id, method->type());
+ }
+ 
+ Status PwRpcHandler::OnMessage(StreamId id, ByteSpan message) {
+   auto stream = LookupStream(id);
++  PW_LOG_WARN(
++      "Handler.OnMessage id=%d size=%lu: unknown stream", id, message.size());
+   if (!stream.ok()) {
+-    PW_LOG_INFO("Handler.OnMessage id=%" PRIu32 " size=%zu: unknown stream",
++    PW_LOG_WARN("Handler.OnMessage id=%" PRIu32 " size=%zu: unknown stream",
+                 id,
+                 message.size());
+     return Status::NotFound();
+   }
+ 
++  PW_LOG_WARN(
++      "Handler.OnMessage type=%b", (unsigned char)(method->type()));
++#if 0
+   switch (stream->method_type) {
+     case pw::rpc::MethodType::kUnary:
+     case pw::rpc::MethodType::kServerStreaming: {
++#endif
+       auto packet = pw::rpc::internal::Packet(PacketType::kRequest,
+                                               channel_id_,
+                                               stream->service_id,
+                                               stream->method_id,
+                                               id,
+                                               message,
+                                               pw::OkStatus());
+       PW_TRY(server_.ProcessPacket(packet));
++#if 0
+       break;
+     }
+     case pw::rpc::MethodType::kClientStreaming:
+     case pw::rpc::MethodType::kBidirectionalStreaming: {
+       if (!stream->sent_request) {
+         auto packet = pw::rpc::internal::Packet(PacketType::kRequest,
+                                                 channel_id_,
+                                                 stream->service_id,
+                                                 stream->method_id,
+                                                 id,
+                                                 {},
+                                                 pw::OkStatus());
+         PW_TRY(server_.ProcessPacket(packet));
+         MarkSentRequest(id);
+       }
+ 
+       auto packet = pw::rpc::internal::Packet(PacketType::kClientStream,
+                                               channel_id_,
+                                               stream->service_id,
+                                               stream->method_id,
+                                               id,
+                                               message,
+                                               pw::OkStatus());
+       PW_TRY(server_.ProcessPacket(packet));
+       break;
+     }
+     default:
+       PW_LOG_WARN("Unexpected method type");
+       return Status::Internal();
+   }
++#endif
+ 
+   return OkStatus();
+ }
+ 
+ void PwRpcHandler::OnHalfClose(StreamId id) {
+   auto stream = LookupStream(id);
+   if (!stream.ok()) {
+     PW_LOG_INFO("OnHalfClose unknown stream");
+     return;
+   }
+ 
+   if (stream->method_type == pw::rpc::MethodType::kClientStreaming ||
+       stream->method_type == pw::rpc::MethodType::kBidirectionalStreaming) {
+     auto packet =
+         pw::rpc::internal::Packet(PacketType::kClientRequestCompletion,
+                                   channel_id_,
+                                   stream->service_id,
+                                   stream->method_id,
+                                   id,
+                                   {},
