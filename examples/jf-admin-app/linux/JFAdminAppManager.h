@@ -20,10 +20,16 @@
 
 #include <AppMain.h>
 
+using namespace chip;
+
 class JFAdminAppManager
 {
 public:
+	JFAdminAppManager() : mOnConnectedCallback(OnConnected, this), mOnConnectionFailureCallback(OnConnectionFailure, this) {}
+
     void HandleCommissioningCompleteEvent();
+
+    CHIP_ERROR Init(Server & server);
 
 private:
     // Various actions to take when OnConnected callback is called
@@ -35,5 +41,14 @@ private:
         kDisarmFailSafeTimer,
     };
 
-	static void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
+	void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
+
+	static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
+	static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
+	Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
+	Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;
+
+    OnConnectedAction mOnConnectedAction = kArmFailSafeTimer;
+    Server * mServer = nullptr;
+    CASESessionManager * mCASESessionManager = nullptr;
 };

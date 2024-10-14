@@ -38,23 +38,39 @@ using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::DeviceLayer;
 
+CHIP_ERROR JFAdminAppManager::Init(Server & server)
+{
+	CHIP_ERROR err = CHIP_NO_ERROR;
+
+    mServer             = &server;
+    mCASESessionManager = server.GetCASESessionManager();
+
+    return err;
+}
+
 void JFAdminAppManager::HandleCommissioningCompleteEvent()
 {
     /* demo: identity the index of the JF fabric */
     if (Server::GetInstance().GetFabricTable().FabricCount() == 2)
     {
-        for (const auto & fb : Server::GetInstance().GetFabricTable())
+        for (const auto & fb : mServer->GetFabricTable())
         {
             FabricIndex fabricIndex = fb.GetFabricIndex();
             CASEAuthTag adminCAT = 0xFFFF'0001;
             CATValues cats;
 
             /* demo: NOC from JF contains an Administrator CAT */
-            if (Server::GetInstance().GetFabricTable().FetchCATs(fabricIndex, cats) == CHIP_NO_ERROR)
+            if (mServer->GetFabricTable().FetchCATs(fabricIndex, cats) == CHIP_NO_ERROR)
             {
                 if (cats.Contains(adminCAT))
                 {
                     ChipLogProgress(DeviceLayer, "JF found! Will trigger addNOC/addRCAC using the cross-signed ICAC.");
+
+                    /* fixed node for the moment, have to iterate through the Datastore */
+                	NodeId fixedNodeId = 10;
+                	ScopedNodeId scopedNodeId = ScopedNodeId(fixedNodeId, fabricIndex);
+
+                    this->ConnectToNode(scopedNodeId, kArmFailSafeTimer);
                     break;
                 }
             }
@@ -64,6 +80,8 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
 
 void JFAdminAppManager::ConnectToNode(ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction)
 {
+    VerifyOrDie(mServer != nullptr);
+
     if ((scopedNodeId.GetFabricIndex() == kUndefinedFabricIndex) ||
         (scopedNodeId.GetNodeId() == kUndefinedNodeId))
     {
@@ -72,10 +90,22 @@ void JFAdminAppManager::ConnectToNode(ScopedNodeId scopedNodeId, OnConnectedActi
     }
 
     // Set the action to take once connection is successfully established
-    //mOnConnectedAction = onConnectedAction;
+    mOnConnectedAction = onConnectedAction;
 
     ChipLogDetail(DeviceLayer, "Establishing session to provider node ID 0x" ChipLogFormatX64 " on fabric index %d",
                   ChipLogValueX64(scopedNodeId.GetNodeId()), scopedNodeId.GetFabricIndex());
 
-    //mCASESessionManager->FindOrEstablishSession(GetProviderScopedId(), &mOnConnectedCallback, &mOnConnectionFailureCallback);
+    mCASESessionManager->FindOrEstablishSession(scopedNodeId, &mOnConnectedCallback, &mOnConnectionFailureCallback);
+}
+
+// Called whenever FindOrEstablishSession is successful
+void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
+{
+    ChipLogProgress(DeviceLayer, "Connected to Node!");
+}
+
+// Called whenever FindOrEstablishSession fails
+void JFAdminAppManager::OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
+{
+    ChipLogProgress(DeviceLayer, "Failed to connected to Node!");
 }

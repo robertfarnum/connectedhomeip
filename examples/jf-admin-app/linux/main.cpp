@@ -122,7 +122,11 @@ void ApplicationInit()
         SetDeviceInstanceInfoProvider(&gExampleDeviceInstanceInfoProvider);
     }
     
+    sJFAdminAppManager.Init(Server::GetInstance());
+
     DeviceLayer::PlatformMgrImpl().AddEventHandler(EventHandler, 0);
+
+    ChipLogProgress(NotSpecified, "ApplicationInit2");
 }
 
 void ApplicationShutdown()
