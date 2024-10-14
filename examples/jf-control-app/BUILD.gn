@@ -76,6 +76,8 @@ static_library("jf-control-app-utils") {
     "commands/rpc/RpcConnect.h",
     "RpcClient.cpp",
     "RpcClient.h",
+    "GrpcServer.cpp",
+    "GrpcServer.h",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.h"
   ]
@@ -98,8 +100,13 @@ static_library("jf-control-app-utils") {
     "$dir_pw_hdlc:default_addresses",
     "$dir_pw_hdlc:rpc_channel_output",
     "$dir_pw_chrono:system_timer",
+    "$dir_pw_grpc:connection",
+    "$dir_pw_grpc:pw_rpc_handler",
+    "$dir_pw_grpc:send_queue",
     "$dir_pw_stream:socket_stream",
+    "$dir_pw_thread:test_thread_context",
     "${chip_root}/examples/common/tracing:commandline",
+    "${chip_root}/examples/common/pigweed:rpc_services",
     "${chip_root}/examples/common/pigweed:test.nanopb_rpc",
     "${chip_root}/src/app/icd/client:handler",
     "${chip_root}/src/app/icd/client:manager",
