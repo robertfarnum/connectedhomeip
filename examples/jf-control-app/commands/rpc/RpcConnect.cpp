@@ -5,8 +5,11 @@
 
 #include "RpcClient.h"
 
-CHIP_ERROR RpcConnectCommand::RunCommand()
+CHIP_ERROR RpcConnectCommand::Run()
 {
+    if (ipaddr.HasValue()) {
+        RpcSetServerAddress(ipaddr.Value().data());
+    }
     RpcConnect();
     
     return CHIP_NO_ERROR;

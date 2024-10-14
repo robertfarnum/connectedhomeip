@@ -27,18 +27,21 @@ void RpcConnect(void)
     chip::rpc::client::SetRpcServerPort(RPC_SERVER_PORT);
     err = chip::rpc::client::StartPacketProcessing();
 
+    ChipLogProgress(NotSpecified, "Looking for RPC server @ %s...", rpcServerAddress);
     if (err != CHIP_NO_ERROR) {
-        ChipLogProgress(NotSpecified, "Unable to connect to RPC server %s!", rpcServerAddress);
-    } else {
-        rpcStatus = RPC_CONNECTED;
-        ChipLogProgress(NotSpecified, "Successfully connected to the jf-admin.");
+        ChipLogProgress(NotSpecified, "Unable to connect!");
+        return;
     }
+
+    rpcStatus = RPC_CONNECTED;
+    ChipLogProgress(NotSpecified, "Successfully connected to the jf-admin.");
 }
 
 void RpcSetServerAddress(const char *addr)
 {
-    /* TODO: Must use std strings here */
-    strcpy(rpcServerAddress, addr);
+    /* TODO: Maybe we should use std strings here */
+    memcpy(rpcServerAddress, addr, 48);
+    rpcServerAddress[47] = 0;
 }
 
 int RpcGetStatus(void)
