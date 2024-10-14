@@ -36,6 +36,7 @@ config("includes") {
 executable("chip-jf-admin-app") {
   sources = [
     "include/CHIPProjectAppConfig.h",
+    "JFAdminAppManager.cpp",
     "main.cpp",
   ]
 

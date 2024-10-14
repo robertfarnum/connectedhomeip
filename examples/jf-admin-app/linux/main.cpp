@@ -16,7 +16,9 @@
  *    limitations under the License.
  */
 
+#include "JFAdminAppManager.h"
 #include <AppMain.h>
+
 
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
@@ -88,6 +90,8 @@ private:
     DeviceInstanceInfoProvider * mDefaultProvider;
 };
 
+JFAdminAppManager sJFAdminAppManager;
+
 }
 
 void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & attributePath, uint8_t type, uint16_t size,
@@ -95,36 +99,17 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
 {
 }
 
-ExampleDeviceInstanceInfoProvider gExampleDeviceInstanceInfoProvider;
-
 void EventHandler(const DeviceLayer::ChipDeviceEvent * event, intptr_t arg)
 {
     (void) arg;
 
     if (event->Type == DeviceLayer::DeviceEventType::kCommissioningComplete)
     {
-        /* demo: identity the index of the JF fabric */
-        if (Server::GetInstance().GetFabricTable().FabricCount() == 2)
-        {
-            for (const auto & fb : Server::GetInstance().GetFabricTable())
-            {
-                FabricIndex fabricIndex = fb.GetFabricIndex();
-                CASEAuthTag adminCAT = 0xFFFF'0001;
-                CATValues cats;
-
-                /* demo: NOC from JF contains an Administrator CAT */
-                if (Server::GetInstance().GetFabricTable().FetchCATs(fabricIndex, cats) == CHIP_NO_ERROR)
-                {
-                    if (cats.Contains(adminCAT))
-                    {
-                        ChipLogProgress(DeviceLayer, "JF found! Will trigger addNOC/addRCAC using the cross-signed ICAC.");
-                        break;
-                    }
-                }
-            }
-        }
+        sJFAdminAppManager.HandleCommissioningCompleteEvent();
     }
 }
+
+ExampleDeviceInstanceInfoProvider gExampleDeviceInstanceInfoProvider;
 
 void ApplicationInit()
 {
