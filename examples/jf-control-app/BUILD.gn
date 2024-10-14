@@ -107,7 +107,7 @@ static_library("jf-control-app-utils") {
     "$dir_pw_thread:test_thread_context",
     "${chip_root}/examples/common/tracing:commandline",
     "${chip_root}/examples/common/pigweed:rpc_services",
-    "${chip_root}/examples/common/pigweed:test.nanopb_rpc",
+    "${chip_root}/examples/common/pigweed:joint_fabric.nanopb_rpc",
     "${chip_root}/src/app/icd/client:handler",
     "${chip_root}/src/app/icd/client:manager",
     "${chip_root}/src/app/server",

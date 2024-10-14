@@ -133,12 +133,12 @@ pw_proto_library("wifi_service") {
   prefix = "wifi_service"
 }
 
-pw_proto_library("test") {
-  sources = [ "protos/test.proto" ]
-  inputs = [ "protos/test.options" ]
+pw_proto_library("joint_fabric") {
+  sources = [ "protos/joint_fabric.proto" ]
+  inputs = [ "protos/joint_fabric.options" ]
   deps = [ "$dir_pw_protobuf:common_protos" ]
   strip_prefix = "protos"
-  prefix = "test"
+  prefix = "joint_fabric"
 }
 
 pw_source_set("rpc_services") {

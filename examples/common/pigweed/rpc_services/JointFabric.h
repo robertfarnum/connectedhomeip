@@ -1,5 +1,5 @@
 
-#include "test/test.rpc.pb.h"
+#include "joint_fabric/joint_fabric.rpc.pb.h"
 
 namespace joint_fabric {
 

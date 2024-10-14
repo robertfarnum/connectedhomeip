@@ -4,7 +4,7 @@
 #include <lib/support/logging/CHIPLogging.h>
 
 #include "RpcClientProcessor.h"
-#include "test/test.rpc.pb.h"
+#include "joint_fabric/joint_fabric.rpc.pb.h"
 
 #define RPC_SERVER_PORT         8111
 #define DEFAULT_RPC_CHANNEL     1
