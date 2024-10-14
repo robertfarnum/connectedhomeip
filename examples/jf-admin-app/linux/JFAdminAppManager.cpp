@@ -60,12 +60,12 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
             CASEAuthTag anchorDatastoreCAT = 0xFFFC'0001;
             CATValues cats;
 
-            /* demo: NOC from JF contains an Administrator CAT */
+            /* demo: identify fabric index corresponding to the initial fabric on the device */
             if (mServer->GetFabricTable().FetchCATs(fabricIndex, cats) == CHIP_NO_ERROR)
             {
-                if (cats.Contains(adminCAT) && !cats.Contains(anchorDatastoreCAT))
+                if (cats.Contains(adminCAT) && cats.Contains(anchorDatastoreCAT))
                 {
-                    ChipLogProgress(DeviceLayer, "JF found! Will trigger addNOC/addRCAC using the cross-signed ICAC.");
+                    ChipLogProgress(DeviceLayer, "Will trigger addNOC/addRCAC using the cross-signed ICAC.");
 
                     /* fixed node for the moment, have to iterate through the Datastore */
                 	NodeId fixedNodeId = 10;

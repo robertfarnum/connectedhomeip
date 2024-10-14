@@ -242,8 +242,8 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
                       err = mStorage->SyncGetKeyValue(key, rcac.data(), rcacBufLen));
 
 #if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
-    /* first initialization: special NOC/ICAC needed for Controller/Admin */
-    static bool generateNOCForControllerAdmin = true;
+    static bool generateNOCForController = true;
+    static bool generateNOCForAdmin = true;
 #endif
 
     // Always regenerate RCAC on maximally sized certs. The keys remain the same, so everything is fine.
@@ -255,11 +255,6 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     if (err == CHIP_NO_ERROR)
     {
         uint64_t rcacId;
-
-#if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
-        /* demo: KVS is empty during PKI generation for controller */
-        generateNOCForControllerAdmin = false;
-#endif
 
         // Found root certificate in the storage.
         rcac.reduce_size(rcacBufLen);
@@ -332,14 +327,28 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
 
 #if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
     /* controller NOC must contain the Administrator CAT */
-    if (generateNOCForControllerAdmin)
+    if (generateNOCForController)
     {
         ChipLogProgress(Controller, "Adding Administrator CAT to Controller NOC.");
+
+        generateNOCForController = false;
 
         /* Administrator CAT */
         CASEAuthTag adminCAT = 0xFFFF'0001;
 
-        /* Datastore CAT */
+        noc_dn.AddCATs({ { adminCAT } });
+    }
+    /* administrator NOC must contain the Anchor/Datastore CAT and Administrator CAT */
+    else if (generateNOCForAdmin)
+    {
+        ChipLogProgress(Controller, "Adding Administrator and Anchor/Datastore CAT to Administrator NOC.");
+
+        generateNOCForAdmin = false;
+
+        /* Administrator CAT */
+        CASEAuthTag adminCAT = 0xFFFF'0001;
+
+        /* AnchorDatastore CAT */
         CASEAuthTag anchorDatastoreCAT = 0xFFFC'0001;
 
         noc_dn.AddCATs({ { adminCAT, anchorDatastoreCAT} });

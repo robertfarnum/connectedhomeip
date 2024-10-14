@@ -14,6 +14,8 @@ The chip-jf-admin-app example app implements the Admin role for Ecosystems A and
 
 Joint Fabric can be triggered from the jf-control-app's side, where it assumes the Commissioner role. The chip-jf-admin-app, which receives the new ICA signed by the Anchor Fabric Root CA, assumes the Commissionee role.
 
+Due to some PKI hard-coding, chip-jf-admin-app must be the first application commissioned by jf-control-app.
+
 ### Building the Example Application
 
 -   Building the jf-control-app Application
@@ -109,7 +111,7 @@ To allow the other ecosystem to initiate Joint Fabric, run the following command
 
 ```
 $ ./out/debug/jf-control-app
-$ >>> pairing pairing open-commissioning-window 1 0 400 1000 1261 --storage-directory /tmp/jf-kvs/jf-control-app
+$ >>> pairing open-commissioning-window 1 0 400 1000 1261 --storage-directory /tmp/jf-kvs/jf-control-app
 ```
 
 ### Run Ecosystem A Controller (jf-control-app A) using Joint Commissioning Method (JCM)
