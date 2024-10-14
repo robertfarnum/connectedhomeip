@@ -1,6 +1,6 @@
 diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/pw_rpc_handler.cc b/pw_grpc/pw_rpc_handler.cc
---- a/pw_grpc/pw_rpc_handler.cc	2024-10-14 08:42:34.303004000 +0300
-+++ b/pw_grpc/pw_rpc_handler.cc	2024-10-14 08:48:28.969502000 +0300
+--- a/pw_grpc/pw_rpc_handler.cc	2024-10-14 18:01:15.154522000 +0300
++++ b/pw_grpc/pw_rpc_handler.cc	2024-10-14 18:00:58.403630100 +0300
 @@ -36,88 +36,96 @@ Status PwRpcHandler::OnNew(StreamId id,
                  full_method_name.c_str());
      return Status::NotFound();
@@ -33,7 +33,7 @@ diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/pw_rpc_handler.cc b/
    }
  
 +  PW_LOG_WARN(
-+      "Handler.OnMessage type=%b", (unsigned char)(method->type()));
++      "Handler.OnMessage type=%b", (unsigned char)(stream->method_type));
 +#if 0
    switch (stream->method_type) {
      case pw::rpc::MethodType::kUnary:

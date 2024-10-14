@@ -1,7 +1,7 @@
 diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/BUILD.gn b/pw_grpc/BUILD.gn
---- a/pw_grpc/BUILD.gn	2024-10-07 16:12:57.185131000 +0300
-+++ b/pw_grpc/BUILD.gn	2024-10-07 16:16:47.244762199 +0300
-@@ -11,142 +11,150 @@
+--- a/pw_grpc/BUILD.gn	2024-10-14 18:16:53.064387631 +0300
++++ b/pw_grpc/BUILD.gn	2024-10-14 19:18:19.277006493 +0300
+@@ -11,142 +11,151 @@
  # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  # License for the specific language governing permissions and limitations under
  # the License.
@@ -32,7 +32,6 @@ diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/BUILD.gn b/pw_grpc/B
    deps = [
      ":hpack",
      ":send_queue",
-+    "$dir_pw_allocator:allocator",
      "$dir_pw_assert",
 -    "$dir_pw_async:dispatcher",
 -    "$dir_pw_async_basic:dispatcher",
@@ -92,14 +91,17 @@ diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/BUILD.gn b/pw_grpc/B
    public = [ "public/pw_grpc/pw_rpc_handler.h" ]
    sources = [ "pw_rpc_handler.cc" ]
    public_configs = [ ":public_include_path" ]
++  public_deps = [
++    "$dir_pw_rpc_transport:rpc_transport"
++  ]
    deps = [
      ":connection",
      ":grpc_channel_output",
      "$dir_pw_bytes",
      "$dir_pw_log",
 -    "$dir_pw_rpc",
+-    "$dir_pw_rpc_transport:rpc_transport",
 +    "$dir_pw_rpc:common",
-     "$dir_pw_rpc_transport:rpc_transport",
      "$dir_pw_string",
    ]
 +  defines = [ "PW_RPC_METHOD_STORES_TYPE=1" ]
@@ -162,8 +164,8 @@ diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/BUILD.gn b/pw_grpc/B
    group_deps = []
  }
 diff -rdpF --suppress-common-lines '--unified=20' a/pw_grpc/public/pw_grpc/grpc_channel_output.h b/pw_grpc/public/pw_grpc/grpc_channel_output.h
---- a/pw_grpc/public/pw_grpc/grpc_channel_output.h	2024-10-07 16:13:12.995831000 +0300
-+++ b/pw_grpc/public/pw_grpc/grpc_channel_output.h	2024-10-07 16:16:12.941414687 +0300
+--- a/pw_grpc/public/pw_grpc/grpc_channel_output.h	2024-10-14 18:17:27.200162658 +0300
++++ b/pw_grpc/public/pw_grpc/grpc_channel_output.h	2024-10-14 18:17:18.199221984 +0300
 @@ -12,40 +12,42 @@
  // License for the specific language governing permissions and limitations under
  // the License.
