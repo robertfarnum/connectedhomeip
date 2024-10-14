@@ -57,12 +57,13 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
         {
             FabricIndex fabricIndex = fb.GetFabricIndex();
             CASEAuthTag adminCAT = 0xFFFF'0001;
+            CASEAuthTag anchorDatastoreCAT = 0xFFFC'0001;
             CATValues cats;
 
             /* demo: NOC from JF contains an Administrator CAT */
             if (mServer->GetFabricTable().FetchCATs(fabricIndex, cats) == CHIP_NO_ERROR)
             {
-                if (cats.Contains(adminCAT))
+                if (cats.Contains(adminCAT) && !cats.Contains(anchorDatastoreCAT))
                 {
                     ChipLogProgress(DeviceLayer, "JF found! Will trigger addNOC/addRCAC using the cross-signed ICAC.");
 
