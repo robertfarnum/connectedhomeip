@@ -14,20 +14,10 @@ pw::Status TestImpl::DisplayText(const joint_fabric_TextMessage& request, joint_
     return pw::OkStatus();
 }
 
-pw::Status JointFabricServiceImpl::OpenCommissioningWindow(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response)
-{
-    return pw::OkStatus();
-}
-
-pw::Status JointFabricControlServiceImpl::OpenCommissioningWindow(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response)
-{
-    return pw::OkStatus();
-}
-
-pw::Status JointFabricControlServiceImpl::CommissionDevice(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response)
+pw::Status JointFabricServiceImpl::OpenCommissioningWindow(const joint_fabric_OpenCommissioningWindowIn& request,
+            joint_fabric_ErrorCode& response)
 {
     return pw::OkStatus();
 }
 
 }
-
