@@ -42,11 +42,18 @@ private:
     };
 
     void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
+    CHIP_ERROR SendArmFailSafeTimer(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
+    CHIP_ERROR SendAddTrustedRootCertificate(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
+    CHIP_ERROR SendAddNOC(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
+    CHIP_ERROR SendDisarmFailSafeTimer(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
     static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
     Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
     Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;
+
+    static void OnArmFailSafeTimerResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
+    static void OnArmFailSafeTimerFailure(void * context, CHIP_ERROR error);
 
     OnConnectedAction mOnConnectedAction = kArmFailSafeTimer;
     Server * mServer = nullptr;

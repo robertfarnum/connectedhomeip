@@ -102,7 +102,70 @@ void JFAdminAppManager::ConnectToNode(ScopedNodeId scopedNodeId, OnConnectedActi
 // Called whenever FindOrEstablishSession is successful
 void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
 {
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+
     ChipLogProgress(DeviceLayer, "Connected to Node!");
+
+    switch (jfAdminCore->mOnConnectedAction)
+    {
+    case kArmFailSafeTimer: {
+
+        break;
+    }
+    case kAddTrustedRoot: {
+
+        break;
+    }
+    case kAddNOC: {
+
+        break;
+    }
+    case kDisarmFailSafeTimer: {
+
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
+CHIP_ERROR JFAdminAppManager::SendArmFailSafeTimer(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
+{
+    uint64_t breadcrumb = static_cast<uint64_t>(kArmFailSafeTimer);
+	GeneralCommissioning::Commands::ArmFailSafe::Type request;
+	request.expiryLengthSeconds = 15;
+	request.breadcrumb          = breadcrumb;
+
+    Controller::ClusterBase cluster(exchangeMgr, sessionHandle, kRootEndpointId);
+
+    return cluster.InvokeCommand(request, this, OnArmFailSafeTimerResponse, OnArmFailSafeTimerFailure);
+}
+
+CHIP_ERROR JFAdminAppManager::SendAddTrustedRootCertificate(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
+{
+	return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR JFAdminAppManager::SendAddNOC(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
+{
+	return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR JFAdminAppManager::SendDisarmFailSafeTimer(Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
+{
+	return CHIP_NO_ERROR;
+}
+
+void JFAdminAppManager::OnArmFailSafeTimerResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data)
+{
+    ChipLogProgress(DeviceLayer, "OnArmFailSafeTimerResponse!");
+}
+
+void JFAdminAppManager::OnArmFailSafeTimerFailure(void * context, CHIP_ERROR error)
+{
+    ChipLogProgress(DeviceLayer, "OnArmFailSafeTimerFailure!");
 }
 
 // Called whenever FindOrEstablishSession fails
