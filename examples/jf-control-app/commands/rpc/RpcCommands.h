@@ -19,3 +19,11 @@ private:
 
     CHIP_ERROR RunCommand(chip::CharSpan & msg);
 };
+
+class RpcStartGrpcServerCommand : public Command
+{
+public:
+    RpcStartGrpcServerCommand() : Command("start-grpc", "Bring up the GRPC server.") { }
+
+    CHIP_ERROR Run();
+};
