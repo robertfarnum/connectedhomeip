@@ -47,6 +47,34 @@ CHIP_ERROR RpcStartGrpcServerCommand::Run()
 }
 #endif /* CONFIG_ENABLE_GRPC */
 
+CHIP_ERROR RpcAdminAddrCommand::Run()
+{
+    RpcSetServerAddress(ipaddr.data());
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR RpcStatusCommand::Run()
+{
+    int rpcStatus = RpcGetStatus();
+
+    switch(rpcStatus) {
+    case RPC_DISCONNECTED:
+        ChipLogProgress(NotSpecified, "jf-admin NOT connected.");
+        break;
+    case RPC_CONNECTING:
+        ChipLogProgress(NotSpecified, "Still searching for jf-admin.");
+        break;
+    case RPC_CONNECTED:
+        ChipLogProgress(NotSpecified, "jf-admin connected.");
+        break;
+    default:
+        ChipLogError(NotSpecified, "ERROR: Unknown RPC status (code=%d)!", rpcStatus);
+        break;
+    }
+
+    return CHIP_NO_ERROR;
+}
+
 CHIP_ERROR RpcOpenCommissioningWindowCommand::Run()
 {
     return RpcOpenCommissioningWindow(window_timeout);
