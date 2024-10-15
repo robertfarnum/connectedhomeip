@@ -3,11 +3,14 @@
 
 #include <lib/support/logging/CHIPLogging.h>
 
+#include "RpcClient.h"
+
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 #include "pw_thread/thread.h"
 #include "pw_thread_stl/options.h"
 
-#include "RpcClient.h"
 #include "GrpcServer.h"
+#endif /* CONFIG_ENABLE_GRPC */
 
 #define MAX_MESSAGE_LEN         65
 
@@ -30,6 +33,7 @@ CHIP_ERROR RpcSendCommand::RunCommand(chip::CharSpan & msg)
     return RpcDisplayText(m.data());
 }
 
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 CHIP_ERROR RpcStartGrpcServerCommand::Run()
 {
     InitGrpcServer();
@@ -41,3 +45,4 @@ CHIP_ERROR RpcStartGrpcServerCommand::Run()
 
     return CHIP_NO_ERROR;
 }
+#endif /* CONFIG_ENABLE_GRPC */

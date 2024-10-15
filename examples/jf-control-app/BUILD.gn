@@ -34,6 +34,10 @@ config("config") {
 
   defines = [ "CONFIG_USE_SEPARATE_EVENTLOOP=${config_use_separate_eventloop}" ]
 
+  if (config_enable_grpc) {
+    defines += [ "CONFIG_ENABLE_GRPC=1" ]
+  }
+
   # Note: CONFIG_USE_LOCAL_STORAGE is tested for via #ifdef, not #if.
   if (config_use_local_storage) {
     defines += [ "CONFIG_USE_LOCAL_STORAGE" ]
@@ -76,11 +80,16 @@ static_library("jf-control-app-utils") {
     "commands/rpc/RpcConnect.h",
     "RpcClient.cpp",
     "RpcClient.h",
-    "GrpcServer.cpp",
-    "GrpcServer.h",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.h"
   ]
+
+  if (config_enable_grpc) {
+    sources += [
+      "GrpcServer.cpp",
+      "GrpcServer.h"
+    ]
+  }
 
   deps = [ "${chip_root}/src/app:events" ]
 
@@ -100,13 +109,8 @@ static_library("jf-control-app-utils") {
     "$dir_pw_hdlc:default_addresses",
     "$dir_pw_hdlc:rpc_channel_output",
     "$dir_pw_chrono:system_timer",
-    "$dir_pw_grpc:connection",
-    "$dir_pw_grpc:pw_rpc_handler",
-    "$dir_pw_grpc:send_queue",
     "$dir_pw_stream:socket_stream",
-    "$dir_pw_thread:test_thread_context",
     "${chip_root}/examples/common/tracing:commandline",
-    "${chip_root}/examples/common/pigweed:rpc_services",
     "${chip_root}/examples/common/pigweed:joint_fabric.nanopb_rpc",
     "${chip_root}/src/app/icd/client:handler",
     "${chip_root}/src/app/icd/client:manager",
@@ -122,6 +126,16 @@ static_library("jf-control-app-utils") {
     "${chip_root}/third_party/inipp",
     "${chip_root}/third_party/jsoncpp",
   ]
+
+  if (config_enable_grpc) {
+    public_deps += [
+      "$dir_pw_grpc:connection",
+      "$dir_pw_grpc:pw_rpc_handler",
+      "$dir_pw_grpc:send_queue",
+      "$dir_pw_thread:test_thread_context",
+      "${chip_root}/examples/common/pigweed:rpc_services"
+    ]
+  }
 
   public_configs = [ ":config" ]
 

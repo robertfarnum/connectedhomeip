@@ -22,6 +22,8 @@ declare_args() {
   # Use a separate eventloop for CHIP tasks
   config_use_separate_eventloop = true
   config_use_local_storage = true
+  # Enable the GRPC control interface
+  config_enable_grpc = false
 }
 
 # TODO: For development phase only. Should remove this as soon as possible.

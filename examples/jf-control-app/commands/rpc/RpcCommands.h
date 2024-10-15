@@ -20,6 +20,7 @@ private:
     CHIP_ERROR RunCommand(chip::CharSpan & msg);
 };
 
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 class RpcStartGrpcServerCommand : public Command
 {
 public:
@@ -27,3 +28,4 @@ public:
 
     CHIP_ERROR Run();
 };
+#endif /* CONFIG_ENABLE_GRPC */

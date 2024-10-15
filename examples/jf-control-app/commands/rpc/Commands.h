@@ -11,8 +11,10 @@ void registerCommandsRpc(Commands & commands)
 
     commands_list clusterCommands = {
         make_unique<RpcConnectCommand>(),
-        make_unique<RpcSendCommand>(),
-        make_unique<RpcStartGrpcServerCommand>()
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
+        make_unique<RpcStartGrpcServerCommand>(),
+#endif
+        make_unique<RpcSendCommand>()
     };
 
     commands.RegisterCommandSet(clusterName, clusterCommands, "Commands for RPC communication.");
