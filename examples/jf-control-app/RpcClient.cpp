@@ -81,6 +81,36 @@ CHIP_ERROR RpcDisplayText(const char *message)
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR RpcOpenCommissioningWindow(uint16_t window_timeout)
+{
+    joint_fabric_OpenCommissioningWindowIn request;
+    joint_fabric::pw_rpc::nanopb::JointFabric::Client rpcClient(
+        chip::rpc::client::GetDefaultRpcClient(),
+        DEFAULT_RPC_CHANNEL);
+
+    if (rpcStatus != RPC_CONNECTED) {
+        ChipLogError(NotSpecified, "ERROR: Not connected to the jf-admin!");
+        return CHIP_ERROR_NOT_CONNECTED;
+    }
+
+    /* Populate request */
+    request.window_timeout = window_timeout;
+
+    rpcCallCompleted = false;
+
+    auto call = rpcClient.OpenCommissioningWindow(request, OnRpcCallCompleted);
+    if (!call.active())
+    {
+        ChipLogError(NotSpecified, "ERROR: Failed to initiate RPC call!");
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    /* Wait for the RPC call to complete */
+    do { } while (!rpcCallCompleted);
+
+    return CHIP_NO_ERROR;
+}
+
 static void OnRpcCallCompleted(const ::joint_fabric_ErrorCode &result, ::pw::Status status)
 {
     if (status.ok()) {

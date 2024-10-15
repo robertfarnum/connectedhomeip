@@ -110,6 +110,7 @@ pw::trace::TraceService trace_service(pw::trace::GetTokenizedTracer());
 
 #if defined(PW_RPC_JF_ADMIN_SERVICE) && PW_RPC_JF_ADMIN_SERVICE
 joint_fabric::TestImpl test_service;
+joint_fabric::JointFabricServiceImpl joint_fabric_service;
 #endif // defined(PW_RPC_JF_ADMIN_SERVICE) && PW_RPC_JF_ADMIN_SERVICE
 
 void RegisterServices(pw::rpc::Server & server)
@@ -145,6 +146,7 @@ void RegisterServices(pw::rpc::Server & server)
 
 #if defined(PW_RPC_JF_ADMIN_SERVICE) && PW_RPC_JF_ADMIN_SERVICE
     server.RegisterService(test_service);
+    server.RegisterService(joint_fabric_service);
 #endif // defined(PW_RPC_JF_ADMIN_SERVICE) && PW_RPC_JF_ADMIN_SERVICE
 }
 

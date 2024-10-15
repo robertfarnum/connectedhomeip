@@ -46,3 +46,8 @@ CHIP_ERROR RpcStartGrpcServerCommand::Run()
     return CHIP_NO_ERROR;
 }
 #endif /* CONFIG_ENABLE_GRPC */
+
+CHIP_ERROR RpcOpenCommissioningWindowCommand::Run()
+{
+    return RpcOpenCommissioningWindow(window_timeout);
+}

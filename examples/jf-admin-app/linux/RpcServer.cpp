@@ -17,6 +17,10 @@ pw::Status TestImpl::DisplayText(const joint_fabric_TextMessage& request, joint_
 pw::Status JointFabricServiceImpl::OpenCommissioningWindow(const joint_fabric_OpenCommissioningWindowIn& request,
             joint_fabric_ErrorCode& response)
 {
+    ChipLogProgress(NotSpecified, "OpenCommissioningWindow(%u)", request.window_timeout);
+
+    response.err_code = 0;
+
     return pw::OkStatus();
 }
 
