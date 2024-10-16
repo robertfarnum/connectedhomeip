@@ -29,7 +29,7 @@ public:
 
     void HandleCommissioningCompleteEvent();
 
-    CHIP_ERROR Init(Server & server);
+    CHIP_ERROR Init(Server & server, chip::Controller::OperationalCredentialsDelegate & opCredentialsDelegate);
 
 private:
     // Various actions to take when OnConnected callback is called
@@ -38,14 +38,13 @@ private:
         kArmFailSafeTimer = 0,
         kAddTrustedRoot,
         kAddNOC,
-        kDisarmFailSafeTimer,
     };
 
     void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
     CHIP_ERROR SendArmFailSafeTimer();
     CHIP_ERROR SendAddTrustedRootCertificate();
-    CHIP_ERROR SendAddNOC();
-    CHIP_ERROR SendDisarmFailSafeTimer();
+    CHIP_ERROR SendCSRRequest();
+    CHIP_ERROR SendAddNOC(MutableByteSpan nocSpan);
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
     static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
@@ -58,12 +57,22 @@ private:
     static void OnRootCertSuccessResponse(void * context, const chip::app::DataModel::NullObjectType &);
     static void OnRootCertFailureResponse(void * context, CHIP_ERROR error);
 
+    static void OnOperationalCertificateSigningRequest(void * context, const app::Clusters::OperationalCredentials::Commands::CSRResponse::DecodableType & data);
+    static void OnCSRFailureResponse(void * context, CHIP_ERROR error);
+
+    static void OnAddNOCFailureResponse(void * context, CHIP_ERROR error);
+    static void OnOperationalCertificateAddResponse(void * context, const app::Clusters::OperationalCredentials::Commands::NOCResponse::DecodableType & data);
+
+    static CHIP_ERROR ConvertFromOperationalCertStatus(app::Clusters::OperationalCredentials::NodeOperationalCertStatusEnum err);
+
     OnConnectedAction mOnConnectedAction = kArmFailSafeTimer;
     Server * mServer = nullptr;
     CASESessionManager * mCASESessionManager = nullptr;
+    chip::Controller::OperationalCredentialsDelegate * mOpCredentials = nullptr;
 
     FabricIndex initialFabricIndex = kUndefinedFabricIndex;
     FabricIndex jfFabricIndex = kUndefinedFabricIndex;
+    VendorId jfFabricVendorId = NotSpecified;
 
     ScopedNodeId pendingNodeId;
     Messaging::ExchangeManager * mPendingExchangeMgr = nullptr;

@@ -20,22 +20,43 @@
 #include <AppMain.h>
 
 
+#include <app/clusters/joint-fabric-pki-server/joint-fabric-pki-server.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/ConcreteAttributePath.h>
 #include <app/server/Server.h>
+#include <controller/ExampleOperationalCredentialsIssuer.h>
+#include <controller/ExamplePersistentStorage.h>
 #include <lib/support/logging/CHIPLogging.h>
 
 #include <platform/DeviceInstanceInfoProvider.h>
-
 #include <string>
 
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::DeviceLayer;
+using namespace chip::Controller;
 
 namespace {
+
+ExampleOperationalCredentialsIssuer gOpCredsIssuer;
+PersistentStorage gStorage;
+
+CHIP_ERROR OnPrepareCredentialsIssuer()
+{
+    ReturnErrorOnFailure(gStorage.Init(nullptr, LinuxDeviceOptions::GetInstance().chipToolKvs));
+    ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gStorage));
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PrepareJointFabricCluster()
+{
+    SetOperationalCredentialsIssuer(&gOpCredsIssuer);
+    SetPrepareCredentialsIssuerCallback(OnPrepareCredentialsIssuer);
+    return CHIP_NO_ERROR;
+}
 
 class ExampleDeviceInstanceInfoProvider : public DeviceInstanceInfoProvider
 {
@@ -122,7 +143,9 @@ void ApplicationInit()
         SetDeviceInstanceInfoProvider(&gExampleDeviceInstanceInfoProvider);
     }
     
-    sJFAdminAppManager.Init(Server::GetInstance());
+    PrepareJointFabricCluster();
+
+    sJFAdminAppManager.Init(Server::GetInstance(), gOpCredsIssuer);
 
     DeviceLayer::PlatformMgrImpl().AddEventHandler(EventHandler, 0);
 }
