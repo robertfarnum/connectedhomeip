@@ -29,6 +29,7 @@
 #include "commands/pairing/Commands.h"
 #include "commands/rpc/Commands.h"
 #include "RpcClient.h"
+#include "RpcServer.h"
 
 #include <zap-generated/cluster/Commands.h>
 
@@ -58,6 +59,8 @@ int main(int argc, char * argv[])
     registerClusters(commands, &credIssuerCommands);
     registerCommandsSubscriptions(commands, &credIssuerCommands);
     registerCommandsRpc(commands);
+
+    RpcServerStart();
 
     std::vector<char *> c_args;
     for (auto & arg : args)
