@@ -136,7 +136,7 @@ ExampleDeviceInstanceInfoProvider gExampleDeviceInstanceInfoProvider;
 
 void ApplicationInit()
 {
-    ChipLogProgress(NotSpecified, "ApplicationInit");
+    ChipLogProgress(JointFabric, "ApplicationInit");
 
     auto * defaultProvider = GetDeviceInstanceInfoProvider();
     if (defaultProvider != &gExampleDeviceInstanceInfoProvider)
@@ -154,7 +154,7 @@ void ApplicationInit()
 
 void ApplicationShutdown()
 {
-    ChipLogProgress(NotSpecified, "ApplicationShutdown");
+    ChipLogProgress(JointFabric, "ApplicationShutdown");
 }
 
 extern "C" int main(int argc, char * argv[])

@@ -27,24 +27,25 @@ class JFAdminAppManager
 public:
     JFAdminAppManager() : mOnConnectedCallback(OnConnected, this), mOnConnectionFailureCallback(OnConnectionFailure, this) {}
 
-    void HandleCommissioningCompleteEvent();
-
     CHIP_ERROR Init(Server & server, chip::Controller::OperationalCredentialsDelegate & opCredentialsDelegate);
+    void HandleCommissioningCompleteEvent();
 
 private:
     // Various actions to take when OnConnected callback is called
     enum OnConnectedAction
     {
-        kArmFailSafeTimer = 0,
-        kAddTrustedRoot,
-        kAddNOC,
+        kReissueOperationalIdentity = 0,
+        kSendCommissioningComplete,
     };
 
     void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
     CHIP_ERROR SendArmFailSafeTimer();
     CHIP_ERROR SendAddTrustedRootCertificate();
     CHIP_ERROR SendCSRRequest();
-    CHIP_ERROR SendAddNOC(MutableByteSpan nocSpan);
+    CHIP_ERROR SendAddNOC();
+    CHIP_ERROR SendCommissioningComplete();
+
+    void DisconnectFromPendingNode();
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
     static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
@@ -54,18 +55,21 @@ private:
     static void OnArmFailSafeTimerResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
     static void OnArmFailSafeTimerFailure(void * context, CHIP_ERROR error);
 
-    static void OnRootCertSuccessResponse(void * context, const chip::app::DataModel::NullObjectType &);
-    static void OnRootCertFailureResponse(void * context, CHIP_ERROR error);
-
     static void OnOperationalCertificateSigningRequest(void * context, const app::Clusters::OperationalCredentials::Commands::CSRResponse::DecodableType & data);
     static void OnCSRFailureResponse(void * context, CHIP_ERROR error);
+
+    static void OnRootCertSuccessResponse(void * context, const chip::app::DataModel::NullObjectType &);
+    static void OnRootCertFailureResponse(void * context, CHIP_ERROR error);
 
     static void OnAddNOCFailureResponse(void * context, CHIP_ERROR error);
     static void OnOperationalCertificateAddResponse(void * context, const app::Clusters::OperationalCredentials::Commands::NOCResponse::DecodableType & data);
 
+    static void OnCommissioningCompleteResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::CommissioningCompleteResponse::DecodableType & data);
+    static void OnCommissioningCompleteFailure(void * context, CHIP_ERROR error);
+
     static CHIP_ERROR ConvertFromOperationalCertStatus(app::Clusters::OperationalCredentials::NodeOperationalCertStatusEnum err);
 
-    OnConnectedAction mOnConnectedAction = kArmFailSafeTimer;
+    OnConnectedAction mOnConnectedAction = kReissueOperationalIdentity;
     Server * mServer = nullptr;
     CASESessionManager * mCASESessionManager = nullptr;
     chip::Controller::OperationalCredentialsDelegate * mOpCredentials = nullptr;
@@ -77,6 +81,9 @@ private:
     ScopedNodeId pendingNodeId;
     Messaging::ExchangeManager * mPendingExchangeMgr = nullptr;
     SessionHolder mPendingSessionHolder;
+
+    uint8_t pendingNOCBuffer[Credentials::kMaxCHIPCertLength] = {0};
+    MutableByteSpan pendingNOCSpan{ pendingNOCBuffer };
 };
 
 } // namespace chip
