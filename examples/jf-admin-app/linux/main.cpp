@@ -17,6 +17,7 @@
  */
 
 #include "JFAdminAppManager.h"
+#include "RpcServer.h"
 #include <AppMain.h>
 
 
@@ -157,6 +158,8 @@ void ApplicationShutdown()
 
 extern "C" int main(int argc, char * argv[])
 {
+    LinuxDeviceOptions::GetInstance().rpcServerPort = DEFAULT_RPC_SERVER_PORT;
+
     if (ChipLinuxAppInit(argc, argv) != 0)
     {
         return -1;
