@@ -18,6 +18,7 @@
 
 #include "JFAdminAppManager.h"
 #include "RpcServer.h"
+#include "RpcClient.h"
 #include <AppMain.h>
 
 
@@ -158,6 +159,19 @@ void ApplicationShutdown()
 
 extern "C" int main(int argc, char * argv[])
 {
+    /* Attempt to connect to the control plane. Drop everything if unsuccessful */
+    CHIP_ERROR err = RpcConnect();
+
+    if (err != CHIP_NO_ERROR)
+    {
+        char errMessage[64];
+
+        FormatCHIPError(errMessage, 64, err);
+        ChipLogError(NotSpecified, "Failed to connect to the control plane - %s", errMessage);
+        return -1;
+    }
+    ChipLogProgress(NotSpecified, "Connected to the control plane.");
+
     LinuxDeviceOptions::GetInstance().rpcServerPort = DEFAULT_RPC_SERVER_PORT;
 
     if (ChipLinuxAppInit(argc, argv) != 0)
