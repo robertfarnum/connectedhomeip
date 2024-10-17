@@ -49,38 +49,6 @@ int RpcGetStatus(void)
     return rpcStatus;
 }
 
-CHIP_ERROR RpcDisplayText(const char *message)
-{
-    ::joint_fabric_TextMessage request;
-    joint_fabric::pw_rpc::nanopb::Test::Client rpcClient(
-        chip::rpc::client::GetDefaultRpcClient(),
-        DEFAULT_RPC_CHANNEL);
-
-    if (rpcStatus != RPC_CONNECTED) {
-        ChipLogError(NotSpecified, "ERROR: Not connected to the RPC server!");
-        return CHIP_ERROR_NOT_CONNECTED;
-    }
-
-    ChipLogProgress(NotSpecified, "Sending message via RPC.");
-
-    /* Populate request */
-    strcpy(request.msg_data, message);
-
-    rpcCallCompleted = false;
-
-    auto call = rpcClient.DisplayText(request, OnRpcCallCompleted);
-    if (!call.active())
-    {
-        ChipLogError(NotSpecified, "ERROR: Failed to initiate RPC call!");
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    /* Wait for the RPC call to complete */
-    do { } while (!rpcCallCompleted);
-
-    return CHIP_NO_ERROR;
-}
-
 CHIP_ERROR RpcOpenCommissioningWindow(uint16_t window_timeout)
 {
     joint_fabric_OpenCommissioningWindowIn request;

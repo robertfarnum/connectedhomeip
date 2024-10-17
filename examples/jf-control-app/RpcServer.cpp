@@ -16,25 +16,10 @@ using namespace chip;
 
 namespace joint_fabric {
 
-class TestImpl : public pw_rpc::nanopb::Test::Service<TestImpl> {
- public:
-  pw::Status DisplayText(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response);
-};
-
 class ReverseJointFabricServiceImpl : public pw_rpc::nanopb::ReverseJointFabric::Service<ReverseJointFabricServiceImpl> {
  public:
   pw::Status UpdateOperationalIdentity(const pw_protobuf_Empty& request, joint_fabric_ErrorCode& response);
 };
-
-pw::Status TestImpl::DisplayText(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response)
-{
-    /* Display the provided text string */
-    ChipLogProgress(NotSpecified, "jf-admin has sent a new message: \"%s\"", request.msg_data);
-
-    response.err_code = 0;
-
-    return pw::OkStatus();
-}
 
 pw::Status ReverseJointFabricServiceImpl::UpdateOperationalIdentity(const pw_protobuf_Empty& request, joint_fabric_ErrorCode& response)
 {

@@ -30,33 +30,6 @@ CHIP_ERROR RpcConnect(void)
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR RpcDisplayText(const char *message)
-{
-    ::joint_fabric_TextMessage request;
-    joint_fabric::pw_rpc::nanopb::Test::Client rpcClient(
-        chip::rpc::client::GetDefaultRpcClient(),
-        DEFAULT_RPC_CHANNEL);
-
-    ChipLogProgress(NotSpecified, "Sending message via RPC.");
-
-    /* Populate request */
-    strcpy(request.msg_data, message);
-
-    rpcCallCompleted = false;
-
-    auto call = rpcClient.DisplayText(request, OnRpcCallCompleted);
-    if (!call.active())
-    {
-        ChipLogError(NotSpecified, "RPC call to control plane has failed!");
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    /* Wait for the RPC call to complete */
-    do { } while (!rpcCallCompleted);
-
-    return CHIP_NO_ERROR;
-}
-
 CHIP_ERROR RpcUpdateOperationalIdentity(void)
 {
     ::pw_protobuf_Empty request;

@@ -3,11 +3,6 @@
 
 namespace joint_fabric {
 
-class TestImpl final: public pw_rpc::nanopb::Test::Service<TestImpl> {
-    public:
-        pw::Status DisplayText(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response);
-};
-
 class JointFabricServiceImpl : public pw_rpc::nanopb::JointFabric::Service<JointFabricServiceImpl> {
     public:
         pw::Status OpenCommissioningWindow(const ::joint_fabric_OpenCommissioningWindowIn& request,

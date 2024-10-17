@@ -9,8 +9,6 @@ void RpcSetServerAddress(const char *addr);
 
 int RpcGetStatus(void);
 
-CHIP_ERROR RpcDisplayText(const char *message);
-
 CHIP_ERROR RpcOpenCommissioningWindow(uint16_t window_timeout);
 
 void RpcConnect(void);

@@ -16,7 +16,6 @@ void registerCommandsRpc(Commands & commands)
         make_unique<RpcStartGrpcServerCommand>(),
 #endif
         make_unique<RpcStatusCommand>(),
-        make_unique<RpcSendCommand>(),
         make_unique<RpcOpenCommissioningWindowCommand>()
     };
 

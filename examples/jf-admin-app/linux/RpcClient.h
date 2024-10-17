@@ -3,6 +3,4 @@
 
 CHIP_ERROR RpcConnect(void);
 
-CHIP_ERROR RpcDisplayText(const char *message);
-
 CHIP_ERROR RpcUpdateOperationalIdentity(void);
