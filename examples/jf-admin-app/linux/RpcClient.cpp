@@ -57,6 +57,28 @@ CHIP_ERROR RpcDisplayText(const char *message)
     return CHIP_NO_ERROR;
 }
 
+CHIP_ERROR RpcUpdateOperationalIdentity(void)
+{
+    ::pw_protobuf_Empty request;
+    joint_fabric::pw_rpc::nanopb::ReverseJointFabric::Client rpcClient(
+        chip::rpc::client::GetDefaultRpcClient(),
+        DEFAULT_RPC_CHANNEL);
+
+    rpcCallCompleted = false;
+
+    auto call = rpcClient.UpdateOperationalIdentity(request, OnRpcCallCompleted);
+    if (!call.active())
+    {
+        ChipLogError(NotSpecified, "RPC call to control plane has failed!");
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    /* Wait for the RPC call to complete */
+    do { } while (!rpcCallCompleted);
+
+    return CHIP_NO_ERROR;
+}
+
 static void OnRpcCallCompleted(const ::joint_fabric_ErrorCode &result, ::pw::Status status)
 {
     if (status.ok()) {

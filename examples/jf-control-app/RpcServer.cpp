@@ -21,6 +21,11 @@ class TestImpl : public pw_rpc::nanopb::Test::Service<TestImpl> {
   pw::Status DisplayText(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response);
 };
 
+class ReverseJointFabricServiceImpl : public pw_rpc::nanopb::ReverseJointFabric::Service<ReverseJointFabricServiceImpl> {
+ public:
+  pw::Status UpdateOperationalIdentity(const pw_protobuf_Empty& request, joint_fabric_ErrorCode& response);
+};
+
 pw::Status TestImpl::DisplayText(const joint_fabric_TextMessage& request, joint_fabric_ErrorCode& response)
 {
     /* Display the provided text string */
@@ -31,16 +36,22 @@ pw::Status TestImpl::DisplayText(const joint_fabric_TextMessage& request, joint_
     return pw::OkStatus();
 }
 
+pw::Status ReverseJointFabricServiceImpl::UpdateOperationalIdentity(const pw_protobuf_Empty& request, joint_fabric_ErrorCode& response)
+{
+    ChipLogProgress(NotSpecified, "UpdateOperationalIdentity()");
+    return pw::OkStatus();
+}
+
 }
 
 static void RpcServerRun(void);
 
 static void RpcServerRun(void)
 {
-    joint_fabric::TestImpl test_service;
+    joint_fabric::ReverseJointFabricServiceImpl reverse_joint_fabric_service;
 
     pw::rpc::system_server::set_socket_port(RPC_SERVER_PORT);
-    pw::rpc::system_server::Server().RegisterService(test_service);
+    pw::rpc::system_server::Server().RegisterService(reverse_joint_fabric_service);
     ChipLogProgress(NotSpecified, "RPC server now listening on port %d.", RPC_SERVER_PORT);
     pw::rpc::system_server::Init();
     ChipLogProgress(NotSpecified, "jf-admin connected.");

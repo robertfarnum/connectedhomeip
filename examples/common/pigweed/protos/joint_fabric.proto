@@ -1,6 +1,7 @@
 
 syntax = "proto3";
 
+import 'pw_protobuf_protos/common.proto';
 import 'pw_protobuf_protos/status.proto';
 
 package joint_fabric;
@@ -35,6 +36,10 @@ service Test {
 
 service JointFabric {
     rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (ErrorCode) {}
+}
+
+service ReverseJointFabric {
+    rpc UpdateOperationalIdentity(pw.protobuf.Empty) returns (ErrorCode) {}
 }
 
 service JointFabricControl {
