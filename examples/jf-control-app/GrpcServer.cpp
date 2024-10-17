@@ -30,6 +30,8 @@ pw::Status JointFabricControlServiceImpl::OpenCommissioningWindow(const joint_fa
             joint_fabric_OpenCommissioningWindowOut& response)
 {
     /* TODO: Add here the implementation of the OpenCommissioningWindow command */
+    ChipLogProgress(NotSpecified, "JointFabricControlService::OpenCommissioningWindow(window_timeout=%u)",
+        request.window_timeout);
     return pw::OkStatus();
 }
 
@@ -37,6 +39,8 @@ pw::Status JointFabricControlServiceImpl::CommissionDevice(const joint_fabric_Co
             joint_fabric_ErrorCode& response)
 {
     /* TODO: Add here the implementation of the CommissionDevice command */
+    ChipLogProgress(NotSpecified, "JointFabricControlService::CommissionDevice(manual_code=\"%s\", duration=\"%s\")",
+        request.manual_code, request.duration);
     return pw::OkStatus();
 }
 

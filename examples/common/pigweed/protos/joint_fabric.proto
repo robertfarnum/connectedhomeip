@@ -15,13 +15,13 @@ message OpenCommissioningWindowIn {
 }
 
 message OpenCommissioningWindowOut {
-    string vendorId = 1;
-    string productId = 2;
+    string vendor_id = 1;
+    string product_id = 2;
 }
 
 /* CommissionDevice command parameters and response */
 message CommissionDeviceIn {
-    string manualCode = 1;
+    string manual_code = 1;
     string duration = 2;
 }
 
