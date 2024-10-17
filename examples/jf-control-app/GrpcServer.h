@@ -1,4 +1,4 @@
 
-void InitGrpcServer(void);
+#include <lib/core/CHIPError.h>
 
-void RunGrpcServer(void);
+CHIP_ERROR StartGrpcServer(void);

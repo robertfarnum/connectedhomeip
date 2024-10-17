@@ -30,6 +30,9 @@
 #include "commands/rpc/Commands.h"
 #include "RpcClient.h"
 #include "RpcServer.h"
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
+#include "GrpcServer.h"
+#endif /* CONFIG_ENABLE_GRPC */
 
 #include <zap-generated/cluster/Commands.h>
 
@@ -40,6 +43,23 @@ int main(int argc, char * argv[])
 {
     // Convert command line arguments to a vector of strings for easier manipulation
     std::vector<std::string> args(argv, argv + argc);
+    int i = 0;
+
+    /* Check for special command line options */
+    while (i < argc) {
+        auto arg = args[(unsigned)i];
+        if (arg.compare("--enable-grpc") == 0) {
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
+            StartGrpcServer();
+#endif /* CONFIG_ENABLE_GRPC */
+            /* Remove this option from the argument list so that it is not
+             * propagated further to the command processing engine. */
+            args.erase(args.begin() + i);
+            argc--;
+            continue;
+        }
+        i++;
+    }
 
     // Check if "interactive" and "start" are not in the arguments
     if (args.size() < 3 || args[1] != "interactive" || args[2] != "start")

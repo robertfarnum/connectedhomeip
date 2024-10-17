@@ -4,7 +4,9 @@
 #include <pw_stream/socket_stream.h>
 #include <pw_grpc/pw_rpc_handler.h>
 #include "pw_rpc_transport/service_registry.h"
+#include "pw_thread/thread.h"
 #include <pw_thread/test_thread_context.h>
+#include "pw_thread_stl/options.h"
 
 #include "rpc_services/JointFabric.h"
 
@@ -12,7 +14,11 @@
 
 using namespace pw;
 
-void OnGrpcConnectionClose(void);
+static void OnGrpcConnectionClose(void);
+
+static void InitGrpcServer(void);
+
+static void RunGrpcServer(void);
 
 const uint32_t grpcChannelId = 1;
 const uint16_t grpcServerPort = 8112;
@@ -46,7 +52,7 @@ pw::Status JointFabricControlServiceImpl::CommissionDevice(const joint_fabric_Co
 
 }
 
-void InitGrpcServer(void)
+static void InitGrpcServer(void)
 {
     grpcEgress.set_callbacks(handler);
     serviceRegistry.RegisterService(jfControlService);
@@ -59,12 +65,12 @@ void InitGrpcServer(void)
     }
 }
 
-void OnGrpcConnectionClose(void)
+static void OnGrpcConnectionClose(void)
 {
     grpcServerSocket.Close();
 }
 
-void RunGrpcServer(void)
+static void RunGrpcServer(void)
 {
     ChipLogProgress(NotSpecified, "Waiting for GRPC connections...");
     auto socket = grpcServerSocket.Accept();
@@ -88,4 +94,16 @@ void RunGrpcServer(void)
     thread::Thread conn_thread(connection_thread_context.options(), conn);
     conn_thread.join();
     ChipLogProgress(NotSpecified, "GRPC disconnected.");
+}
+
+CHIP_ERROR StartGrpcServer(void)
+{
+    InitGrpcServer();
+
+    /* Create a thread dedicated to the GRPC server */
+    thread::stl::Options options;
+    thread::Thread grpcServerThread(options, RunGrpcServer);
+    grpcServerThread.detach();
+
+    return CHIP_NO_ERROR;
 }

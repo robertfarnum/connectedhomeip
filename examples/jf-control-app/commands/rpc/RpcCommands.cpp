@@ -4,11 +4,7 @@
 #include <lib/support/logging/CHIPLogging.h>
 
 #include "RpcClient.h"
-
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-#include "pw_thread/thread.h"
-#include "pw_thread_stl/options.h"
-
 #include "GrpcServer.h"
 #endif /* CONFIG_ENABLE_GRPC */
 
@@ -36,14 +32,7 @@ CHIP_ERROR RpcSendCommand::RunCommand(chip::CharSpan & msg)
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 CHIP_ERROR RpcStartGrpcServerCommand::Run()
 {
-    InitGrpcServer();
-
-    /* Create a thread dedicated to the GRPC server */
-    pw::thread::stl::Options options;
-    pw::thread::Thread grpcServerThread(options, RunGrpcServer);
-    grpcServerThread.detach();
-
-    return CHIP_NO_ERROR;
+    return StartGrpcServer();
 }
 #endif /* CONFIG_ENABLE_GRPC */
 
