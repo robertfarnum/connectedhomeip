@@ -49,6 +49,9 @@ namespace {
    /* fixed node for the moment, have to iterate through the Datastore */
    NodeId fixedNodeId = 10;
 
+   /* demo: fixed for the moment */
+   NodeId anchorAdminNodeId = 3;
+
    static constexpr uint16_t failSafeTimerPeriod = 15; // seconds
 }
 
@@ -96,10 +99,12 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
 
     if ((initialFabricIndex != kUndefinedFabricIndex) && (jfFabricIndex != kUndefinedFabricIndex))
     {
-        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: trigger kReissueOperationalIdentity state machine");
+        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: trigger kSendAddPendingNode state machine");
 
-        pendingNodeId = ScopedNodeId(fixedNodeId, initialFabricIndex);
-        ConnectToNode(pendingNodeId, kReissueOperationalIdentity);
+        anchorAdminScopedNodeId = ScopedNodeId(anchorAdminNodeId, jfFabricIndex);
+        pendingScopedNodeId = ScopedNodeId(fixedNodeId, initialFabricIndex);
+
+        ConnectToNode(anchorAdminScopedNodeId, kSendAddPendingNode);
     }
     else
     {
@@ -132,14 +137,18 @@ void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager &
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->mPendingSessionHolder.Grab(sessionHandle);
+    jfAdminCore->mSessionHolder.Grab(sessionHandle);
 
     ChipLogProgress(JointFabric, "OnConnected: successful");
 
-    jfAdminCore->mPendingExchangeMgr = &exchangeMgr;
+    jfAdminCore->mExchangeMgr = &exchangeMgr;
 
     switch (jfAdminCore->mOnConnectedAction)
     {
+    case kSendAddPendingNode: {
+        jfAdminCore->SendAddPendingNode();
+        break;
+    }
     case kReissueOperationalIdentity: {
         jfAdminCore->SendArmFailSafeTimer();
         break;
@@ -148,10 +157,47 @@ void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager &
         jfAdminCore->SendCommissioningComplete();
         break;
     }
+    case kSendRefreshNode: {
+        jfAdminCore->SendRefreshNode();
+        break;
+    }
 
     default:
         break;
     }
+}
+
+CHIP_ERROR JFAdminAppManager::SendAddPendingNode()
+{
+	JointFabricDatastore::Commands::AddPendingNode::Type request;
+
+	request.nodeID = fixedNodeId;
+	request.friendlyName = CharSpan::fromCharString("testFriendlyName");
+
+	if (!mExchangeMgr)
+	{
+        return CHIP_ERROR_UNINITIALIZED;
+	}
+
+	ChipLogProgress(JointFabric, "SendAddPendingNode: invoke cluster command.");
+	Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
+	return cluster.InvokeCommand(request, this, OnAddPendingNodeResponse, OnAddPendingNodeFailure);
+}
+
+CHIP_ERROR JFAdminAppManager::SendRefreshNode()
+{
+	JointFabricDatastore::Commands::RefreshNode::Type request;
+
+	request.nodeID = fixedNodeId;
+
+	if (!mExchangeMgr)
+	{
+        return CHIP_ERROR_UNINITIALIZED;
+	}
+
+	ChipLogProgress(JointFabric, "SendRefreshNode: invoke cluster command.");
+	Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
+	return cluster.InvokeCommand(request, this, OnRefreshNodeResponse, OnRefreshFailure);
 }
 
 CHIP_ERROR JFAdminAppManager::SendArmFailSafeTimer()
@@ -161,13 +207,13 @@ CHIP_ERROR JFAdminAppManager::SendArmFailSafeTimer()
     request.expiryLengthSeconds = failSafeTimerPeriod;
     request.breadcrumb          = breadcrumb;
 
-    if (!mPendingExchangeMgr)
+    if (!mExchangeMgr)
     {
         return CHIP_ERROR_UNINITIALIZED;
     }
 
     ChipLogProgress(JointFabric, "SendArmFailSafeTimer: invoke cluster command.");
-    Controller::ClusterBase cluster(*mPendingExchangeMgr, mPendingSessionHolder.Get().Value(), kRootEndpointId);
+    Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
     return cluster.InvokeCommand(request, this, OnArmFailSafeTimerResponse, OnArmFailSafeTimerFailure);
 }
 
@@ -176,7 +222,7 @@ CHIP_ERROR JFAdminAppManager::SendCSRRequest()
     OperationalCredentials::Commands::CSRRequest::Type request;
     uint8_t csrNonce[kCSRNonceLength];
 
-    if (!mPendingExchangeMgr)
+    if (!mExchangeMgr)
     {
         return CHIP_ERROR_UNINITIALIZED;
     }
@@ -185,7 +231,7 @@ CHIP_ERROR JFAdminAppManager::SendCSRRequest()
     request.CSRNonce = csrNonce;
 
     ChipLogProgress(JointFabric, "SendCSRRequest: invoke cluster command.");
-    Controller::ClusterBase cluster(*mPendingExchangeMgr, mPendingSessionHolder.Get().Value(), kRootEndpointId);
+    Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
     return cluster.InvokeCommand(request, this, OnOperationalCertificateSigningRequest, OnCSRFailureResponse);
 }
 
@@ -196,7 +242,7 @@ CHIP_ERROR JFAdminAppManager::SendAddTrustedRootCertificate()
     uint8_t pendingRCAC[Credentials::kMaxCHIPCertLength] = {0};
     MutableByteSpan pendingRCACSpan{ pendingRCAC };
 
-    if (!mPendingExchangeMgr)
+    if (!mExchangeMgr)
     {
         return CHIP_ERROR_UNINITIALIZED;
     }
@@ -210,7 +256,7 @@ CHIP_ERROR JFAdminAppManager::SendAddTrustedRootCertificate()
     request.rootCACertificate = pendingRCACSpan;
 
     ChipLogProgress(JointFabric, "SendAddTrustedRootCertificate: invoke cluster command.");
-    Controller::ClusterBase cluster(*mPendingExchangeMgr, mPendingSessionHolder.Get().Value(), kRootEndpointId);
+    Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
     return cluster.InvokeCommand(request, this, OnRootCertSuccessResponse, OnRootCertFailureResponse);
 }
 
@@ -222,7 +268,7 @@ CHIP_ERROR JFAdminAppManager::SendAddNOC()
     uint8_t pendingICAC[Credentials::kMaxCHIPCertLength] = {0};
     MutableByteSpan pendingICACSpan{ pendingICAC };
 
-    if (!mPendingExchangeMgr)
+    if (!mExchangeMgr)
     {
         return CHIP_ERROR_UNINITIALIZED;
     }
@@ -242,7 +288,7 @@ CHIP_ERROR JFAdminAppManager::SendAddNOC()
     request.adminVendorId    = this->jfFabricVendorId;
 
     ChipLogProgress(JointFabric, "SendAddNOC: invoke cluster command.");
-    Controller::ClusterBase cluster(*mPendingExchangeMgr, mPendingSessionHolder.Get().Value(), kRootEndpointId);
+    Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
     return cluster.InvokeCommand(request, this, OnOperationalCertificateAddResponse, OnAddNOCFailureResponse);
 
     return CHIP_NO_ERROR;
@@ -252,19 +298,19 @@ CHIP_ERROR JFAdminAppManager::SendCommissioningComplete()
 {
     GeneralCommissioning::Commands::CommissioningComplete::Type request;
 
-    if (!mPendingExchangeMgr)
+    if (!mExchangeMgr)
     {
         return CHIP_ERROR_UNINITIALIZED;
     }
 
     ChipLogProgress(JointFabric, "SendCommissioningComplete: invoke cluster command.");
-    Controller::ClusterBase cluster(*mPendingExchangeMgr, mPendingSessionHolder.Get().Value(), kRootEndpointId);
+    Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
     return cluster.InvokeCommand(request, this, OnCommissioningCompleteResponse, OnCommissioningCompleteFailure);
 }
 
-void JFAdminAppManager::DisconnectFromPendingNode()
+void JFAdminAppManager::DisconnectFromNode()
 {
-    auto optionalSessionHandle = mPendingSessionHolder.Get();
+    auto optionalSessionHandle = mSessionHolder.Get();
 	if (optionalSessionHandle.HasValue())
 	{
 	    if (optionalSessionHandle.Value()->IsActiveSession())
@@ -272,15 +318,34 @@ void JFAdminAppManager::DisconnectFromPendingNode()
 	        optionalSessionHandle.Value()->AsSecureSession()->MarkAsDefunct();
 	    }
 	}
-	mPendingSessionHolder.Release();
-
-	pendingNodeId = ScopedNodeId();
+	mSessionHolder.Release();
 }
 
 // Called whenever FindOrEstablishSession fails
 void JFAdminAppManager::OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
 {
     ChipLogProgress(JointFabric, "OnConnectionFailure!");
+}
+
+void JFAdminAppManager::OnAddPendingNodeResponse(void * context, const chip::app::DataModel::NullObjectType &)
+{
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+
+    ChipLogProgress(JointFabric, "OnAddPendingNodeResponse!");
+
+    jfAdminCore->DisconnectFromNode();
+
+    jfAdminCore->ConnectToNode(jfAdminCore->pendingScopedNodeId, kReissueOperationalIdentity);
+}
+
+void JFAdminAppManager::OnAddPendingNodeFailure(void * context, CHIP_ERROR error)
+{
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+    jfAdminCore->DisconnectFromNode();
+
+    ChipLogError(JointFabric, "OnAddPendingNodeFailure!");
 }
 
 void JFAdminAppManager::OnArmFailSafeTimerResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data)
@@ -297,7 +362,7 @@ void JFAdminAppManager::OnArmFailSafeTimerFailure(void * context, CHIP_ERROR err
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromPendingNode();
+    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnArmFailSafeTimerFailure!");
 }
@@ -401,7 +466,7 @@ void JFAdminAppManager::OnOperationalCertificateSigningRequest(void * context, c
         return;
     }
 
-    jfAdminCore->mOpCredentials->SetNodeIdForNextNOCRequest(jfAdminCore->pendingNodeId.GetNodeId());
+    jfAdminCore->mOpCredentials->SetNodeIdForNextNOCRequest(jfAdminCore->pendingScopedNodeId.GetNodeId());
     jfAdminCore->mOpCredentials->SetFabricIdForNextNOCRequest(dnFabricIDJFNoc);
 
     err = ConvertChipCertToX509Cert(ICACSpan, ICACDerSpan);
@@ -433,7 +498,7 @@ void JFAdminAppManager::OnCSRFailureResponse(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromPendingNode();
+    jfAdminCore->DisconnectFromNode();
 
     ChipLogProgress(JointFabric, "OnCSRFailureResponse!");
 }
@@ -452,7 +517,7 @@ void JFAdminAppManager::OnRootCertFailureResponse(void * context, CHIP_ERROR err
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromPendingNode();
+    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnRootCertFailureResponse!");
 }
@@ -469,17 +534,17 @@ void JFAdminAppManager::OnOperationalCertificateAddResponse(
 
     ChipLogProgress(JointFabric, "OnOperationalCertificateAddResponse: %s!", ErrorStr(err));
 
-    jfAdminCore->DisconnectFromPendingNode();
+    jfAdminCore->DisconnectFromNode();
 
-    jfAdminCore->pendingNodeId = ScopedNodeId(fixedNodeId, jfAdminCore->jfFabricIndex);
-    jfAdminCore->ConnectToNode(jfAdminCore->pendingNodeId, kSendCommissioningComplete);
+    jfAdminCore->pendingScopedNodeId = ScopedNodeId(fixedNodeId, jfAdminCore->jfFabricIndex);
+    jfAdminCore->ConnectToNode(jfAdminCore->pendingScopedNodeId, kSendCommissioningComplete);
 }
 
 void JFAdminAppManager::OnAddNOCFailureResponse(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromPendingNode();
+    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnAddNOCFailureResponse!");
 }
@@ -489,18 +554,39 @@ void JFAdminAppManager::OnCommissioningCompleteResponse(
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromPendingNode();
+    jfAdminCore->DisconnectFromNode();
 
     ChipLogProgress(JointFabric, "OnCommissioningCompleteResponse, Code=%u", to_underlying(data.errorCode));
+
+    jfAdminCore->ConnectToNode(jfAdminCore->anchorAdminScopedNodeId, kSendRefreshNode);
 }
 
 void JFAdminAppManager::OnCommissioningCompleteFailure(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->mPendingSessionHolder.Release();
+    jfAdminCore->mSessionHolder.Release();
 
     ChipLogError(JointFabric, "Received failure response %s\n", chip::ErrorStr(error));
+}
+
+void JFAdminAppManager::OnRefreshNodeResponse(void * context, const chip::app::DataModel::NullObjectType &)
+{
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+
+    ChipLogProgress(JointFabric, "OnRefreshNodeResponse!");
+
+    jfAdminCore->DisconnectFromNode();
+}
+
+void JFAdminAppManager::OnRefreshFailure(void * context, CHIP_ERROR error)
+{
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+    jfAdminCore->DisconnectFromNode();
+
+    ChipLogError(JointFabric, "OnRefreshNodeFailure!");
 }
 
 CHIP_ERROR JFAdminAppManager::ConvertFromOperationalCertStatus(OperationalCredentials::NodeOperationalCertStatusEnum err)

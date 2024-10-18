@@ -34,23 +34,30 @@ private:
     // Various actions to take when OnConnected callback is called
     enum OnConnectedAction
     {
-        kReissueOperationalIdentity = 0,
+        kSendAddPendingNode = 0,
+        kReissueOperationalIdentity,
         kSendCommissioningComplete,
+        kSendRefreshNode,
     };
 
     void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
     CHIP_ERROR SendArmFailSafeTimer();
     CHIP_ERROR SendAddTrustedRootCertificate();
     CHIP_ERROR SendCSRRequest();
+    CHIP_ERROR SendAddPendingNode();
+    CHIP_ERROR SendRefreshNode();
     CHIP_ERROR SendAddNOC();
     CHIP_ERROR SendCommissioningComplete();
 
-    void DisconnectFromPendingNode();
+    void DisconnectFromNode();
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
     static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
     Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
     Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;
+
+    static void OnAddPendingNodeResponse(void * context, const chip::app::DataModel::NullObjectType &);
+    static void OnAddPendingNodeFailure(void * context, CHIP_ERROR error);
 
     static void OnArmFailSafeTimerResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data);
     static void OnArmFailSafeTimerFailure(void * context, CHIP_ERROR error);
@@ -67,6 +74,9 @@ private:
     static void OnCommissioningCompleteResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::CommissioningCompleteResponse::DecodableType & data);
     static void OnCommissioningCompleteFailure(void * context, CHIP_ERROR error);
 
+    static void OnRefreshNodeResponse(void * context, const chip::app::DataModel::NullObjectType &);
+    static void OnRefreshFailure(void * context, CHIP_ERROR error);
+
     static CHIP_ERROR ConvertFromOperationalCertStatus(app::Clusters::OperationalCredentials::NodeOperationalCertStatusEnum err);
 
     OnConnectedAction mOnConnectedAction = kReissueOperationalIdentity;
@@ -78,9 +88,15 @@ private:
     FabricIndex jfFabricIndex = kUndefinedFabricIndex;
     VendorId jfFabricVendorId = NotSpecified;
 
-    ScopedNodeId pendingNodeId;
-    Messaging::ExchangeManager * mPendingExchangeMgr = nullptr;
-    SessionHolder mPendingSessionHolder;
+    /* information about the node that receives updated NOC from JFA.
+     * updated NOC chains up to the cross-signed ICAC
+     */
+    ScopedNodeId pendingScopedNodeId;
+    Messaging::ExchangeManager * mExchangeMgr = nullptr;
+    SessionHolder mSessionHolder;
+
+    /* demo: NodeID of JFA-A */
+    ScopedNodeId anchorAdminScopedNodeId;
 
     uint8_t pendingNOCBuffer[Credentials::kMaxCHIPCertLength] = {0};
     MutableByteSpan pendingNOCSpan{ pendingNOCBuffer };
