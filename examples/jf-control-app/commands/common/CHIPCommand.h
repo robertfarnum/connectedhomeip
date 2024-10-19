@@ -53,6 +53,8 @@ inline constexpr char kIdentityGamma[] = "gamma";
 // (CASE) communcation.
 inline constexpr char kIdentityNull[] = "null-fabric-commissioner";
 
+constexpr uint16_t kMaxCommandSize = 384;
+
 class CHIPCommand : public Command
 {
 public:

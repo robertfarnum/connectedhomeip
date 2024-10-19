@@ -21,6 +21,7 @@
 #include <commands/common/DeviceScanner.h>
 #include <controller/ExampleOperationalCredentialsIssuer.h>
 #include <crypto/CHIPCryptoPAL.h>
+#include <device_manager/DeviceManager.h>
 #include <lib/core/CHIPSafeCasts.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <protocols/secure_channel/PASESession.h>
@@ -244,6 +245,7 @@ CHIP_ERROR PairingCommand::Pair(NodeId remoteId, PeerAddress address)
         auto commissioningParams = GetCommissioningParameters();
         err                      = CurrentCommissioner().PairDevice(remoteId, params, commissioningParams);
     }
+
     return err;
 }
 
@@ -420,10 +422,7 @@ void PairingCommand::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
     {
         ChipLogProgress(chipTool, "Device commissioning completed with success");
 
-        if (mSkipCommissioningComplete.ValueOr(false))
-        {
-            ChipLogProgress(chipTool, "RPC Call to jf-admin-app. Params: node-id of the newly commissioned device: %lu", mNodeId);
-        }
+        DeviceMgr().HandleCommissioningComplete(nodeId);
     }
     else
     {

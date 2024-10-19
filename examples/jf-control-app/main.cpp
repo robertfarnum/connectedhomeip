@@ -28,6 +28,7 @@
 #include "commands/joint-fabric/Commands.h"
 #include "commands/pairing/Commands.h"
 #include "commands/rpc/Commands.h"
+#include <device_manager/DeviceManager.h>
 #include "RpcClient.h"
 #include "RpcServer.h"
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
@@ -35,6 +36,11 @@
 #endif /* CONFIG_ENABLE_GRPC */
 
 #include <zap-generated/cluster/Commands.h>
+
+void ApplicationInit()
+{
+    DeviceMgr().Init();
+}
 
 // ================================================================================
 // Main Code
@@ -87,6 +93,8 @@ int main(int argc, char * argv[])
     {
         c_args.push_back(const_cast<char *>(arg.c_str()));
     }
+
+    ApplicationInit();
 
     return commands.Run(static_cast<int>(c_args.size()), c_args.data());
 }

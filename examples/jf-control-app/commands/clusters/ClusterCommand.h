@@ -21,6 +21,7 @@
 #include "DataModelLogger.h"
 #include "ModelCommand.h"
 #include <app/tests/suites/commands/interaction_model/InteractionModel.h>
+#include <device_manager/DeviceManager.h>
 #include <lib/core/ClusterEnums.h>
 
 class ClusterCommand : public InteractionModelCommands, public ModelCommand, public chip::app::CommandSender::Callback
@@ -157,6 +158,7 @@ public:
 
                 StoreICDEntryWithKey(clientInfo, chip::ByteSpan(mICDSymmetricKey));
             }
+            DeviceMgr().HandleCommandResponse(path, *data);
         }
 
         if ((path.mEndpointId == chip::kRootEndpointId) && (path.mClusterId == chip::app::Clusters::IcdManagement::Id) &&

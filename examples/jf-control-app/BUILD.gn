@@ -78,6 +78,8 @@ static_library("jf-control-app-utils") {
     "commands/rpc/RpcCommands.h",
     "commands/rpc/RpcConnect.cpp",
     "commands/rpc/RpcConnect.h",
+    "device_manager/DeviceManager.cpp",
+    "device_manager/DeviceManager.h",
     "RpcClient.cpp",
     "RpcClient.h",
     "RpcServer.cpp",

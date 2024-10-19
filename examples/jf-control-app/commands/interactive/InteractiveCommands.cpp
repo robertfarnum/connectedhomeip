@@ -22,7 +22,10 @@
 
 #include <editline.h>
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <string>
+#include <thread>
 #include <vector>
 
 constexpr char kInteractiveModePrompt[]          = ">>> ";
@@ -247,6 +250,26 @@ struct InteractiveServerResult
 
 InteractiveServerResult gInteractiveServerResult;
 
+std::queue<std::string> sCommandQueue;
+std::mutex sQueueMutex;
+std::condition_variable sQueueCondition;
+
+void ReadCommandThread()
+{
+    char * command;
+    while (true)
+    {
+        command = readline(kInteractiveModePrompt);
+        if (command != nullptr && *command)
+        {
+            std::unique_lock<std::mutex> lock(sQueueMutex);
+            sCommandQueue.push(command);
+            free(command);
+            sQueueCondition.notify_one();
+        }
+    }
+}
+
 void ENFORCE_FORMAT(3, 0) InteractiveServerLoggingCallback(const char * module, uint8_t category, const char * msg, va_list args)
 {
     va_list args_copy;
@@ -268,13 +291,20 @@ void ENFORCE_FORMAT(3, 0) InteractiveServerLoggingCallback(const char * module, 
 
 char * InteractiveStartCommand::GetCommand(char * command)
 {
+    std::unique_lock<std::mutex> lock(sQueueMutex);
+    sQueueCondition.wait(lock, [&] { return !sCommandQueue.empty(); });
+
+    std::string cmd = sCommandQueue.front();
+    sCommandQueue.pop();
+
     if (command != nullptr)
     {
         free(command);
         command = nullptr;
     }
 
-    command = readline(kInteractiveModePrompt);
+    command = new char[cmd.length() + 1];
+    strcpy(command, cmd.c_str());
 
     // Do not save empty lines
     if (command != nullptr && *command)
@@ -364,6 +394,9 @@ CHIP_ERROR InteractiveStartCommand::RunCommand()
     // is dumped to stdout while the user is typing a command.
     chip::Logging::SetLogRedirectCallback(LoggingCallback);
 
+    std::thread readCommands(ReadCommandThread);
+    readCommands.detach();
+
     char * command = nullptr;
     int status;
     while (true)
@@ -406,4 +439,13 @@ bool InteractiveCommand::ParseCommand(char * command, int * status)
 bool InteractiveCommand::NeedsOperationalAdvertising()
 {
     return mAdvertiseOperational.ValueOr(true);
+}
+
+void PushCommand(const std::string & command)
+{
+    std::unique_lock<std::mutex> lock(sQueueMutex);
+
+    ChipLogProgress(NotSpecified, "PushCommand: %s", command.c_str());
+    sCommandQueue.push(command);
+    sQueueCondition.notify_one();
 }
