@@ -49,7 +49,7 @@ private:
     CHIP_ERROR SendAddNOC();
     CHIP_ERROR SendCommissioningComplete();
 
-    void TriggerNOCReissuance();
+    void TriggerJFOnboardingForNextNode();
     void DisconnectFromNode();
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);

@@ -98,10 +98,10 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
 
     if ((initialFabricIndex != kUndefinedFabricIndex) && (jfFabricIndex != kUndefinedFabricIndex))
     {
-        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: TriggerNOCReissuance state machine");
+        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: TriggerJFOnboardingForNextNode state machine");
 
         anchorAdminScopedNodeId = ScopedNodeId(anchorAdminNodeId, jfFabricIndex);
-        TriggerNOCReissuance();
+        TriggerJFOnboardingForNextNode();
     }
     else
     {
@@ -109,7 +109,7 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
     }
 }
 
-void JFAdminAppManager::TriggerNOCReissuance()
+void JFAdminAppManager::TriggerJFOnboardingForNextNode()
 {
     NodeId pendingNodeId = kUndefinedNodeId;
     bool deletedPendingNodesExist = false;
@@ -127,7 +127,7 @@ void JFAdminAppManager::TriggerNOCReissuance()
             break;
         }
         else if (!deletedPendingNodesExist &&
-                 mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kCommitted)
+                 mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kDeletePending)
         {
             deletedPendingNodesExist = true;
         }
@@ -144,7 +144,17 @@ void JFAdminAppManager::TriggerNOCReissuance()
     }
     else
     {
-        ChipLogProgress(JointFabric, "Error while updating NOCs for some of the devices.");
+        ChipLogError(JointFabric, "Error while updating NOCs for some of the devices.");
+
+        for (index = 0; index < mNodeInformationEntriesCount; index++)
+        {
+            if (mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kDeletePending)
+            {
+                NodeId kDeletePendingNode = mNodeInformationEntries[index].nodeID;
+
+                ChipLogError(JointFabric, "Node ID of device with kDeletePending status: 0x" ChipLogFormatX64, ChipLogValueX64(kDeletePendingNode));
+            }
+        }
     }
 }
 
@@ -168,7 +178,6 @@ void JFAdminAppManager::ConnectToNode(ScopedNodeId scopedNodeId, OnConnectedActi
     mCASESessionManager->FindOrEstablishSession(scopedNodeId, &mOnConnectedCallback, &mOnConnectionFailureCallback);
 }
 
-// Called whenever FindOrEstablishSession is successful
 void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
@@ -359,8 +368,14 @@ void JFAdminAppManager::DisconnectFromNode()
 
 void JFAdminAppManager::OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
 {
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+
     ChipLogError(JointFabric, "Failed to establish connection to 0x" ChipLogFormatX64 " on fabric index %d",
                   ChipLogValueX64(peerId.GetNodeId()), peerId.GetFabricIndex());
+
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnAddPendingNodeResponse(void * context, const chip::app::DataModel::NullObjectType &)
@@ -370,8 +385,10 @@ void JFAdminAppManager::OnAddPendingNodeResponse(void * context, const chip::app
 
     ChipLogProgress(JointFabric, "OnAddPendingNodeResponse!");
 
+    /* disconnect from the Anchor Administrator */
     jfAdminCore->DisconnectFromNode();
 
+    /* start device onboarding into JF */
     jfAdminCore->ConnectToNode(jfAdminCore->pendingScopedNodeId, kReissueOperationalIdentity);
 }
 
@@ -398,9 +415,10 @@ void JFAdminAppManager::OnArmFailSafeTimerFailure(void * context, CHIP_ERROR err
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnArmFailSafeTimerFailure!");
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnOperationalCertificateSigningRequest(void * context, const OperationalCredentials::Commands::CSRResponse::DecodableType & data)
@@ -432,6 +450,8 @@ void JFAdminAppManager::OnOperationalCertificateSigningRequest(void * context, c
     TLVReader reader;
     TLVType containerType;
 
+    ByteSpan csrSpan;
+
     ChipLogProgress(JointFabric, "OnOperationalCertificateSigningRequest!");
 
     /* extract CSR from the CSRResponse */
@@ -439,104 +459,73 @@ void JFAdminAppManager::OnOperationalCertificateSigningRequest(void * context, c
     if (reader.GetType() == kTLVType_NotSpecified)
     {
         err = reader.Next();
-        if (err != CHIP_NO_ERROR)
-        {
-           ChipLogError(JointFabric, "Error while processing NOCSRElements! (reader.GetType())");
-           return;
-        }
+        SuccessOrExit(err);
     }
-    if (reader.Expect(kTLVType_Structure, AnonymousTag()) != CHIP_NO_ERROR)
-    {
-        ChipLogError(JointFabric, "Error while processing NOCSRElements! (AnonymousTag) ");
-        return;
-    }
-    if (reader.EnterContainer(containerType) != CHIP_NO_ERROR)
-    {
-        ChipLogError(JointFabric, "Error while processing NOCSRElements! (EnterContainer) ");
-        return;
-    }
-    if (reader.Next(kTLVType_ByteString, TLV::ContextTag(1)) != CHIP_NO_ERROR)
-    {
-        ChipLogError(JointFabric, "Error while processing NOCSRElements! (kTLVType_ByteString) ");
-        return;
-    }
+    err = reader.Expect(kTLVType_Structure, AnonymousTag());
+    SuccessOrExit(err);
 
-    ByteSpan csrSpan(reader.GetReadPoint(), reader.GetLength());
+    err = reader.EnterContainer(containerType);
+    SuccessOrExit(err);
+
+    err = reader.Next(kTLVType_ByteString, TLV::ContextTag(1));
+    SuccessOrExit(err);
+
+    csrSpan = Span(reader.GetReadPoint(), reader.GetLength());
     reader.ExitContainer(containerType);
 
     /* extract ICAC */
     err = jfAdminCore->mServer->GetFabricTable().FetchICACert(jfAdminCore->jfFabricIndex, ICACSpan);
-    if (err != CHIP_NO_ERROR || !ICACSpan.size())
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error while fetching JF ICAC!");
-        return;
-    }
+    SuccessOrExit(err);
 
     /* extract JF NOC: needed for Matter Operational Certificate DN attribute for fabric identifier */
     err = jfAdminCore->mServer->GetFabricTable().FetchNOCCert(jfAdminCore->jfFabricIndex, ownJFNocSpan);
-    if (err != CHIP_NO_ERROR || !ownJFNocSpan.size())
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error while fetching JF NOC!");
-        return;
-    }
+    SuccessOrExit(err);
 
     err = ConvertChipCertToX509Cert(ownJFNocSpan, ownJFNocDerSpan);
-    if (err != CHIP_NO_ERROR || !ownJFNocDerSpan.size())
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error during conversion to DER for JF NOC!");
-        return;
-    }
+    SuccessOrExit(err);
 
     ownJFNocDn = ChipDN{};
     err = ExtractSubjectDNFromX509Cert(ownJFNocDerSpan, ownJFNocDn);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error during ExtractSubjectDNFromX509Cert!");
-        return;
-    }
+    SuccessOrExit(err);
 
     err = ownJFNocDn.GetCertFabricId(dnFabricIDJFNoc);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: GetCertFabricId!");
-        return;
-    }
+    SuccessOrExit(err);
 
     jfAdminCore->mOpCredentials->SetNodeIdForNextNOCRequest(jfAdminCore->pendingScopedNodeId.GetNodeId());
     jfAdminCore->mOpCredentials->SetFabricIdForNextNOCRequest(dnFabricIDJFNoc);
 
     err = ConvertChipCertToX509Cert(ICACSpan, ICACDerSpan);
-    if (err != CHIP_NO_ERROR || !ICACDerSpan.size())
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error during conversion to DER!");
-        return;
-    }
+    SuccessOrExit(err);
 
     err = jfAdminCore->mOpCredentials->SignNOC(ICACDerSpan, csrSpan, nocDerSpan);
-    if (err != CHIP_NO_ERROR || !nocDerSpan.size())
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error during SignNOC!");
-        return;
-    }
+    SuccessOrExit(err);
 
     err = ConvertX509CertToChipCert(nocDerSpan, nocSpan);
-    if (err != CHIP_NO_ERROR || !nocSpan.size())
-    {
-        ChipLogError(JointFabric, "OnOperationalCertificateSigningRequest: Error during conversion to DER!");
-        return;
-    }
+    SuccessOrExit(err);
 
     CopySpanToMutableSpan(nocSpan, jfAdminCore->pendingNOCSpan);
-    jfAdminCore->SendAddTrustedRootCertificate();
+
+exit:
+    if (CHIP_NO_ERROR == err)
+    {
+        jfAdminCore->SendAddTrustedRootCertificate();
+    }
+    else
+    {
+        ChipLogError(JointFabric, "Error during OnOperationalCertificateSigningRequest");
+        jfAdminCore->DisconnectFromNode();
+        jfAdminCore->TriggerJFOnboardingForNextNode();
+    }
 }
 
 void JFAdminAppManager::OnCSRFailureResponse(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromNode();
 
     ChipLogProgress(JointFabric, "OnCSRFailureResponse!");
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnRootCertSuccessResponse(void * context, const chip::app::DataModel::NullObjectType &)
@@ -553,9 +542,10 @@ void JFAdminAppManager::OnRootCertFailureResponse(void * context, CHIP_ERROR err
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnRootCertFailureResponse!");
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnOperationalCertificateAddResponse(
@@ -572,18 +562,26 @@ void JFAdminAppManager::OnOperationalCertificateAddResponse(
 
     jfAdminCore->DisconnectFromNode();
 
-    /* switch to JF fabric for the Commissioning Complete requests/response commands */
-    jfAdminCore->pendingScopedNodeId = ScopedNodeId(jfAdminCore->pendingScopedNodeId.GetNodeId(), jfAdminCore->jfFabricIndex);
-    jfAdminCore->ConnectToNode(jfAdminCore->pendingScopedNodeId, kSendCommissioningComplete);
+    if (CHIP_NO_ERROR == err)
+    {
+        /* switch to JF fabric from now: Commissioning Complete requests/response commands */
+        jfAdminCore->pendingScopedNodeId = ScopedNodeId(jfAdminCore->pendingScopedNodeId.GetNodeId(), jfAdminCore->jfFabricIndex);
+        jfAdminCore->ConnectToNode(jfAdminCore->pendingScopedNodeId, kSendCommissioningComplete);
+    }
+    else
+    {
+        jfAdminCore->TriggerJFOnboardingForNextNode();
+    }
 }
 
 void JFAdminAppManager::OnAddNOCFailureResponse(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnAddNOCFailureResponse!");
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnCommissioningCompleteResponse(
@@ -595,16 +593,25 @@ void JFAdminAppManager::OnCommissioningCompleteResponse(
 
     ChipLogProgress(JointFabric, "OnCommissioningCompleteResponse, Code=%u", to_underlying(data.errorCode));
 
-    jfAdminCore->ConnectToNode(jfAdminCore->anchorAdminScopedNodeId, kSendRefreshNode);
+    /* CommissioningCompleteResponse has errors, proceed with JF onboarding another node */
+    if (data.errorCode != GeneralCommissioning::CommissioningErrorEnum::kOk)
+    {
+        jfAdminCore->TriggerJFOnboardingForNextNode();
+    }
+    else
+    {
+        jfAdminCore->ConnectToNode(jfAdminCore->anchorAdminScopedNodeId, kSendRefreshNode);
+    }
 }
 
 void JFAdminAppManager::OnCommissioningCompleteFailure(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->mSessionHolder.Release();
 
     ChipLogError(JointFabric, "Received failure response %s\n", chip::ErrorStr(error));
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnRefreshNodeResponse(void * context, const chip::app::DataModel::NullObjectType &)
@@ -614,19 +621,21 @@ void JFAdminAppManager::OnRefreshNodeResponse(void * context, const chip::app::D
 
     ChipLogProgress(JointFabric, "OnRefreshNodeResponse!");
 
-    jfAdminCore->DisconnectFromNode();
-
+    /* node is marked as kCommitted on JFA, remove it from the local Datastore */
     jfAdminCore->mJointFabricDatastorage->RemoveNode(jfAdminCore->pendingScopedNodeId.GetNodeId());
-    jfAdminCore->TriggerNOCReissuance();
+
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnRefreshFailure(void * context, CHIP_ERROR error)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnRefreshNodeFailure!");
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 CHIP_ERROR JFAdminAppManager::ConvertFromOperationalCertStatus(OperationalCredentials::NodeOperationalCertStatusEnum err)
