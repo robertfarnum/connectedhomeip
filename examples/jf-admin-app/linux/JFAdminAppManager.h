@@ -49,6 +49,7 @@ private:
     CHIP_ERROR SendAddNOC();
     CHIP_ERROR SendCommissioningComplete();
 
+    void TriggerNOCReissuance();
     void DisconnectFromNode();
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
@@ -81,6 +82,7 @@ private:
 
     OnConnectedAction mOnConnectedAction = kReissueOperationalIdentity;
     Server * mServer = nullptr;
+    app::JointFabricDatastorage * mJointFabricDatastorage = nullptr;
     CASESessionManager * mCASESessionManager = nullptr;
     chip::Controller::OperationalCredentialsDelegate * mOpCredentials = nullptr;
 

@@ -32,6 +32,7 @@
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/ConcreteAttributePath.h>
 #include <app/server/Server.h>
+#include <app/server/JointFabricDatastorage.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <lib/support/TestGroupData.h>
 
@@ -46,9 +47,6 @@ using namespace chip::TLV;
 using KeySet = GroupDataProvider::KeySet;
 
 namespace {
-   /* fixed node for the moment, have to iterate through the Datastore */
-   NodeId fixedNodeId = 10;
-
    /* demo: fixed for the moment */
    NodeId anchorAdminNodeId = 3;
 
@@ -62,6 +60,7 @@ CHIP_ERROR JFAdminAppManager::Init(Server & server, OperationalCredentialsDelega
     mServer             = &server;
     mCASESessionManager = server.GetCASESessionManager();
     mOpCredentials = &opCredentialsDelegate;
+    mJointFabricDatastorage = &(mServer->GetJointFabricDatastorage());
 
     return err;
 }
@@ -99,16 +98,53 @@ void JFAdminAppManager::HandleCommissioningCompleteEvent()
 
     if ((initialFabricIndex != kUndefinedFabricIndex) && (jfFabricIndex != kUndefinedFabricIndex))
     {
-        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: trigger kSendAddPendingNode state machine");
+        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: TriggerNOCReissuance state machine");
 
         anchorAdminScopedNodeId = ScopedNodeId(anchorAdminNodeId, jfFabricIndex);
-        pendingScopedNodeId = ScopedNodeId(fixedNodeId, initialFabricIndex);
-
-        ConnectToNode(anchorAdminScopedNodeId, kSendAddPendingNode);
+        TriggerNOCReissuance();
     }
     else
     {
-        ChipLogError(JointFabric, "HandleCommissioningCompleteEvent: Couldn't identify initialFabricIndex and jfFabricIndex.");
+        ChipLogProgress(JointFabric, "HandleCommissioningCompleteEvent: Couldn't identify initialFabricIndex and jfFabricIndex.");
+    }
+}
+
+void JFAdminAppManager::TriggerNOCReissuance()
+{
+    NodeId pendingNodeId = kUndefinedNodeId;
+    bool deletedPendingNodesExist = false;
+    JointFabricDatastore::Structs::DatastoreNodeInformationEntry::Type * mNodeInformationEntries;
+    size_t mNodeInformationEntriesCount = mJointFabricDatastorage->GetNodeInformationEntriesCount();
+    size_t index = 0;
+
+    mNodeInformationEntries = mJointFabricDatastorage->GetNodeInformationEntries();
+    for (index = 0; index < mNodeInformationEntriesCount; index++)
+    {
+        if (mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kCommitted)
+        {
+            mJointFabricDatastorage->SetNode(mNodeInformationEntries[index].nodeID, JointFabricDatastore::DatastoreStateEnum::kDeletePending);
+            pendingNodeId = mNodeInformationEntries[index].nodeID;
+            break;
+        }
+        else if (!deletedPendingNodesExist &&
+                 mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kCommitted)
+        {
+            deletedPendingNodesExist = true;
+        }
+    }
+
+    if (pendingNodeId != kUndefinedNodeId)
+    {
+        pendingScopedNodeId = ScopedNodeId(pendingNodeId, initialFabricIndex);
+        ConnectToNode(anchorAdminScopedNodeId, kSendAddPendingNode);
+    }
+    else if (!deletedPendingNodesExist)
+    {
+        ChipLogProgress(JointFabric, "All Nodes have now updated NOCs chaining up to the cross-signed ICAC!");
+    }
+    else
+    {
+        ChipLogProgress(JointFabric, "Error while updating NOCs for some of the devices.");
     }
 }
 
@@ -126,7 +162,7 @@ void JFAdminAppManager::ConnectToNode(ScopedNodeId scopedNodeId, OnConnectedActi
     // Set the action to take once connection is successfully established
     mOnConnectedAction = onConnectedAction;
 
-    ChipLogDetail(JointFabric, "Establishing session to provider node ID 0x" ChipLogFormatX64 " on fabric index %d",
+    ChipLogDetail(JointFabric, "Establishing session to node ID 0x" ChipLogFormatX64 " on fabric index %d",
                   ChipLogValueX64(scopedNodeId.GetNodeId()), scopedNodeId.GetFabricIndex());
 
     mCASESessionManager->FindOrEstablishSession(scopedNodeId, &mOnConnectedCallback, &mOnConnectionFailureCallback);
@@ -171,7 +207,7 @@ CHIP_ERROR JFAdminAppManager::SendAddPendingNode()
 {
 	JointFabricDatastore::Commands::AddPendingNode::Type request;
 
-	request.nodeID = fixedNodeId;
+	request.nodeID = pendingScopedNodeId.GetNodeId();
 	request.friendlyName = CharSpan::fromCharString("testFriendlyName");
 
 	if (!mExchangeMgr)
@@ -188,7 +224,7 @@ CHIP_ERROR JFAdminAppManager::SendRefreshNode()
 {
 	JointFabricDatastore::Commands::RefreshNode::Type request;
 
-	request.nodeID = fixedNodeId;
+	request.nodeID = pendingScopedNodeId.GetNodeId();
 
 	if (!mExchangeMgr)
 	{
@@ -321,10 +357,10 @@ void JFAdminAppManager::DisconnectFromNode()
 	mSessionHolder.Release();
 }
 
-// Called whenever FindOrEstablishSession fails
 void JFAdminAppManager::OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
 {
-    ChipLogProgress(JointFabric, "OnConnectionFailure!");
+    ChipLogError(JointFabric, "Failed to establish connection to 0x" ChipLogFormatX64 " on fabric index %d",
+                  ChipLogValueX64(peerId.GetNodeId()), peerId.GetFabricIndex());
 }
 
 void JFAdminAppManager::OnAddPendingNodeResponse(void * context, const chip::app::DataModel::NullObjectType &)
@@ -536,7 +572,8 @@ void JFAdminAppManager::OnOperationalCertificateAddResponse(
 
     jfAdminCore->DisconnectFromNode();
 
-    jfAdminCore->pendingScopedNodeId = ScopedNodeId(fixedNodeId, jfAdminCore->jfFabricIndex);
+    /* switch to JF fabric for the Commissioning Complete requests/response commands */
+    jfAdminCore->pendingScopedNodeId = ScopedNodeId(jfAdminCore->pendingScopedNodeId.GetNodeId(), jfAdminCore->jfFabricIndex);
     jfAdminCore->ConnectToNode(jfAdminCore->pendingScopedNodeId, kSendCommissioningComplete);
 }
 
@@ -578,6 +615,9 @@ void JFAdminAppManager::OnRefreshNodeResponse(void * context, const chip::app::D
     ChipLogProgress(JointFabric, "OnRefreshNodeResponse!");
 
     jfAdminCore->DisconnectFromNode();
+
+    jfAdminCore->mJointFabricDatastorage->RemoveNode(jfAdminCore->pendingScopedNodeId.GetNodeId());
+    jfAdminCore->TriggerNOCReissuance();
 }
 
 void JFAdminAppManager::OnRefreshFailure(void * context, CHIP_ERROR error)
