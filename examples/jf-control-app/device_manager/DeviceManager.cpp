@@ -23,6 +23,7 @@
 #include <lib/support/StringBuilder.h>
 
 using namespace chip;
+using namespace chip::app;
 using namespace chip::app::Clusters;
 
 namespace {
@@ -58,10 +59,50 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
     }
 }
 
-void DeviceManager::HandleCommandResponse(const app::ConcreteCommandPath & path, TLV::TLVReader & data)
+void DeviceManager::HandleOnResponse(const app::ConcreteDataAttributePath & path, NodeId remotePeerNodeId)
 {
-    if (path.mClusterId == JointFabricDatastore::Id)
+    StringBuilder<kMaxCommandSize> commandBuilder;
+
+    if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::NodeLabel::Id))
     {
-        ChipLogProgress(NotSpecified, "Command Response received for JointFabricDatastore::Id");
+        nodeIdToRefreshFriendlyName = remotePeerNodeId;
+
+        if (jfAdminAppCommissioned)
+        {
+            commandBuilder.Add("basicinformation read node-label ");
+            commandBuilder.AddFormat("%lu %d ", nodeIdToRefreshFriendlyName, kRootEndpointId);
+            PushCommand(commandBuilder.c_str());
+        }
+    }
+}
+
+void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath & path, TLV::TLVReader * data)
+{
+    CHIP_ERROR error = CHIP_NO_ERROR;
+
+    uint8_t friendlyNameBuffer[16] = {0};
+    MutableByteSpan friendlyNameMutableByteSpan{ friendlyNameBuffer };
+    CharSpan friendlyNameCharSpan;
+    StringBuilder<kMaxCommandSize> commandBuilder;
+    size_t size_to_copy = 0;
+
+    if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::NodeLabel::Id))
+    {
+        if (jfAdminAppCommissioned && (nodeIdToRefreshFriendlyName != kUndefinedNodeId))
+        {
+            error = DataModel::Decode(*data, friendlyNameCharSpan);
+            if (CHIP_NO_ERROR == error)
+            {
+                size_to_copy = friendlyNameCharSpan.size() > 15 ? 15 : friendlyNameCharSpan.size();
+                memcpy (friendlyNameMutableByteSpan.data(), friendlyNameCharSpan.data(), size_to_copy);
+
+                commandBuilder.Add("jointfabricdatastore update-node ");
+                commandBuilder.AddFormat("%lu %s %lu %d",nodeIdToRefreshFriendlyName, friendlyNameMutableByteSpan.data(),
+                                         jfAdminAppNodeId, kRootEndpointId);
+                PushCommand(commandBuilder.c_str());
+            }
+
+            nodeIdToRefreshFriendlyName = kUndefinedNodeId;
+        }
     }
 }

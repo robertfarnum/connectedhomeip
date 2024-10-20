@@ -20,6 +20,7 @@
 
 #include <app/tests/suites/commands/interaction_model/InteractionModel.h>
 
+#include <device_manager/DeviceManager.h>
 #include "DataModelLogger.h"
 #include "ModelCommand.h"
 
@@ -125,6 +126,10 @@ public:
             ChipLogError(chipTool, "Response Failure: %s", chip::ErrorStr(error));
             mError = error;
         }
+        else
+        {
+            DeviceMgr().HandleOnResponse(path, remotePeerNodeId);
+        }
     }
 
     void OnError(const chip::app::WriteClient * client, CHIP_ERROR error) override
@@ -144,6 +149,10 @@ public:
     CHIP_ERROR SendCommand(chip::DeviceProxy * device, std::vector<chip::EndpointId> endpointIds,
                            std::vector<chip::ClusterId> clusterIds, std::vector<chip::AttributeId> attributeIds, const T & values)
     {
+        if (device)
+        {
+            remotePeerNodeId = device->GetDeviceId();
+        }
         return InteractionModelWriter::WriteAttribute(device, endpointIds, clusterIds, attributeIds, values);
     }
 
@@ -270,6 +279,8 @@ private:
 
     CHIP_ERROR mError = CHIP_NO_ERROR;
     T mAttributeValues;
+
+    NodeId remotePeerNodeId = chip::kUndefinedNodeId;
 };
 
 template <class T>

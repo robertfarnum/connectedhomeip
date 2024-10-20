@@ -20,6 +20,7 @@
 
 #include <app/tests/suites/commands/interaction_model/InteractionModel.h>
 
+#include <device_manager/DeviceManager.h>
 #include "DataModelLogger.h"
 #include "ModelCommand.h"
 
@@ -60,6 +61,8 @@ public:
             mError = error;
             return;
         }
+
+        DeviceMgr().HandleOnAttributeData(path, data);
     }
 
     void OnEventData(const chip::app::EventHeader & eventHeader, chip::TLV::TLVReader * data,

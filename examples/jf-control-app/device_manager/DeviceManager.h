@@ -29,9 +29,14 @@ public:
 
     void Init();
 
+    /* callback for commissioning complete */
     void HandleCommissioningComplete(chip::NodeId nodeId);
-    
-    void HandleCommandResponse(const chip::app::ConcreteCommandPath & path, chip::TLV::TLVReader & data);
+
+    /* callback for attribute write */
+    void HandleOnResponse(const chip::app::ConcreteDataAttributePath & path, chip::NodeId remotePeerNodeId);
+
+    /* callback for attribute read */
+    void HandleOnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data);
 
 private:
     friend DeviceManager & DeviceMgr();
@@ -40,6 +45,8 @@ private:
     bool mInitialized     = false;
     bool jfAdminAppCommissioned = false;
     chip::NodeId jfAdminAppNodeId = chip::kUndefinedNodeId;
+
+    chip::NodeId nodeIdToRefreshFriendlyName = chip::kUndefinedNodeId;
 };
 
 /**
