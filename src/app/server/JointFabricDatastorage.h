@@ -35,6 +35,7 @@ public:
     CHIP_ERROR AddPendingNode(FabricIndex fabricId, NodeId nodeId, const CharSpan & friendlyName);
     CHIP_ERROR UpdateNode(NodeId nodeId, const CharSpan & friendlyName);
     CHIP_ERROR RemoveNode(NodeId nodeId);
+    CHIP_ERROR RefreshNode(NodeId nodeId);
 
     CHIP_ERROR SetNode(NodeId nodeId, Clusters::JointFabricDatastore::DatastoreStateEnum state);
     CHIP_ERROR RefreshGroupKeySet(NodeId nodeId);
@@ -68,6 +69,39 @@ public:
     }
     size_t GetAdminEntriesCount() { return mAdminEntriesCount; }
 
+    /**
+     * Used to notify of changes in the node list and more TODO.
+     */
+    class Listener
+    {
+    public:
+        virtual ~Listener() = default;
+
+        /**
+         * Notifies of a change in the node list.
+         */
+        virtual void MarkNodeListChanged() = 0;
+
+    private:
+        Listener * mNext = nullptr;
+
+        friend class JointFabricDatastorage;
+    };
+
+    /**
+     * Add a listener to be notified of changes in the Joint Fabric Datastorage.
+     *
+     * @param [in] listener  The listener to add.
+     */
+    void AddListener(Listener & listener);
+
+    /**
+     * Remove a listener from being notified of changes in the Joint Fabric Datastorage
+     *
+     * @param [in] listener  The listener to remove.
+     */
+    void RemoveListener(Listener & listener);
+
 private:
     static constexpr size_t kMaxNodes = 32;
 
@@ -77,6 +111,8 @@ private:
     size_t mGroupKeyKetSetListCount                                                                                 = 0;
     Clusters::JointFabricDatastore::Structs::DatastoreAdministratorInformationEntry::Type mAdminEntries[kMaxNodes]  = {};
     size_t mAdminEntriesCount                                                                                       = 0;
+
+    Listener * mListeners = nullptr;
 
     CHIP_ERROR IsNodeIDInDatastore(NodeId nodeId, size_t & index);
 };

@@ -38,12 +38,14 @@ using chip::Protocols::InteractionModel::Status;
 
 namespace JointFabricDatastoreCluster = chip::app::Clusters::JointFabricDatastore;
 
-class JointFabricDatastoreAttrAccess : public AttributeAccessInterface
+class JointFabricDatastoreAttrAccess : public AttributeAccessInterface, public JointFabricDatastorage::Listener
 {
 public:
     JointFabricDatastoreAttrAccess() : AttributeAccessInterface(Optional<EndpointId>::Missing(), JointFabricDatastoreCluster::Id) {}
 
     CHIP_ERROR Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder) override;
+
+    void MarkNodeListChanged() override;
 
 private:
     CHIP_ERROR ReadGroupKeyList(AttributeValueEncoder & aEncoder);
@@ -129,6 +131,12 @@ CHIP_ERROR JointFabricDatastoreAttrAccess::ReadNodeList(AttributeValueEncoder & 
         }
         return CHIP_NO_ERROR;
     });
+}
+
+void JointFabricDatastoreAttrAccess::MarkNodeListChanged()
+{
+    MatterReportingAttributeChangeCallback(kRootEndpointId, JointFabricDatastoreCluster::Id,
+                                           JointFabricDatastoreCluster::Attributes::NodeList::Id);
 }
 
 bool emberAfJointFabricDatastoreClusterAddAdminCallback(
@@ -263,19 +271,7 @@ bool emberAfJointFabricDatastoreClusterRefreshNodeCallback(
         return true;
     }
 
-    // 1. && 2.
-    SuccessOrExit(err = JointFabricDatastorage.SetNode(nodeId, Clusters::JointFabricDatastore::DatastoreStateEnum::kPending));
-
-    // 3. TODO: Read the PartsList of the Descriptor cluster from the Node.
-
-    // 4.
-    SuccessOrExit(err = JointFabricDatastorage.RefreshGroupKeySet(nodeId));
-
-    // 5.
-    SuccessOrExit(err = JointFabricDatastorage.RefreshACLList(nodeId));
-
-    // 6.
-    SuccessOrExit(err = JointFabricDatastorage.SetNode(nodeId, Clusters::JointFabricDatastore::DatastoreStateEnum::kCommitted));
+    SuccessOrExit(err = JointFabricDatastorage.RefreshNode(nodeId));
 
 exit:
     if (err == CHIP_NO_ERROR)
@@ -479,4 +475,6 @@ void MatterJointFabricDatastorePluginServerInitCallback()
 {
     ChipLogProgress(Zcl, "Initiating Joint Fabric Datastore cluster.");
     AttributeAccessInterfaceRegistry::Instance().Register(&gJointFabricDatastoreAttrAccess);
+
+    Server::GetInstance().GetJointFabricDatastorage().AddListener(gJointFabricDatastoreAttrAccess);
 }

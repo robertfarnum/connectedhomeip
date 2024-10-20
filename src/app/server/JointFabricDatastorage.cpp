@@ -20,6 +20,51 @@
 namespace chip {
 namespace app {
 
+void JointFabricDatastorage::AddListener(Listener & listener)
+{
+    if (mListeners == nullptr)
+    {
+        mListeners     = &listener;
+        listener.mNext = nullptr;
+        return;
+    }
+
+    for (Listener * l = mListeners; /**/; l = l->mNext)
+    {
+        if (l == &listener)
+        {
+            return;
+        }
+
+        if (l->mNext == nullptr)
+        {
+            l->mNext       = &listener;
+            listener.mNext = nullptr;
+            return;
+        }
+    }
+}
+
+void JointFabricDatastorage::RemoveListener(Listener & listener)
+{
+    if (mListeners == &listener)
+    {
+        mListeners     = listener.mNext;
+        listener.mNext = nullptr;
+        return;
+    }
+
+    for (Listener * l = mListeners; l != nullptr; l = l->mNext)
+    {
+        if (l->mNext == &listener)
+        {
+            l->mNext       = listener.mNext;
+            listener.mNext = nullptr;
+            return;
+        }
+    }
+}
+
 CHIP_ERROR JointFabricDatastorage::AddPendingNode(FabricIndex fabricId, NodeId nodeId, const CharSpan & friendlyName)
 {
     VerifyOrReturnError(mNodeInformationEntriesCount < kMaxNodes, CHIP_ERROR_NO_MEMORY);
@@ -63,6 +108,30 @@ CHIP_ERROR JointFabricDatastorage::RemoveNode(NodeId nodeId)
     }
 
     return CHIP_ERROR_KEY_NOT_FOUND;
+}
+
+CHIP_ERROR JointFabricDatastorage::RefreshNode(NodeId nodeId)
+{
+    // 1. && 2.
+    ReturnErrorOnFailure(SetNode(nodeId, Clusters::JointFabricDatastore::DatastoreStateEnum::kPending));
+
+    // 3. TODO: Read the PartsList of the Descriptor cluster from the Node.
+
+    // 4.
+    ReturnErrorOnFailure(RefreshGroupKeySet(nodeId));
+
+    // 5.
+    ReturnErrorOnFailure(RefreshACLList(nodeId));
+
+    // 6.
+    ReturnErrorOnFailure(SetNode(nodeId, Clusters::JointFabricDatastore::DatastoreStateEnum::kCommitted));
+
+    for (Listener * listener = mListeners; listener != nullptr; listener = listener->mNext)
+    {
+        listener->MarkNodeListChanged();
+    }
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR JointFabricDatastorage::SetNode(NodeId nodeId, Clusters::JointFabricDatastore::DatastoreStateEnum state)
