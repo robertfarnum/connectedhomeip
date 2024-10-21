@@ -38,6 +38,8 @@ $ gn gen out/debug --args='chip_enable_joint_fabric=true'
 $ ninja -C out/debug
 ```
 
+> Add the following argument to gn: `--args='chip_enable_joint_fabric=true'`
+
 * Building the chip-lighting-app Application
 
 ```
@@ -45,8 +47,6 @@ $ cd ~/connectedhomeip/examples/lighting-app/linux
 $ gn gen out/debug
 $ ninja -C out/debug
 ```
-
-> Add the following argument to gn: `--args='chip_enable_joint_fabric=true'`
 
 ## Run Joint Fabric Demo on UNIX
 
@@ -68,14 +68,6 @@ $ ./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1261 --passco
     --KVS /tmp/jf-kvs/chip-jf-admin-app/acs-app --chip-tool-kvs /tmp/jf-kvs/jf-control-app
 ```
 
-### Run Ecosystem B Lighting-app (chip-lighting-app B)
-
-Lighting-app should be run on a different device than the one used to run chip-jf-admin-app B and jf-control-app B.
-
-```
-$ ./out/debug/chip-lighting-app
-```
-
 ### Run Ecosystem B Controller (jf-control-app B) and issue a Ecosystem B NOC Chain to Ecosystem B Admin
 
 From a new console, pair the new device:
@@ -89,6 +81,14 @@ Ensure that the pairing was successful by reading the Ecosystem B Admin Serial N
 
 ```
 $ >>> basicinformation read serial-number 1 0 --storage-directory /tmp/jf-kvs/jf-control-app
+```
+
+### Run Ecosystem B Lighting-app (chip-lighting-app B)
+
+Lighting-app should be run on a different device than the one used to run chip-jf-admin-app B and jf-control-app B.
+
+```
+$ ./out/debug/chip-lighting-app
 ```
 
 ### Commission Lighting-app into Ecosystem B
