@@ -134,7 +134,7 @@ void JFAdminAppManager::TriggerJFOnboardingForNextNode()
     if (pendingNodeId != kUndefinedNodeId)
     {
         pendingScopedNodeId = ScopedNodeId(pendingNodeId, initialFabricIndex);
-        ConnectToNode(anchorAdminScopedNodeId, kSendAddPendingNode);
+        ConnectToNode(pendingScopedNodeId, kReadNodeLabel);
     }
     else if (!deletedPendingNodesExist)
     {
@@ -188,6 +188,11 @@ void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager &
 
     switch (jfAdminCore->mOnConnectedAction)
     {
+    case kReadNodeLabel: {
+        jfAdminCore->ReadNodeLabel();
+        break;
+    }
+
     case kSendAddPendingNode: {
         jfAdminCore->SendAddPendingNode();
         break;
@@ -210,12 +215,26 @@ void JFAdminAppManager::OnConnected(void * context, Messaging::ExchangeManager &
     }
 }
 
+CHIP_ERROR JFAdminAppManager::ReadNodeLabel()
+{
+    ChipLogProgress(JointFabric, "ReadNodeLabel: invoke cluster command.");
+    using TypeInfo = BasicInformation::Attributes::NodeLabel::TypeInfo;
+
+    if (!mExchangeMgr)
+    {
+        return CHIP_ERROR_UNINITIALIZED;
+    }
+
+    Controller::ClusterBase cluster(*mExchangeMgr, mSessionHolder.Get().Value(), kRootEndpointId);
+    return cluster.ReadAttribute<TypeInfo>(this, OnReadSuccessResponse, OnReadFailureResponse);
+}
+
 CHIP_ERROR JFAdminAppManager::SendAddPendingNode()
 {
 	JointFabricDatastore::Commands::AddPendingNode::Type request;
 
 	request.nodeID = pendingScopedNodeId.GetNodeId();
-	request.friendlyName = CharSpan::fromCharString("testFriendlyName");
+	request.friendlyName = friendlyNameCharSpan;
 
 	if (!mExchangeMgr)
 	{
@@ -376,6 +395,34 @@ void JFAdminAppManager::OnConnectionFailure(void * context, const ScopedNodeId &
     jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
+void JFAdminAppManager::OnReadSuccessResponse(void * context, const BasicInformation::Attributes::NodeLabel::TypeInfo::DecodableType nodeLabel)
+{
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    size_t sizeToCopy = 0;
+
+    VerifyOrDie(jfAdminCore != nullptr);
+
+    memset(jfAdminCore->friendlyNameBuffer, 0, sizeof(jfAdminCore->friendlyNameBuffer));
+
+    sizeToCopy = (nodeLabel.size() > sizeof(jfAdminCore->friendlyNameBuffer)) ? sizeof(jfAdminCore->friendlyNameBuffer) : nodeLabel.size();
+    memcpy(jfAdminCore->friendlyNameBuffer, nodeLabel.data(), sizeToCopy);
+    jfAdminCore->friendlyNameCharSpan = CharSpan(jfAdminCore->friendlyNameBuffer, sizeToCopy);
+
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->ConnectToNode(jfAdminCore->anchorAdminScopedNodeId, kSendAddPendingNode);
+}
+
+void JFAdminAppManager::OnReadFailureResponse(void * context, CHIP_ERROR error)
+{
+    JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
+    VerifyOrDie(jfAdminCore != nullptr);
+
+    ChipLogError(JointFabric, "OnReadFailureResponse!");
+
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
+}
+
 void JFAdminAppManager::OnAddPendingNodeResponse(void * context, const chip::app::DataModel::NullObjectType &)
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
@@ -394,9 +441,11 @@ void JFAdminAppManager::OnAddPendingNodeFailure(void * context, CHIP_ERROR error
 {
     JFAdminAppManager * jfAdminCore = static_cast<JFAdminAppManager *>(context);
     VerifyOrDie(jfAdminCore != nullptr);
-    jfAdminCore->DisconnectFromNode();
 
     ChipLogError(JointFabric, "OnAddPendingNodeFailure!");
+
+    jfAdminCore->DisconnectFromNode();
+    jfAdminCore->TriggerJFOnboardingForNextNode();
 }
 
 void JFAdminAppManager::OnArmFailSafeTimerResponse(void * context, const app::Clusters::GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType & data)

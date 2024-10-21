@@ -34,13 +34,15 @@ private:
     // Various actions to take when OnConnected callback is called
     enum OnConnectedAction
     {
-        kSendAddPendingNode = 0,
+        kReadNodeLabel = 0,
+        kSendAddPendingNode,
         kReissueOperationalIdentity,
         kSendCommissioningComplete,
         kSendRefreshNode,
     };
 
     void ConnectToNode(chip::ScopedNodeId scopedNodeId, OnConnectedAction onConnectedAction);
+    CHIP_ERROR ReadNodeLabel();
     CHIP_ERROR SendArmFailSafeTimer();
     CHIP_ERROR SendAddTrustedRootCertificate();
     CHIP_ERROR SendCSRRequest();
@@ -56,6 +58,9 @@ private:
     static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
     Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
     Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;
+
+    static void OnReadSuccessResponse(void * context, const app::Clusters::BasicInformation::Attributes::NodeLabel::TypeInfo::DecodableType nodeLabel);
+    static void OnReadFailureResponse(void * context, CHIP_ERROR error);
 
     static void OnAddPendingNodeResponse(void * context, const chip::app::DataModel::NullObjectType &);
     static void OnAddPendingNodeFailure(void * context, CHIP_ERROR error);
@@ -96,6 +101,10 @@ private:
     ScopedNodeId pendingScopedNodeId;
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
     SessionHolder mSessionHolder;
+
+    /* friendlyName for the pendingNode */
+    char friendlyNameBuffer[16] = {0};
+    CharSpan friendlyNameCharSpan;
 
     /* demo: NodeID of JFA-A */
     ScopedNodeId anchorAdminScopedNodeId;
