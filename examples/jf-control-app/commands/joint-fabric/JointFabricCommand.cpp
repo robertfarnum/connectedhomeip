@@ -17,6 +17,7 @@
  */
 
 #include "JointFabricCommand.h"
+#include "JFAdmin.h"
 #include <commands/common/RemoteDataModelLogger.h>
 #include <commands/interactive/InteractiveCommands.h>
 #include <lib/support/ScopedBuffer.h>
@@ -92,12 +93,5 @@ exit:
 
 CHIP_ERROR OnboardCommand::Run()
 {
-    chip::StringBuilder<kMaxCommandSize> cmd;
-
-    cmd.Add("pairing onnetwork-joint-fabric ");
-    cmd.AddFormat("%d %s", DEFAULT_ONBOARDED_ADMIN_NODE_ID, passcode.data());
-    /* Note: There is no way to know whether the command was successful or not */
-    PushCommand(cmd.c_str());
-
-    return CHIP_NO_ERROR;
+    return JointFabricAdmin::GetInstance().OnboardAdmin(passcode.data());
 }
