@@ -27,6 +27,7 @@ void registerCommandsJointFabric(Commands & commands, CredentialIssuerCommands *
 
     commands_list clusterCommands = {
         make_unique<JointFabricCommand>(credsIssuerConfig),
+        make_unique<OnboardCommand>(),
     };
 
     commands.RegisterCommandSet(clusterName, clusterCommands, "Commands for joint fabric.");

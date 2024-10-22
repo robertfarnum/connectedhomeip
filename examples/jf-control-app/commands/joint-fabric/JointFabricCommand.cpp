@@ -24,6 +24,8 @@
 #include <thread>
 #include <unistd.h>
 
+#define DEFAULT_ONBOARDED_ADMIN_NODE_ID         1
+
 using namespace ::chip;
 
 namespace
@@ -86,4 +88,16 @@ exit:
 
     ChipLogProgress(Controller, "jf-control-app initialization status: %s", chip::ErrorStr(err));
     return err;
+}
+
+CHIP_ERROR OnboardCommand::Run()
+{
+    chip::StringBuilder<kMaxCommandSize> cmd;
+
+    cmd.Add("pairing onnetwork-joint-fabric ");
+    cmd.AddFormat("%d %s", DEFAULT_ONBOARDED_ADMIN_NODE_ID, passcode.data());
+    /* Note: There is no way to know whether the command was successful or not */
+    PushCommand(cmd.c_str());
+
+    return CHIP_NO_ERROR;
 }
