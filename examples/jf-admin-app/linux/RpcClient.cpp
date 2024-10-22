@@ -13,11 +13,16 @@ using namespace pw;
 
 static void OnRpcCallCompleted(const ::joint_fabric_ErrorCode &result, ::pw::Status status);
 
+static bool rpcConnected = false;
 static volatile bool rpcCallCompleted;
 
 CHIP_ERROR RpcConnect(void)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+
+    if (rpcConnected) {
+        return CHIP_NO_ERROR;
+    }
 
     chip::rpc::client::SetRpcServerAddress("127.0.0.1");
     chip::rpc::client::SetRpcServerPort(RPC_SERVER_PORT);
@@ -26,6 +31,8 @@ CHIP_ERROR RpcConnect(void)
     if (err != CHIP_NO_ERROR) {
         return CHIP_ERROR_CONNECTION_ABORTED;
     }
+
+    rpcConnected = true;
 
     return CHIP_NO_ERROR;
 }
@@ -36,6 +43,11 @@ CHIP_ERROR RpcUpdateOperationalIdentity(void)
     joint_fabric::pw_rpc::nanopb::ReverseJointFabric::Client rpcClient(
         chip::rpc::client::GetDefaultRpcClient(),
         DEFAULT_RPC_CHANNEL);
+
+    if (!rpcConnected) {
+        ChipLogError(NotSpecified, "RPC not connected!");
+        return CHIP_ERROR_NOT_CONNECTED;
+    }
 
     rpcCallCompleted = false;
 
