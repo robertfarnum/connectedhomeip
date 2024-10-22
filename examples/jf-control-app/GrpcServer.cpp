@@ -47,6 +47,31 @@ pw::Status JointFabricControlServiceImpl::CommissionDevice(const joint_fabric_Co
     /* TODO: Add here the implementation of the CommissionDevice command */
     ChipLogProgress(NotSpecified, "JointFabricControlService::CommissionDevice(manual_code=\"%s\", duration=\"%s\")",
         request.manual_code, request.duration);
+
+    response.err_code = 0;
+
+    return pw::OkStatus();
+}
+
+pw::Status JointFabricControlServiceImpl::GetDevices( 
+    const pw_protobuf_Empty& request,
+    joint_fabric_GetDevicesOut & response)
+{
+    /* TODO: Add here the implementation of the CommissionDevice command */
+    ChipLogProgress(NotSpecified, "JointFabricControlService::GetDevices()");
+
+    return pw::OkStatus();
+}
+
+pw::Status JointFabricControlServiceImpl::ControlDevice(
+    const joint_fabric_Device& request, 
+    joint_fabric_ErrorCode& response)
+{
+    /* TODO: Add here the implementation of the CommissionDevice command */
+    ChipLogProgress(NotSpecified, "JointFabricControlService::ControlDevice(control=\"%lu\")", request.node_id);
+
+    response.err_code = 0;
+
     return pw::OkStatus();
 }
 
@@ -67,33 +92,37 @@ static void InitGrpcServer(void)
 
 static void OnGrpcConnectionClose(void)
 {
+    ChipLogProgress(NotSpecified, "GRPC connection close.");
     grpcServerSocket.Close();
 }
 
 static void RunGrpcServer(void)
 {
-    ChipLogProgress(NotSpecified, "Waiting for GRPC connections...");
-    auto socket = grpcServerSocket.Accept();
-    if (!socket.ok()) {
-        ChipLogError(NotSpecified, "ERROR: Failed to accept GRPC connection!");
+    while (1) {
+        ChipLogProgress(NotSpecified, "Waiting for GRPC connections...");
+        auto socket = grpcServerSocket.Accept();
+        if (!socket.ok()) {
+            ChipLogError(NotSpecified, "ERROR: Failed to accept GRPC connection!");
+        }
+        ChipLogProgress(NotSpecified, "New GRPC connection accepted.");
+
+        thread::test::TestThreadContext connection_thread_context;
+        thread::test::TestThreadContext send_thread_context;
+        grpc::ConnectionThread conn(
+            *socket,
+            send_thread_context.options(),
+            handler,
+            OnGrpcConnectionClose);
+
+        grpcEgress.set_connection(conn);
+
+        ChipLogProgress(NotSpecified, "Serving GRPC connection.");
+
+        /* Launch the connection thread */
+        thread::Thread conn_thread(connection_thread_context.options(), conn);
+        conn_thread.join();
+        ChipLogProgress(NotSpecified, "GRPC disconnected.");
     }
-    ChipLogProgress(NotSpecified, "New GRPC connection accepted.");
-
-    thread::test::TestThreadContext connection_thread_context;
-    thread::test::TestThreadContext send_thread_context;
-    grpc::ConnectionThread conn(
-        *socket,
-        send_thread_context.options(),
-        handler,
-        OnGrpcConnectionClose);
-
-    grpcEgress.set_connection(conn);
-
-    ChipLogProgress(NotSpecified, "Serving GRPC connection.");
-    /* Launch the connection thread */
-    thread::Thread conn_thread(connection_thread_context.options(), conn);
-    conn_thread.join();
-    ChipLogProgress(NotSpecified, "GRPC disconnected.");
 }
 
 CHIP_ERROR StartGrpcServer(void)

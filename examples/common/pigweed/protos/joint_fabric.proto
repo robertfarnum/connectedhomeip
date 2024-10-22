@@ -30,6 +30,16 @@ message ErrorCode {
     sint32 err_code = 1;
 }
 
+message Device {
+    uint64 node_id = 1;
+    string display_name = 2;
+    bool on = 3;
+}
+
+message GetDevicesOut {
+    repeated Device devices = 1;
+}
+
 service JointFabric {
     rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (ErrorCode) {}
 }
@@ -41,4 +51,6 @@ service ReverseJointFabric {
 service JointFabricControl {
     rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (OpenCommissioningWindowOut) {}
     rpc CommissionDevice(CommissionDeviceIn) returns (ErrorCode) {}
+    rpc ControlDevice(Device) returns (ErrorCode) {}
+    rpc GetDevices(pw.protobuf.Empty) returns (GetDevicesOut) {}
 }
