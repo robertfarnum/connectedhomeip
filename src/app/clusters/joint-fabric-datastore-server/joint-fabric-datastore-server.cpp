@@ -80,17 +80,12 @@ CHIP_ERROR JointFabricDatastoreAttrAccess::Read(const ConcreteReadAttributePath 
 
 CHIP_ERROR JointFabricDatastoreAttrAccess::ReadGroupKeyList(AttributeValueEncoder & aEncoder)
 {
-    auto groupKeySetList        = Server::GetInstance().GetJointFabricDatastorage().GetGroupKeySetList();
-    size_t groupKeySetListCount = Server::GetInstance().GetJointFabricDatastorage().GetGroupKeySetListCount();
-
     return aEncoder.EncodeList([&](const auto & encoder) -> CHIP_ERROR {
-        if (groupKeySetList != nullptr)
+        auto entries = Server::GetInstance().GetJointFabricDatastorage().GetGroupKeySetList();
+
+        for (auto & entry : entries)
         {
-            for (size_t groupKeySetListIndex = 0; groupKeySetListIndex < groupKeySetListCount; groupKeySetListIndex++)
-            {
-                auto & entry = groupKeySetList[groupKeySetListIndex];
-                ReturnErrorOnFailure(encoder.Encode(entry));
-            }
+            ReturnErrorOnFailure(encoder.Encode(entry));
         }
         return CHIP_NO_ERROR;
     });
@@ -98,17 +93,12 @@ CHIP_ERROR JointFabricDatastoreAttrAccess::ReadGroupKeyList(AttributeValueEncode
 
 CHIP_ERROR JointFabricDatastoreAttrAccess::ReadAdminList(AttributeValueEncoder & aEncoder)
 {
-    auto adminEntries        = Server::GetInstance().GetJointFabricDatastorage().GetAdminEntries();
-    size_t adminEntriesCount = Server::GetInstance().GetJointFabricDatastorage().GetAdminEntriesCount();
-
     return aEncoder.EncodeList([&](const auto & encoder) -> CHIP_ERROR {
-        if (adminEntries != nullptr)
+        auto entries = Server::GetInstance().GetJointFabricDatastorage().GetAdminEntries();
+
+        for (auto & entry : entries)
         {
-            for (size_t adminEntriesIndex = 0; adminEntriesIndex < adminEntriesCount; adminEntriesIndex++)
-            {
-                auto & entry = adminEntries[adminEntriesIndex];
-                ReturnErrorOnFailure(encoder.Encode(entry));
-            }
+            ReturnErrorOnFailure(encoder.Encode(entry));
         }
         return CHIP_NO_ERROR;
     });
@@ -116,18 +106,12 @@ CHIP_ERROR JointFabricDatastoreAttrAccess::ReadAdminList(AttributeValueEncoder &
 
 CHIP_ERROR JointFabricDatastoreAttrAccess::ReadNodeList(AttributeValueEncoder & aEncoder)
 {
-    auto nodeInformationEntries        = Server::GetInstance().GetJointFabricDatastorage().GetNodeInformationEntries();
-    size_t nodeInformationEntriesCount = Server::GetInstance().GetJointFabricDatastorage().GetNodeInformationEntriesCount();
-
     return aEncoder.EncodeList([&](const auto & encoder) -> CHIP_ERROR {
-        if (nodeInformationEntries != nullptr)
+        auto entries = Server::GetInstance().GetJointFabricDatastorage().GetNodeInformationEntries();
+
+        for (auto & entry : entries)
         {
-            for (size_t nodeInformationEntriesIndex = 0; nodeInformationEntriesIndex < nodeInformationEntriesCount;
-                 nodeInformationEntriesIndex++)
-            {
-                auto & entry = nodeInformationEntries[nodeInformationEntriesIndex];
-                ReturnErrorOnFailure(encoder.Encode(entry));
-            }
+            ReturnErrorOnFailure(encoder.Encode(entry));
         }
         return CHIP_NO_ERROR;
     });

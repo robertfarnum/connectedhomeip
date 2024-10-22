@@ -39,3 +39,17 @@ private:
 
     CHIP_ERROR RunCommand(chip::Optional<chip::NodeId> mNodeId);
 };
+
+class OnboardCommand : public Command
+{
+public:
+    OnboardCommand() : Command("onboard", "Onboard other fabric admins.") {
+        AddArgument("passcode", &passcode,
+                    "The passcode of the fabric admin to onboard.");
+    }
+
+    CHIP_ERROR Run();
+
+private:
+    chip::CharSpan passcode;
+};

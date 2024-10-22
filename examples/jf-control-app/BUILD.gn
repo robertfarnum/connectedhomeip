@@ -84,6 +84,8 @@ static_library("jf-control-app-utils") {
     "RpcClient.h",
     "RpcServer.cpp",
     "RpcServer.h",
+    "JFAdmin.cpp",
+    "JFAdmin.h",
     "${chip_root}/examples/platform/linux/system_rpc_server.cc",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",
     "${chip_root}/examples/platform/linux/RpcClientProcessor.h"

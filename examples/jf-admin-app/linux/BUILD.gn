@@ -61,6 +61,8 @@ executable("chip-jf-admin-app") {
       "RpcServer.cpp",
       "RpcClient.h",
       "RpcClient.cpp",
+      "ControlPlane.h",
+      "ControlPlane.cpp",
       "${chip_root}/examples/platform/linux/Rpc.cpp",
       "${chip_root}/examples/platform/linux/system_rpc_server.cc",
       "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",

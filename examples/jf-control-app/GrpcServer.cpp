@@ -1,5 +1,6 @@
 
 #include "GrpcServer.h"
+#include "JFAdmin.h"
 
 #include <pw_stream/socket_stream.h>
 #include <pw_grpc/pw_rpc_handler.h>
@@ -38,6 +39,7 @@ pw::Status JointFabricControlServiceImpl::OpenCommissioningWindow(const joint_fa
     /* TODO: Add here the implementation of the OpenCommissioningWindow command */
     ChipLogProgress(NotSpecified, "JointFabricControlService::OpenCommissioningWindow(window_timeout=%u)",
         request.window_timeout);
+
     return pw::OkStatus();
 }
 
@@ -47,6 +49,8 @@ pw::Status JointFabricControlServiceImpl::CommissionDevice(const joint_fabric_Co
     /* TODO: Add here the implementation of the CommissionDevice command */
     ChipLogProgress(NotSpecified, "JointFabricControlService::CommissionDevice(manual_code=\"%s\", duration=\"%s\")",
         request.manual_code, request.duration);
+
+    JointFabricAdmin::GetInstance().OnboardAdmin(request.manual_code);
 
     response.err_code = 0;
 

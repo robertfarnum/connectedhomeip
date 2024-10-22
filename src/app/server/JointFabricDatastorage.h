@@ -19,9 +19,68 @@
 
 #include <app-common/zap-generated/cluster-objects.h>
 #include <lib/core/CHIPPersistentStorageDelegate.h>
+#include <vector>
 
 namespace chip {
 namespace app {
+
+/**
+ * A struct which extends the DatastoreNodeInformationEntry type with FriendlyName buffer reservation.
+ */
+struct GenericDatastoreNodeInformationEntry : public Clusters::JointFabricDatastore::Structs::DatastoreNodeInformationEntry::Type
+{
+    GenericDatastoreNodeInformationEntry(NodeId nodeId = 0, FabricIndex fabricId = 0,
+                                         Clusters::JointFabricDatastore::DatastoreStateEnum state =
+                                             Clusters::JointFabricDatastore::DatastoreStateEnum::kUnknownEnumValue,
+                                         Optional<CharSpan> label = NullOptional)
+    {
+        Set(nodeId, fabricId, state, label);
+    }
+
+    GenericDatastoreNodeInformationEntry(const GenericDatastoreNodeInformationEntry & op) { *this = op; }
+
+    GenericDatastoreNodeInformationEntry & operator=(const GenericDatastoreNodeInformationEntry & op)
+    {
+        Set(op.nodeID, op.fabricIndex, op.commissioningStatusEntry.state, MakeOptional(op.friendlyName));
+        return *this;
+    }
+
+    void Set(NodeId nodeId, FabricIndex fabricId, Clusters::JointFabricDatastore::DatastoreStateEnum state,
+             Optional<CharSpan> label = NullOptional)
+    {
+        SetFabricIndex(fabricId);
+        this->nodeID                         = nodeId;
+        this->commissioningStatusEntry.state = state;
+        Set(label);
+    }
+
+    void Set(Optional<CharSpan> label = NullOptional)
+    {
+        if (label.HasValue())
+        {
+            memset(mFriendlyNameBuffer, 0, sizeof(mFriendlyNameBuffer));
+            if (label.Value().size() > sizeof(mFriendlyNameBuffer))
+            {
+                memcpy(mFriendlyNameBuffer, label.Value().data(), sizeof(mFriendlyNameBuffer));
+                this->friendlyName = CharSpan(mFriendlyNameBuffer, sizeof(mFriendlyNameBuffer));
+            }
+            else
+            {
+                memcpy(mFriendlyNameBuffer, label.Value().data(), label.Value().size());
+                this->friendlyName = CharSpan(mFriendlyNameBuffer, label.Value().size());
+            }
+        }
+        else
+        {
+            this->friendlyName = CharSpan();
+        }
+    }
+
+private:
+    static constexpr size_t kFriendlyNameMaxSize = 32u;
+
+    char mFriendlyNameBuffer[kFriendlyNameMaxSize];
+};
 
 class JointFabricDatastorage
 {
@@ -54,20 +113,15 @@ public:
     CHIP_ERROR UpdateAdmin(NodeId nodeId, CharSpan friendlyName, ByteSpan icac);
     CHIP_ERROR RemoveAdmin(NodeId nodeId);
 
-    Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type * GetGroupKeySetList() { return mGroupKeyKetSetList; }
-    size_t GetGroupKeySetListCount() { return mGroupKeyKetSetListCount; }
-
-    Clusters::JointFabricDatastore::Structs::DatastoreNodeInformationEntry::Type * GetNodeInformationEntries()
+    const std::vector<Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type> & GetGroupKeySetList()
     {
-        return mNodeInformationEntries;
+        return mGroupKeySetList;
     }
-    size_t GetNodeInformationEntriesCount() { return mNodeInformationEntriesCount; }
-
-    Clusters::JointFabricDatastore::Structs::DatastoreAdministratorInformationEntry::Type * GetAdminEntries()
+    const std::vector<GenericDatastoreNodeInformationEntry> & GetNodeInformationEntries() { return mNodeInformationEntries; }
+    const std::vector<Clusters::JointFabricDatastore::Structs::DatastoreAdministratorInformationEntry::Type> & GetAdminEntries()
     {
         return mAdminEntries;
     }
-    size_t GetAdminEntriesCount() { return mAdminEntriesCount; }
 
     /**
      * Used to notify of changes in the node list and more TODO.
@@ -105,12 +159,9 @@ public:
 private:
     static constexpr size_t kMaxNodes = 32;
 
-    Clusters::JointFabricDatastore::Structs::DatastoreNodeInformationEntry::Type mNodeInformationEntries[kMaxNodes] = {};
-    size_t mNodeInformationEntriesCount                                                                             = 0;
-    Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type mGroupKeyKetSetList[kMaxNodes]                   = {};
-    size_t mGroupKeyKetSetListCount                                                                                 = 0;
-    Clusters::JointFabricDatastore::Structs::DatastoreAdministratorInformationEntry::Type mAdminEntries[kMaxNodes]  = {};
-    size_t mAdminEntriesCount                                                                                       = 0;
+    std::vector<GenericDatastoreNodeInformationEntry> mNodeInformationEntries;
+    std::vector<Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type> mGroupKeySetList;
+    std::vector<Clusters::JointFabricDatastore::Structs::DatastoreAdministratorInformationEntry::Type> mAdminEntries;
 
     Listener * mListeners = nullptr;
 

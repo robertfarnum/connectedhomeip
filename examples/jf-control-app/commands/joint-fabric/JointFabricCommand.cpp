@@ -17,12 +17,15 @@
  */
 
 #include "JointFabricCommand.h"
+#include "JFAdmin.h"
 #include <commands/common/RemoteDataModelLogger.h>
 #include <commands/interactive/InteractiveCommands.h>
 #include <lib/support/ScopedBuffer.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <thread>
 #include <unistd.h>
+
+#define DEFAULT_ONBOARDED_ADMIN_NODE_ID         1
 
 using namespace ::chip;
 
@@ -86,4 +89,9 @@ exit:
 
     ChipLogProgress(Controller, "jf-control-app initialization status: %s", chip::ErrorStr(err));
     return err;
+}
+
+CHIP_ERROR OnboardCommand::Run()
+{
+    return JointFabricAdmin::GetInstance().OnboardAdmin(passcode.data());
 }
