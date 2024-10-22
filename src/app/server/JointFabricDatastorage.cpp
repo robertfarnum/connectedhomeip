@@ -67,27 +67,21 @@ void JointFabricDatastorage::RemoveListener(Listener & listener)
 
 CHIP_ERROR JointFabricDatastorage::AddPendingNode(FabricIndex fabricId, NodeId nodeId, const CharSpan & friendlyName)
 {
-    VerifyOrReturnError(mNodeInformationEntriesCount < kMaxNodes, CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnError(mNodeInformationEntries.size() < kMaxNodes, CHIP_ERROR_NO_MEMORY);
 
-    Clusters::JointFabricDatastore::Structs::DatastoreNodeInformationEntry::Type & entry =
-        mNodeInformationEntries[mNodeInformationEntriesCount];
-    entry.nodeID                         = nodeId;
-    entry.friendlyName                   = friendlyName;
-    entry.fabricIndex                    = fabricId;
-    entry.commissioningStatusEntry.state = Clusters::JointFabricDatastore::DatastoreStateEnum::kPending;
-
-    ++mNodeInformationEntriesCount;
+    mNodeInformationEntries.push_back(GenericDatastoreNodeInformationEntry(
+        nodeId, fabricId, Clusters::JointFabricDatastore::DatastoreStateEnum::kPending, MakeOptional(friendlyName)));
 
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR JointFabricDatastorage::UpdateNode(NodeId nodeId, const CharSpan & friendlyName)
 {
-    for (size_t i = 0; i < mNodeInformationEntriesCount; ++i)
+    for (auto & entry : mNodeInformationEntries)
     {
-        if (mNodeInformationEntries[i].nodeID == nodeId)
+        if (entry.nodeID == nodeId)
         {
-            mNodeInformationEntries[i].friendlyName = friendlyName;
+            entry.Set(MakeOptional(friendlyName));
             return CHIP_NO_ERROR;
         }
     }
@@ -97,12 +91,11 @@ CHIP_ERROR JointFabricDatastorage::UpdateNode(NodeId nodeId, const CharSpan & fr
 
 CHIP_ERROR JointFabricDatastorage::RemoveNode(NodeId nodeId)
 {
-    for (size_t i = 0; i < mNodeInformationEntriesCount; ++i)
+    for (auto it = mNodeInformationEntries.begin(); it != mNodeInformationEntries.end(); ++it)
     {
-        if (mNodeInformationEntries[i].nodeID == nodeId)
+        if (it->nodeID == nodeId)
         {
-            mNodeInformationEntries[i] = mNodeInformationEntries[mNodeInformationEntriesCount - 1];
-            --mNodeInformationEntriesCount;
+            mNodeInformationEntries.erase(it);
             return CHIP_NO_ERROR;
         }
     }
@@ -144,11 +137,11 @@ CHIP_ERROR JointFabricDatastorage::SetNode(NodeId nodeId, Clusters::JointFabricD
 
 CHIP_ERROR JointFabricDatastorage::IsNodeIDInDatastore(NodeId nodeId, size_t & index)
 {
-    for (size_t i = 0; i < mNodeInformationEntriesCount; ++i)
+    for (auto & entry : mNodeInformationEntries)
     {
-        if (mNodeInformationEntries[i].nodeID == nodeId)
+        if (entry.nodeID == nodeId)
         {
-            index = i;
+            index = static_cast<size_t>(&entry - &mNodeInformationEntries[0]);
             return CHIP_NO_ERROR;
         }
     }
@@ -176,12 +169,12 @@ CHIP_ERROR JointFabricDatastorage::RefreshGroupKeySet(NodeId nodeId)
 
 CHIP_ERROR JointFabricDatastorage::AddGroupKeySetEntry(uint16_t groupKeySetId)
 {
-    VerifyOrReturnError(mGroupKeyKetSetListCount < kMaxNodes, CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnError(mGroupKeySetList.size() < kMaxNodes, CHIP_ERROR_NO_MEMORY);
 
-    Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type & entry = mGroupKeyKetSetList[mGroupKeyKetSetListCount];
-    entry.groupKeySetID                                                    = groupKeySetId;
+    Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type entry;
+    entry.groupKeySetID = groupKeySetId;
 
-    ++mGroupKeyKetSetListCount;
+    mGroupKeySetList.push_back(entry);
 
     return CHIP_NO_ERROR;
 }
@@ -189,19 +182,18 @@ CHIP_ERROR JointFabricDatastorage::AddGroupKeySetEntry(uint16_t groupKeySetId)
 CHIP_ERROR JointFabricDatastorage::AddGroupKeySetEntry(Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type & groupKeySet)
 {
     VerifyOrReturnError(IsGroupKeySetEntryPresent(groupKeySet.groupKeySetID) == false, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(mGroupKeyKetSetListCount < kMaxNodes, CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnError(mGroupKeySetList.size() < kMaxNodes, CHIP_ERROR_NO_MEMORY);
 
-    mGroupKeyKetSetList[mGroupKeyKetSetListCount] = groupKeySet;
-    ++mGroupKeyKetSetListCount;
+    mGroupKeySetList.push_back(groupKeySet);
 
     return CHIP_NO_ERROR;
 }
 
 bool JointFabricDatastorage::IsGroupKeySetEntryPresent(uint16_t groupKeySetId)
 {
-    for (size_t i = 0; i < mGroupKeyKetSetListCount; ++i)
+    for (auto & entry : mGroupKeySetList)
     {
-        if (mGroupKeyKetSetList[i].groupKeySetID == groupKeySetId)
+        if (entry.groupKeySetID == groupKeySetId)
         {
             return true;
         }
@@ -212,12 +204,11 @@ bool JointFabricDatastorage::IsGroupKeySetEntryPresent(uint16_t groupKeySetId)
 
 CHIP_ERROR JointFabricDatastorage::RemoveGroupKeySetEntry(uint16_t groupKeySetId)
 {
-    for (size_t i = 0; i < mGroupKeyKetSetListCount; ++i)
+    for (auto it = mGroupKeySetList.begin(); it != mGroupKeySetList.end(); ++it)
     {
-        if (mGroupKeyKetSetList[i].groupKeySetID == groupKeySetId)
+        if (it->groupKeySetID == groupKeySetId)
         {
-            mGroupKeyKetSetList[i] = mGroupKeyKetSetList[mGroupKeyKetSetListCount - 1];
-            --mGroupKeyKetSetListCount;
+            mGroupKeySetList.erase(it);
             return CHIP_NO_ERROR;
         }
     }
@@ -228,13 +219,13 @@ CHIP_ERROR JointFabricDatastorage::RemoveGroupKeySetEntry(uint16_t groupKeySetId
 CHIP_ERROR
 JointFabricDatastorage::UpdateGroupKeySetEntry(Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type & groupKeySet)
 {
-    for (size_t i = 0; i < mGroupKeyKetSetListCount; ++i)
+    for (auto & entry : mGroupKeySetList)
     {
-        if (mGroupKeyKetSetList[i].groupKeySetID == groupKeySet.groupKeySetID)
+        if (entry.groupKeySetID == groupKeySet.groupKeySetID)
         {
-            bool field_updated     = memcmp(&mGroupKeyKetSetList[i], &groupKeySet,
-                                            sizeof(Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type)) == 0;
-            mGroupKeyKetSetList[i] = groupKeySet;
+            bool field_updated =
+                memcmp(&entry, &groupKeySet, sizeof(Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type)) == 0;
+            entry = groupKeySet;
 
             if (field_updated)
             {
@@ -250,9 +241,9 @@ JointFabricDatastorage::UpdateGroupKeySetEntry(Clusters::GroupKeyManagement::Str
 
 CHIP_ERROR JointFabricDatastorage::RefreshNodes(Clusters::GroupKeyManagement::Structs::GroupKeySetStruct::Type & groupKeySet)
 {
-    for (size_t i = 0; i < mNodeInformationEntriesCount; ++i)
+    for (auto & entry : mNodeInformationEntries)
     {
-        for (auto & it : mNodeInformationEntries[i].nodeKeySetList)
+        for (auto & it : entry.nodeKeySetList)
         {
             if (it.groupKeySetId == groupKeySet.groupKeySetID)
             {
@@ -274,19 +265,18 @@ CHIP_ERROR
 JointFabricDatastorage::AddAdmin(Clusters::JointFabricDatastore::Structs::DatastoreAdministratorInformationEntry::Type & adminId)
 {
     VerifyOrReturnError(IsAdminEntryPresent(adminId.nodeID) == false, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(mAdminEntriesCount < kMaxNodes, CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnError(mAdminEntries.size() < kMaxNodes, CHIP_ERROR_NO_MEMORY);
 
-    mAdminEntries[mAdminEntriesCount] = adminId;
-    ++mAdminEntriesCount;
+    mAdminEntries.push_back(adminId);
 
     return CHIP_NO_ERROR;
 }
 
 bool JointFabricDatastorage::IsAdminEntryPresent(NodeId nodeId)
 {
-    for (size_t i = 0; i < mAdminEntriesCount; ++i)
+    for (auto & entry : mAdminEntries)
     {
-        if (mAdminEntries[i].nodeID == nodeId)
+        if (entry.nodeID == nodeId)
         {
             return true;
         }
@@ -297,12 +287,12 @@ bool JointFabricDatastorage::IsAdminEntryPresent(NodeId nodeId)
 
 CHIP_ERROR JointFabricDatastorage::UpdateAdmin(NodeId nodeId, CharSpan friendlyName, ByteSpan icac)
 {
-    for (size_t i = 0; i < mAdminEntriesCount; ++i)
+    for (auto & entry : mAdminEntries)
     {
-        if (mAdminEntries[i].nodeID == nodeId)
+        if (entry.nodeID == nodeId)
         {
-            mAdminEntries[i].friendlyName = friendlyName;
-            mAdminEntries[i].icac         = icac;
+            entry.friendlyName = friendlyName;
+            entry.icac         = icac;
             return CHIP_NO_ERROR;
         }
     }
@@ -312,12 +302,11 @@ CHIP_ERROR JointFabricDatastorage::UpdateAdmin(NodeId nodeId, CharSpan friendlyN
 
 CHIP_ERROR JointFabricDatastorage::RemoveAdmin(NodeId nodeId)
 {
-    for (size_t i = 0; i < mAdminEntriesCount; ++i)
+    for (auto it = mAdminEntries.begin(); it != mAdminEntries.end(); ++it)
     {
-        if (mAdminEntries[i].nodeID == nodeId)
+        if (it->nodeID == nodeId)
         {
-            mAdminEntries[i] = mAdminEntries[mAdminEntriesCount - 1];
-            --mAdminEntriesCount;
+            mAdminEntries.erase(it);
             return CHIP_NO_ERROR;
         }
     }
