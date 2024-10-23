@@ -47,7 +47,8 @@ PersistentStorage gStorage;
 
 CHIP_ERROR OnPrepareCredentialsIssuer()
 {
-    ReturnErrorOnFailure(gStorage.Init(nullptr, LinuxDeviceOptions::GetInstance().chipToolKvs));
+    const char * chipToolKvs = LinuxDeviceOptions::GetInstance().chipToolKvs;
+    ReturnErrorOnFailure(gStorage.Init("alpha", chipToolKvs ? chipToolKvs : "/tmp/" ));
     ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gStorage));
 
     return CHIP_NO_ERROR;

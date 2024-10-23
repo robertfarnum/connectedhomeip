@@ -1,6 +1,6 @@
 # Joint Fabric Guide
 
--   [Fabric Synchronization Guide](#fabric-synchronization-guide)
+-   [Joint Fabric Guide](#joint-fabric-guide)
     -   [Joint Fabric Example Applications](#joint-fabric-example-applications)
     -   [Run Joint Fabric Demo on UNIX](#run-fabric-sync-demo-on-rp4)
 
@@ -55,17 +55,24 @@ $ ninja -C out/debug
 ```
 # Reset key storage
 rm -rf /tmp/chip_*
-rm -rf /tmp/jf-kvs
-mkdir -p /tmp/jf-kvs/chip-jf-admin-app
-mkdir -p /tmp/jf-kvs/jf-control-app
-mkdir -p /tmp/jf-kvs/secondary-jf-control-app
 ```
+
+### Optional command line parameters
+
+jf-control-app can be run with the `--storage-directory $directory` optional parameter. If used,
+then the default `/tmp` location used for jf-control-app settings will be replaced with `$directory`.
+
+If `--storage-directory` command line parameter is used for running jf-control-app then chip-jf-admin-app
+must be run with `--chip-tool-kvs $directory` optional parameter. Main reason for this is to simulate
+a common PKI between jf-control-app and chip-jf-admin-app required during the cross-signing process.
+
+If none of these parameters is used then the default `/tmp` location will be used for storing the common
+PKI between jf-control-app and chip-jf-admin-app.
 
 ### Run Ecosystem B Admin (chip-jf-admin-app B)
 
 ```
-$ ./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1261 --passcode 110220033 \
-    --KVS /tmp/jf-kvs/chip-jf-admin-app/acs-app --chip-tool-kvs /tmp/jf-kvs/jf-control-app
+$ ./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1261 --passcode 110220033
 ```
 
 ### Run Ecosystem B Controller (jf-control-app B) and issue a Ecosystem B NOC Chain to Ecosystem B Admin
@@ -74,13 +81,13 @@ From a new console, pair the new device:
 
 ```
 $ ./out/debug/jf-control-app
-$ >>> pairing onnetwork 1 110220033 --storage-directory /tmp/jf-kvs/jf-control-app
+$ >>> pairing onnetwork 1 110220033
 ```
 
 Ensure that the pairing was successful by reading the Ecosystem B Admin Serial Number:
 
 ```
-$ >>> basicinformation read serial-number 1 0 --storage-directory /tmp/jf-kvs/jf-control-app
+$ >>> basicinformation read serial-number 1 0
 ```
 
 ### Run Ecosystem B Lighting-app (chip-lighting-app B)
@@ -94,13 +101,13 @@ $ ./out/debug/chip-lighting-app
 ### Commission Lighting-app into Ecosystem B
 
 ```
-$ ./out/debug/ pairing onnetwork 10 20202021 --storage-directory /tmp/jf-kvs/jf-control-app
+$ ./out/debug/ pairing onnetwork 10 20202021
 ```
 
 Ensure that the pairing was successful by reading the Lighting-App Serial Number:
 
 ```
-$ >>> basicinformation read serial-number 10 0 --storage-directory /tmp/jf-kvs/jf-control-app
+$ >>> basicinformation read serial-number 10 0
 ```
 
 ### Run Ecosystem A Admin (chip-jf-admin-app A)
@@ -110,8 +117,7 @@ Ecosystem B apps - Let's call Device A. Also prepare filesystem and clear
 previous cached data as instructed above.
 
 ```
-./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1262 --passcode 110220044 \
-    --KVS /tmp/jf-kvs/chip-jf-admin-app/secondary-acs-app --chip-tool-kvs /tmp/jf-kvs/secondary-jf-control-app
+./out/debug/chip-jf-admin-app --capabilities 0x4 --discriminator 1262 --passcode 110220044
 ```
 
 ### Run Ecosystem A Controller (jf-control-app A) and issue a A NOC Chain to Ecosystem A Admin
@@ -120,13 +126,13 @@ From a new console on Device A, pair new device:
 
 ```
 $ ./out/debug/jf-control-app
-$ >> pairing onnetwork 3 110220044 --storage-directory /tmp/jf-kvs/secondary-jf-control-app
+$ >> pairing onnetwork 3 110220044
 ```
 
 Ensure pairing was successful by reading Ecosystem A Admin Serial Number:
 
 ```
-$ >>> basicinformation read serial-number 3 0 --storage-directory /tmp/jf-kvs/secondary-jf-control-app
+$ >>> basicinformation read serial-number 3 0
 ```
 
 ### Open a new Pairing Window in Ecosystem B
@@ -136,7 +142,7 @@ Return to Device B and use the jf-control-app to open a new pairing window in th
 To allow the other ecosystem to initiate Joint Fabric, run the following command:
 
 ```
-$ >>> pairing open-commissioning-window 1 0 400 1000 1261 --storage-directory /tmp/jf-kvs/jf-control-app
+$ >>> pairing open-commissioning-window 1 0 400 1000 1261
 ```
 
 ### Run Ecosystem A Controller (jf-control-app A) using Joint Commissioning Method (JCM)
@@ -146,14 +152,14 @@ This controller will issue Ecosystem B a new A NOC Chain. Immediately afterward,
 Execute the following in a new console:
 
 ```
-$ >>> pairing onnetwork-joint-fabric 2 110220033 --storage-directory /tmp/jf-kvs/secondary-jf-control-app
+$ >>> pairing onnetwork-joint-fabric 2 110220033
 ```
 
 Ensure that the pairing was successful by reading the Ecosystem B Admin Serial Number:
 
 ```
 $ ./out/debug/jf-control-app
-$ >>> basicinformation read serial-number 2 0 --storage-directory /tmp/jf-kvs/secondary-jf-control-app
+$ >>> basicinformation read serial-number 2 0
 ```
 
 ### Run Ecosystem A Controller (jf-control-app A) to control the Lighting App from Ecosystem B
@@ -162,5 +168,5 @@ Immediately after JCM steps, in an automated way, chip-jf-admin-app B will reiss
 This will allow jf-control-app A to talk to chip-lighing-app B:
 
 ```
-$ >>> basicinformation read serial-number 10 0 --storage-directory /tmp/jf-kvs/secondary-jf-control-app
+$ >>> basicinformation read serial-number 10 0
 ```
