@@ -5,7 +5,8 @@
 
 #include "RpcClient.h"
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-#include "GrpcServer.h"
+//#include "GrpcServer.h"
+#include "SocketServer.h"
 #endif /* CONFIG_ENABLE_GRPC */
 
 #define MAX_MESSAGE_LEN         65
@@ -13,7 +14,8 @@
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 CHIP_ERROR RpcStartGrpcServerCommand::Run()
 {
-    return StartGrpcServer();
+    //return StartGrpcServer();
+    return StartSocketServer();
 }
 #endif /* CONFIG_ENABLE_GRPC */
 

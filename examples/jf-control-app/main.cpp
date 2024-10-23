@@ -32,7 +32,8 @@
 #include "RpcClient.h"
 #include "RpcServer.h"
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-#include "GrpcServer.h"
+//#include "GrpcServer.h"
+#include "SocketServer.h"
 #endif /* CONFIG_ENABLE_GRPC */
 
 #include <zap-generated/cluster/Commands.h>
@@ -56,7 +57,8 @@ int main(int argc, char * argv[])
         auto arg = args[(unsigned)i];
         if (arg.compare("--enable-grpc") == 0) {
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-            StartGrpcServer();
+            //StartGrpcServer();
+            StartSocketServer();
 #endif /* CONFIG_ENABLE_GRPC */
             /* Remove this option from the argument list so that it is not
              * propagated further to the command processing engine. */
