@@ -113,21 +113,19 @@ void JFAdminAppManager::TriggerJFOnboardingForNextNode()
 {
     NodeId pendingNodeId = kUndefinedNodeId;
     bool deletedPendingNodesExist = false;
-    JointFabricDatastore::Structs::DatastoreNodeInformationEntry::Type * mNodeInformationEntries;
-    size_t mNodeInformationEntriesCount = mJointFabricDatastorage->GetNodeInformationEntriesCount();
-    size_t index = 0;
 
-    mNodeInformationEntries = mJointFabricDatastorage->GetNodeInformationEntries();
-    for (index = 0; index < mNodeInformationEntriesCount; index++)
+    auto mNodeInformationEntries  = mJointFabricDatastorage->GetNodeInformationEntries();
+
+    for (auto & nodeInformationEntry : mNodeInformationEntries)
     {
-        if (mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kCommitted)
+        if (nodeInformationEntry.commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kCommitted)
         {
-            mJointFabricDatastorage->SetNode(mNodeInformationEntries[index].nodeID, JointFabricDatastore::DatastoreStateEnum::kDeletePending);
-            pendingNodeId = mNodeInformationEntries[index].nodeID;
+            mJointFabricDatastorage->SetNode(nodeInformationEntry.nodeID, JointFabricDatastore::DatastoreStateEnum::kDeletePending);
+            pendingNodeId = nodeInformationEntry.nodeID;
             break;
         }
         else if (!deletedPendingNodesExist &&
-                 mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kDeletePending)
+                 nodeInformationEntry.commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kDeletePending)
         {
             deletedPendingNodesExist = true;
         }
@@ -146,11 +144,11 @@ void JFAdminAppManager::TriggerJFOnboardingForNextNode()
     {
         ChipLogError(JointFabric, "Error while updating NOCs for some of the devices.");
 
-        for (index = 0; index < mNodeInformationEntriesCount; index++)
+        for (auto & nodeInformationEntry : mNodeInformationEntries)
         {
-            if (mNodeInformationEntries[index].commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kDeletePending)
+            if (nodeInformationEntry.commissioningStatusEntry.state == JointFabricDatastore::DatastoreStateEnum::kDeletePending)
             {
-                NodeId kDeletePendingNode = mNodeInformationEntries[index].nodeID;
+                NodeId kDeletePendingNode = nodeInformationEntry.nodeID;
 
                 ChipLogError(JointFabric, "Node ID of device with kDeletePending status: 0x" ChipLogFormatX64, ChipLogValueX64(kDeletePendingNode));
             }
