@@ -37,9 +37,9 @@ CHIP_ERROR RpcConnect(void)
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR RpcUpdateOperationalIdentity(void)
+CHIP_ERROR RpcUpdateOperationalIdentity(chip::NodeId nodeId)
 {
-    ::pw_protobuf_Empty request;
+    ::joint_fabric_UpdateOperationalIdentityIn request;
     joint_fabric::pw_rpc::nanopb::ReverseJointFabric::Client rpcClient(
         chip::rpc::client::GetDefaultRpcClient(),
         DEFAULT_RPC_CHANNEL);
@@ -48,6 +48,9 @@ CHIP_ERROR RpcUpdateOperationalIdentity(void)
         ChipLogError(NotSpecified, "RPC not connected!");
         return CHIP_ERROR_NOT_CONNECTED;
     }
+
+    /* Populate the request arguments */
+    request.node_id = nodeId;
 
     rpcCallCompleted = false;
 

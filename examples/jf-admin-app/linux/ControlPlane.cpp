@@ -9,7 +9,7 @@ class JointFabricControl & JointFabricControl::GetInstance(void)
     return jf_control;
 }
 
-CHIP_ERROR JointFabricControl::UpdateOperationalIdentity(void)
+CHIP_ERROR JointFabricControl::UpdateOperationalIdentity(chip::NodeId nodeId)
 {
-    return RpcUpdateOperationalIdentity();
+    return RpcUpdateOperationalIdentity(nodeId);
 }
