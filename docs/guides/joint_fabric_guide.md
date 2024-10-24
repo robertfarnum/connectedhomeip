@@ -24,7 +24,7 @@ Due to some PKI hard-coding, chip-jf-admin-app must be the first application com
 $ cd ~/connectedhomeip/examples/jf-control-app
 $ git submodule update --init
 $ source third_party/connectedhomeip/scripts/activate.sh
-$ gn gen out/debug
+$ gn gen out/debug --args='chip_enable_joint_fabric=true'
 $ ninja -C out/debug
 ```
 
@@ -37,8 +37,6 @@ $ source third_party/connectedhomeip/scripts/activate.sh
 $ gn gen out/debug --args='chip_enable_joint_fabric=true'
 $ ninja -C out/debug
 ```
-
-> Add the following argument to gn: `--args='chip_enable_joint_fabric=true'`
 
 * Building the chip-lighting-app Application
 
