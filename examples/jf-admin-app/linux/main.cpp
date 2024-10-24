@@ -43,13 +43,13 @@ using namespace chip::Controller;
 namespace {
 
 ExampleOperationalCredentialsIssuer gOpCredsIssuer;
-PersistentStorage gStorage;
+PersistentStorage gControllerPKIStorage;
 
 CHIP_ERROR OnPrepareCredentialsIssuer()
 {
     const char * chipToolKvs = LinuxDeviceOptions::GetInstance().chipToolKvs;
-    ReturnErrorOnFailure(gStorage.Init("alpha", chipToolKvs ? chipToolKvs : "/tmp/" ));
-    ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gStorage));
+    ReturnErrorOnFailure(gControllerPKIStorage.Init("alpha", chipToolKvs ? chipToolKvs : "/tmp/" ));
+    ReturnErrorOnFailure(gOpCredsIssuer.Initialize(gControllerPKIStorage));
 
     return CHIP_NO_ERROR;
 }
@@ -148,7 +148,7 @@ void ApplicationInit()
     
     PrepareJointFabricCluster();
 
-    sJFAdminAppManager.Init(Server::GetInstance(), gOpCredsIssuer);
+    sJFAdminAppManager.Init(Server::GetInstance(), gOpCredsIssuer, gControllerPKIStorage);
 
     DeviceLayer::PlatformMgrImpl().AddEventHandler(EventHandler, 0);
 }

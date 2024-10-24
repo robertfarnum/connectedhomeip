@@ -51,15 +51,21 @@ namespace {
    NodeId anchorAdminNodeId = 3;
 
    static constexpr uint16_t failSafeTimerPeriod = 15; // seconds
+
+   static constexpr char kOperationalCredentialsIntermediateIssuerKeypairStorage[] = "ExampleOpCredsICAKey0";
+   static constexpr char kOperationalCredentialsRootCertificateStorage[]           = "ExampleCARootCert0";
+   static constexpr char kOperationalCredentialsIntermediateCertificateStorage[]   = "ExampleCAIntermediateCert0";
+   static constexpr char kJFFabricID[]                                             = "FabricID0";
 }
 
-CHIP_ERROR JFAdminAppManager::Init(Server & server, OperationalCredentialsDelegate & opCredentialsDelegate)
+CHIP_ERROR JFAdminAppManager::Init(Server & server, OperationalCredentialsDelegate & opCredentialsDelegate, PersistentStorage & storage)
 {
 	CHIP_ERROR err = CHIP_NO_ERROR;
 
     mServer             = &server;
     mCASESessionManager = server.GetCASESessionManager();
     mOpCredentials = &opCredentialsDelegate;
+    mControllerPKI = &storage;
     mJointFabricDatastorage = &(mServer->GetJointFabricDatastorage());
 
     return err;
@@ -67,6 +73,7 @@ CHIP_ERROR JFAdminAppManager::Init(Server & server, OperationalCredentialsDelega
 
 void JFAdminAppManager::HandleCommissioningCompleteEvent()
 {
+
     /* demo: device is initially in its own fabric then onboarded in JF */
     if (Server::GetInstance().GetFabricTable().FabricCount() == 2)
     {
@@ -139,6 +146,9 @@ void JFAdminAppManager::TriggerJFOnboardingForNextNode()
     else if (!deletedPendingNodesExist)
     {
         ChipLogProgress(JointFabric, "All Nodes have now updated NOCs chaining up to the cross-signed ICAC!");
+
+        /* TODO: add it inside the state machine */
+        UpdateOperationalIdentifyForController();
     }
     else
     {
@@ -382,6 +392,101 @@ void JFAdminAppManager::DisconnectFromNode()
 	}
 	mSessionHolder.Release();
 }
+
+CHIP_ERROR JFAdminAppManager::UpdateOperationalIdentifyForController()
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    const char * chipToolKvs = nullptr;
+    Crypto::P256SerializedKeypair serializedICACKey;
+    uint16_t ICACKeySize = static_cast<uint16_t>(serializedICACKey.Capacity());
+
+    /* CHIPCert format for Anchor CA */
+    uint8_t anchorCA[Credentials::kMaxCHIPCertLength] = {0};
+    MutableByteSpan anchorCASpan{ anchorCA };
+
+    /* DER format for Anchor CA */
+    uint8_t anchorCADer[Credentials::kMaxDERCertLength] = {0};
+    MutableByteSpan anchorCADerSpan{ anchorCADer };
+
+    /* CHIPCert format for cross-signed ICAC */
+    uint8_t icac[Credentials::kMaxCHIPCertLength] = {0};
+    MutableByteSpan icacSpan{ icac };
+
+    /* DER format for cross-signed ICAC */
+    uint8_t icacDer[Credentials::kMaxDERCertLength] = {0};
+    MutableByteSpan icacDerSpan{ icacDer };
+
+    /* required for extracting the NOC Fabric ID */
+    uint8_t JFNoc[Credentials::kMaxCHIPCertLength] = {0};
+    MutableByteSpan JFNocSpan{ JFNoc };
+    uint8_t JFNocDer[Credentials::kMaxDERCertLength] = {0};
+    MutableByteSpan JFNocDerSpan{ JFNocDer };
+    ChipDN JFNocDn;
+    uint64_t dnFabricIDJFNoc;
+    std::string fabricIDString;
+
+    /* initialize JFC storage */
+    chipToolKvs = LinuxDeviceOptions::GetInstance().chipToolKvs;
+    err = controllerJFPKIStorage.Init("beta", chipToolKvs ? chipToolKvs : "/tmp/" );
+    SuccessOrExit(err);
+
+    /* extract RCAC */
+    err = mServer->GetFabricTable().FetchRootCert(jfFabricIndex, anchorCASpan);
+    SuccessOrExit(err);
+
+    err = ConvertChipCertToX509Cert(anchorCASpan, anchorCADerSpan);
+    SuccessOrExit(err);
+
+    /* extract ICAC */
+    err = mServer->GetFabricTable().FetchICACert(jfFabricIndex, icacSpan);
+    SuccessOrExit(err);
+
+    err = ConvertChipCertToX509Cert(icacSpan, icacDerSpan);
+    SuccessOrExit(err);
+
+    /* write Anchor CA in JFC storage */
+    err = controllerJFPKIStorage.SyncSetKeyValue(kOperationalCredentialsRootCertificateStorage,
+                anchorCADerSpan.data(), static_cast<uint16_t>(anchorCADerSpan.size()));
+    SuccessOrExit(err);
+
+    /* write cross-signed ICAC in JFC storage */
+    err = controllerJFPKIStorage.SyncSetKeyValue(kOperationalCredentialsIntermediateCertificateStorage,
+            icacDerSpan.data(), static_cast<uint16_t>(icacDerSpan.size()));
+    SuccessOrExit(err);
+
+    /* write public-private key pair of the cross-signed ICAC in JFC storage */
+    err = mControllerPKI->SyncGetKeyValue(kOperationalCredentialsIntermediateIssuerKeypairStorage,
+            serializedICACKey.Bytes(), ICACKeySize);
+    serializedICACKey.SetLength(ICACKeySize);
+    SuccessOrExit(err);
+
+    err = controllerJFPKIStorage.SyncSetKeyValue(kOperationalCredentialsIntermediateIssuerKeypairStorage,
+            serializedICACKey.Bytes(), ICACKeySize);
+
+    /* extract JF NOC: needed for Matter Operational Certificate DN attribute for fabric identifier */
+    err = mServer->GetFabricTable().FetchNOCCert(jfFabricIndex, JFNocSpan);
+    SuccessOrExit(err);
+
+    err = ConvertChipCertToX509Cert(JFNocSpan, JFNocDerSpan);
+    SuccessOrExit(err);
+
+    JFNocDn = ChipDN{};
+    err = ExtractSubjectDNFromX509Cert(JFNocDerSpan, JFNocDn);
+    SuccessOrExit(err);
+
+    err = JFNocDn.GetCertFabricId(dnFabricIDJFNoc);
+    SuccessOrExit(err);
+
+    /* save FabricID that needs to be used inside the NOCs generated by JFC */
+    fabricIDString = std::to_string(dnFabricIDJFNoc);
+    err = controllerJFPKIStorage.SyncSetKeyValue(kJFFabricID, fabricIDString.c_str(), fabricIDString.size());
+    SuccessOrExit(err);
+
+exit:
+    return err;
+}
+
 
 void JFAdminAppManager::OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error)
 {

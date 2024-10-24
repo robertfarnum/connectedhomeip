@@ -34,8 +34,8 @@ constexpr char kOperationalCredentialsIssuerKeypairStorage[]             = "Exam
 constexpr char kOperationalCredentialsIntermediateIssuerKeypairStorage[] = "ExampleOpCredsICAKey";
 constexpr char kOperationalCredentialsRootCertificateStorage[]           = "ExampleCARootCert";
 constexpr char kOperationalCredentialsIntermediateCertificateStorage[]   = "ExampleCAIntermediateCert";
-
-constexpr char kNOC[]           = "ExampleNOC";
+constexpr char kJFFabricID[]                                             = "FabricID";
+constexpr char kNOCKey[]                                                 = "NOC";
 
 using namespace Credentials;
 using namespace Crypto;
@@ -243,7 +243,11 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
 
 #if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR 
     static bool generateNOCForController = true;
+    static bool generateNOCForJFController = true;
     static bool generateNOCForAdmin = true;
+
+    /* Administrator CAT */
+    CASEAuthTag adminCAT = 0xFFFF'0001;
 #endif
 
     // Always regenerate RCAC on maximally sized certs. The keys remain the same, so everything is fine.
@@ -321,7 +325,25 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     }
 
     ChipDN noc_dn;
-    ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId(fabricId));
+    char fabricIDBytes[10];
+    uint16_t fabricIDBytesReadSize = sizeof(fabricIDBytes);
+
+    PERSISTENT_KEY_OP(mIndex, kJFFabricID, key,
+                      err = mStorage->SyncGetKeyValue(key, fabricIDBytes, fabricIDBytesReadSize));
+    if (CHIP_NO_ERROR == err)
+    {
+        if (generateNOCForJFController)
+        {
+            generateNOCForJFController = false;
+            noc_dn.AddCATs({ { adminCAT } });
+        }
+        ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId((uint64_t)atol(fabricIDBytes)));
+    }
+    else
+    {
+        ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId(fabricId));
+    }
+
     ReturnErrorOnFailure(noc_dn.AddAttribute_MatterNodeId(nodeId));
     ReturnErrorOnFailure(noc_dn.AddCATs(cats));
 
@@ -332,10 +354,6 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
         ChipLogProgress(Controller, "Adding Administrator CAT to Controller NOC.");
 
         generateNOCForController = false;
-
-        /* Administrator CAT */
-        CASEAuthTag adminCAT = 0xFFFF'0001;
-
         noc_dn.AddCATs({ { adminCAT } });
     }
     /* administrator NOC must contain the Anchor/Datastore CAT and Administrator CAT */
@@ -344,9 +362,6 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
         ChipLogProgress(Controller, "Adding Administrator and Anchor/Datastore CAT to Administrator NOC.");
 
         generateNOCForAdmin = false;
-
-        /* Administrator CAT */
-        CASEAuthTag adminCAT = 0xFFFF'0001;
 
         /* AnchorDatastore CAT */
         CASEAuthTag anchorDatastoreCAT = 0xFFFC'0001;
@@ -482,9 +497,6 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::SignNOCIssuerAfterValidation(con
 
     VerifyOrReturnError(CanCastTo<uint16_t>(icac.size()), CHIP_ERROR_INTERNAL);
 
-    PERSISTENT_KEY_OP(mIndex, kOperationalCredentialsIntermediateCertificateStorage, key,
-                      ReturnErrorOnFailure(mStorage->SyncSetKeyValue(key, icac.data(), static_cast<uint16_t>(icac.size()))));
-
     return CHIP_NO_ERROR;
 }
 
@@ -512,9 +524,6 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::SignNOC(const ByteSpan & icac, c
 
     ChipDN icac_dn = ChipDN{};
     ReturnErrorOnFailure(ExtractSubjectDNFromX509Cert(icac, icac_dn));
-
-    PERSISTENT_KEY_OP(mIndex, kOperationalCredentialsIntermediateCertificateStorage, key,
-                      ReturnErrorOnFailure(mStorage->SyncSetKeyValue(key, icac.data(), static_cast<uint16_t>(icac.size()))));
 
     ChipDN noc_dn;
     ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId(mNextFabricId));

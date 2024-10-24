@@ -19,6 +19,8 @@
 #pragma once
 
 #include <AppMain.h>
+#include <controller/ExampleOperationalCredentialsIssuer.h>
+#include <controller/ExamplePersistentStorage.h>
 
 namespace chip {
 
@@ -27,7 +29,7 @@ class JFAdminAppManager
 public:
     JFAdminAppManager() : mOnConnectedCallback(OnConnected, this), mOnConnectionFailureCallback(OnConnectionFailure, this) {}
 
-    CHIP_ERROR Init(Server & server, chip::Controller::OperationalCredentialsDelegate & opCredentialsDelegate);
+    CHIP_ERROR Init(Server & server, chip::Controller::OperationalCredentialsDelegate & opCredentialsDelegate, PersistentStorage & storage);
     void HandleCommissioningCompleteEvent();
 
 private:
@@ -53,6 +55,8 @@ private:
 
     void TriggerJFOnboardingForNextNode();
     void DisconnectFromNode();
+
+    CHIP_ERROR UpdateOperationalIdentifyForController();
 
     static void OnConnected(void * context, Messaging::ExchangeManager & exchangeMgr, const SessionHandle & sessionHandle);
     static void OnConnectionFailure(void * context, const ScopedNodeId & peerId, CHIP_ERROR error);
@@ -90,6 +94,8 @@ private:
     app::JointFabricDatastorage * mJointFabricDatastorage = nullptr;
     CASESessionManager * mCASESessionManager = nullptr;
     chip::Controller::OperationalCredentialsDelegate * mOpCredentials = nullptr;
+    PersistentStorage * mControllerPKI = nullptr;
+
 
     FabricIndex initialFabricIndex = kUndefinedFabricIndex;
     FabricIndex jfFabricIndex = kUndefinedFabricIndex;
@@ -111,6 +117,9 @@ private:
 
     uint8_t pendingNOCBuffer[Credentials::kMaxCHIPCertLength] = {0};
     MutableByteSpan pendingNOCSpan{ pendingNOCBuffer };
+
+    /* NOC reissuance for JFC */
+    PersistentStorage controllerJFPKIStorage;
 };
 
 } // namespace chip
