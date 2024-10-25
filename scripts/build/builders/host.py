@@ -87,11 +87,11 @@ class HostApp(Enum):
 
     def ExamplePath(self):
         if self == HostApp.ALL_CLUSTERS:
-            return 'jf-admin-app/linux'
+            return 'all-clusters-app/linux'
         elif self == HostApp.ALL_CLUSTERS_MINIMAL:
             return 'all-clusters-minimal-app/linux'
         elif self == HostApp.CHIP_TOOL:
-            return 'jf-control-app'
+            return 'chip-tool'
         elif self == HostApp.CHIP_TOOL_DARWIN:
             return 'darwin-framework-tool'
         elif self == HostApp.THERMOSTAT:
