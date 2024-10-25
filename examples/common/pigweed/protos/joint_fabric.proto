@@ -40,12 +40,16 @@ message GetDevicesOut {
     repeated Device devices = 1;
 }
 
+message UpdateOperationalIdentityIn {
+    uint64 node_id = 1;
+}
+
 service JointFabric {
     rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (ErrorCode) {}
 }
 
 service ReverseJointFabric {
-    rpc UpdateOperationalIdentity(pw.protobuf.Empty) returns (ErrorCode) {}
+    rpc UpdateOperationalIdentity(UpdateOperationalIdentityIn) returns (ErrorCode) {}
 }
 
 service JointFabricControl {

@@ -18,12 +18,12 @@ namespace joint_fabric {
 
 class ReverseJointFabricServiceImpl : public pw_rpc::nanopb::ReverseJointFabric::Service<ReverseJointFabricServiceImpl> {
  public:
-  pw::Status UpdateOperationalIdentity(const pw_protobuf_Empty& request, joint_fabric_ErrorCode& response);
+  pw::Status UpdateOperationalIdentity(const joint_fabric_UpdateOperationalIdentityIn& request, joint_fabric_ErrorCode& response);
 };
 
-pw::Status ReverseJointFabricServiceImpl::UpdateOperationalIdentity(const pw_protobuf_Empty& request, joint_fabric_ErrorCode& response)
+pw::Status ReverseJointFabricServiceImpl::UpdateOperationalIdentity(const joint_fabric_UpdateOperationalIdentityIn& request, joint_fabric_ErrorCode& response)
 {
-    ChipLogProgress(NotSpecified, "UpdateOperationalIdentity()");
+    ChipLogProgress(NotSpecified, "UpdateOperationalIdentity(%lu)", request.node_id);
     return pw::OkStatus();
 }
 
