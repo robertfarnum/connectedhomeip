@@ -312,6 +312,7 @@ config("strict_warnings") {
 
   if (is_clang) {
     cflags += [
+      "-Wimplicit-fallthrough",
       "-Wheader-hygiene",
       "-Wshorten-64-to-32",
       "-Wformat-type-confusion",
