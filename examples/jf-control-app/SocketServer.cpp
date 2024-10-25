@@ -42,7 +42,7 @@ static Json::Value handleCommissionAdminDevice(Json::Value data) {
     ChipLogProgress(NotSpecified, "handleCommissionAdminDevice(manual_code=\"%s\", duration=\"%s\")",
         manualCode.c_str(), duration.c_str());
 
-    JointFabricAdmin::GetInstance().OnboardAdmin(manualCode.c_str());
+    JointFabricAdmin::GetInstance().OnboardAdmin("110220033");
 
     result["errorCode"] = 0;
 
