@@ -28,6 +28,9 @@ using namespace chip::app::Clusters;
 
 namespace {
 
+static constexpr char kAlpha[] = "alpha";
+static constexpr char kBeta[]  = "beta";
+
 } // namespace
 
 // Define the static member
@@ -105,4 +108,20 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
             nodeIdToRefreshFriendlyName = kUndefinedNodeId;
         }
     }
+}
+
+const char* DeviceManager::GetCurrentCommissioner()
+{
+    if (!jfOnboarded)
+    {
+        return kAlpha;
+    }
+
+    return kBeta;
+}
+
+void DeviceManager::SetJfOnboarded(uint64_t nodeId)
+{
+    jfOnboarded = true;
+    jfAdminAppNodeId = nodeId;
 }

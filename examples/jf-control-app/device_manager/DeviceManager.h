@@ -38,6 +38,11 @@ public:
     /* callback for attribute read */
     void HandleOnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data);
 
+    /* callback for getting device commissioner */
+    const char* GetCurrentCommissioner();
+
+    void SetJfOnboarded(uint64_t nodeId);
+
 private:
     friend DeviceManager & DeviceMgr();
     
@@ -45,6 +50,7 @@ private:
     bool mInitialized     = false;
     bool jfAdminAppCommissioned = false;
     chip::NodeId jfAdminAppNodeId = chip::kUndefinedNodeId;
+    bool jfOnboarded = false;
 
     chip::NodeId nodeIdToRefreshFriendlyName = chip::kUndefinedNodeId;
 };

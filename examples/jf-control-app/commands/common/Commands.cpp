@@ -25,6 +25,7 @@
 #include <sstream>
 #include <string>
 
+#include <device_manager/DeviceManager.h>
 #include <lib/support/Base64.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
@@ -222,6 +223,15 @@ CHIP_ERROR Commands::RunCommand(int argc, char ** argv, bool interactive,
                                 const chip::Optional<char *> & interactiveStorageDirectory, bool interactiveAdvertiseOperational)
 {
     Command * command = nullptr;
+
+    std::vector<const char*> newArgv(argv, argv + argc);
+
+    newArgv.push_back("--commissioner-name");
+    newArgv.push_back(DeviceMgr().GetCurrentCommissioner());
+    newArgv.push_back(nullptr);
+
+    argv = (char**)(newArgv.data());
+    argc = argc + 2;
 
     if (argc <= 1)
     {
