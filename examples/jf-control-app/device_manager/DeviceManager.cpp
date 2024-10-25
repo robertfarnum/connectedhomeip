@@ -59,6 +59,12 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
     {
     	jfAdminAppNodeId = nodeId;
         jfAdminAppCommissioned = true;
+
+        /* establish a subscription to JFA DS Node-List*/
+        commandBuilder.Reset();
+        commandBuilder.Add("jointfabricdatastore subscribe node-list ");
+        commandBuilder.AddFormat("1 180 %lu %d", jfAdminAppNodeId, kRootEndpointId);
+        PushCommand(commandBuilder.c_str());
     }
 }
 
@@ -122,6 +128,20 @@ const char* DeviceManager::GetCurrentCommissioner()
 
 void DeviceManager::SetJfOnboarded(uint64_t nodeId)
 {
+    StringBuilder<kMaxCommandSize> commandBuilder;
+
     jfOnboarded = true;
+    /* stop subscriptions to old JFA DS */
+    commandBuilder.Reset();
+    commandBuilder.Add("subscriptions shutdown-all-for-node ");
+    commandBuilder.AddFormat("%lu", jfAdminAppNodeId);
+    PushCommand(commandBuilder.c_str());
+
     jfAdminAppNodeId = nodeId;
+
+    /* establish a subscription to Anchor JFA DS Node-List*/
+    commandBuilder.Reset();
+    commandBuilder.Add("jointfabricdatastore subscribe node-list ");
+    commandBuilder.AddFormat("1 180 %lu %d", jfAdminAppNodeId, kRootEndpointId);
+    PushCommand(commandBuilder.c_str());
 }

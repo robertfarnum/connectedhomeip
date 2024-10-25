@@ -35,7 +35,6 @@ constexpr char kOperationalCredentialsIntermediateIssuerKeypairStorage[] = "Exam
 constexpr char kOperationalCredentialsRootCertificateStorage[]           = "ExampleCARootCert";
 constexpr char kOperationalCredentialsIntermediateCertificateStorage[]   = "ExampleCAIntermediateCert";
 constexpr char kJFFabricID[]                                             = "FabricID";
-constexpr char kNOCKey[]                                                 = "NOC";
 
 using namespace Credentials;
 using namespace Crypto;
