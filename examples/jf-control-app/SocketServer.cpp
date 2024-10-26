@@ -32,17 +32,56 @@ static Json::Value handleOpenCommissioningWindow(Json::Value data) {
 
     return result;
 }
+static std::string lightFriendlyName = "Xfinity Light";
+static std::string adminFriendlyName = "NXP Administrator";
+static chip::NodeId lightNodeId = 10;
+static chip::NodeId adminNodeId = 1;
+static chip::NodeId nextNodeId = 20;
+static Json::Value devices(Json::arrayValue);
+
+static bool inited = false;
+
+static void initDevices() {
+    if (inited) {
+        return;
+    }
+
+    inited = true;
+
+    Json::Value lightDevice;
+    lightDevice["nodeId"] = std::to_string(lightNodeId);
+    lightDevice["friendlyName"] = lightFriendlyName;
+    lightDevice["reachable"] = true;
+    lightDevice["on"] = false;
+    lightDevice["vendorName"] = "tapo";
+    lightDevice["productName"] = "tapo";
+    lightDevice["hardwareVersion"] = "1.0";
+    lightDevice["softwareVersion"] = "1.0";
+    lightDevice["type"] = 0;
+    devices.append(lightDevice);
+
+    Json::Value adminDevice;
+    adminDevice["nodeId"] = std::to_string(adminNodeId);
+    adminDevice["friendlyName"] = adminFriendlyName;
+    adminDevice["reachable"] = true;
+    adminDevice["vendorName"] = "NXP";
+    adminDevice["productName"] = "RW612";
+    adminDevice["hardwareVersion"] = "1.0";
+    adminDevice["softwareVersion"] = "1.0";
+    adminDevice["type"] = 1;
+    devices.append(adminDevice);
+}
 
 static Json::Value handleCommissionAdminDevice(Json::Value data) {
     Json::Value result;
 
-    const std::string manualCode = data["manualCode"].asString();
+    const std::string setupPinCode = data["setupPinCode"].asString();
     const std::string duration = data["duration"].asString();
 
-    ChipLogProgress(NotSpecified, "handleCommissionAdminDevice(manual_code=\"%s\", duration=\"%s\")",
-        manualCode.c_str(), duration.c_str());
+    ChipLogProgress(NotSpecified, "handleCommissionAdminDevice(setup_pin_code=\"%s\", duration=\"%s\")",
+        setupPinCode.c_str(), duration.c_str());
 
-    JointFabricAdmin::GetInstance().OnboardAdmin("110220033");
+    JointFabricAdmin::GetInstance().OnboardAdmin(setupPinCode.c_str());
 
     result["errorCode"] = 0;
 
@@ -52,58 +91,39 @@ static Json::Value handleCommissionAdminDevice(Json::Value data) {
 static Json::Value handleCommissionDevice(Json::Value data) {
     Json::Value result;
 
-    const std::string manualCode = data["manualCode"].asString();
     const std::string duration = data["duration"].asString();
+    const std::string ssid = data["ssid"].asString();
+    const std::string password = data["password"].asString();
+    const std::string setupPinCode = data["setupPinCode"].asString();
+    const std::string discriminator = data["discriminator"].asString();
 
-    ChipLogProgress(NotSpecified, "handleCommissionDevice(manual_code=\"%s\", duration=\"%s\")",
-        manualCode.c_str(), duration.c_str());
+    chip::NodeId nodeId = lightNodeId;
 
-    // TODO: Implemenent
+    if (nextNodeId > 20) {
+        nodeId = nextNodeId;
+    }
+
+    ChipLogProgress(NotSpecified, "handleCommissionDevice(setup_pin_code=\"%s\", discriminator=\"%s\", duration=\"%s\"), ssid=\"%s\"",
+        setupPinCode.c_str(), discriminator.c_str(), duration.c_str(), ssid.c_str());
+
+    StringBuilder<kMaxCommandSize> commandBuilder;
+    commandBuilder.Add("pairing ble-wifi ");
+    commandBuilder.AddFormat("%lu %s %s %s %s --bypass-attestation-verifier 1", nodeId, ssid.c_str(), password.c_str(), setupPinCode.c_str(), discriminator.c_str());
+    PushCommand(commandBuilder.c_str());
+
+    nodeId++;
 
     result["errorCode"] = 0;
 
     return result;
 }
 
-static std::string lightFriendlyName = "Xfinity Light";
-static std::string adminFriendlyName = "NXP Administrator";
-static bool lightOn = false;
-static std::string lightNodeId = "10";
-static std::string adminNodeId = "1";
+
 
 static Json::Value handleGetDevices(Json::Value data) {
     Json::Value result;
 
-    // TODO: Replace with actual devices
-    Json::Value devices(Json::arrayValue);
-
-    // TODO: Loop start here
-    Json::Value lightDevice;
-    lightDevice["nodeId"] = lightNodeId;
-    lightDevice["friendlyName"] = lightFriendlyName;
-    lightDevice["reachable"] = true;
-    lightDevice["on"] = lightOn;
-    lightDevice["vendorName"] = "tapo";
-    lightDevice["productName"] = "tapo";
-    lightDevice["hardwareVersion"] = "1.0";
-    lightDevice["softwareVersion"] = "1.0";
-    lightDevice["type"] = 0;
-    devices.append(lightDevice);
-
-    Json::Value adminDevice;
-    adminDevice["nodeId"] = adminNodeId;
-    adminDevice["friendlyName"] = adminFriendlyName;
-    adminDevice["reachable"] = true;
-    adminDevice["vendorName"] = "NXP";
-    adminDevice["productName"] = "RW612";
-    adminDevice["hardwareVersion"] = "1.0";
-    adminDevice["softwareVersion"] = "1.0";
-    adminDevice["type"] = 1;
-    devices.append(adminDevice);
-    // TODO: Loop end here
-
     result["devices"] =  devices;
-
     result["errorCode"] = 0;
 
     return result;
@@ -113,40 +133,43 @@ static Json::Value handleControlDevice(Json::Value data) {
     Json::Value result;
     const std::string nodeId = data.get("nodeId", "UTF-8").asString();
     const std::string friendlyName = data.get("friendlyName", "UTF-8").asString(); 
-    const std::string onStr = data["on"].asString();
+    const bool on = data["on"].asBool();
+    const int deviceType = data["type"].asInt();
 
-    ChipLogProgress(NotSpecified, "handleControlDevice(nodeId=\"%s\", friendlyName=\"%s\", on=\"%d\")",
-        nodeId.c_str(), friendlyName.c_str(), onStr.c_str());
+    ChipLogProgress(NotSpecified, "handleControlDevice(nodeId=\"%s\", friendlyName=\"%s\", on=%d)",
+        nodeId.c_str(), friendlyName.c_str(), on);
 
-    if (friendlyName != "") {
-        if (nodeId == adminNodeId) {
-            adminFriendlyName = friendlyName;
-        } else if (nodeId == lightNodeId) {
-            lightFriendlyName = friendlyName;
+    Json::Value *device = NULL;
+
+    for (unsigned int index = 0; index < devices.size(); index++) {
+        if (devices[index]["nodeId"] == nodeId) {
+            device = &devices[index];
         }
-
-        StringBuilder<kMaxCommandSize> commandBuilder;
-        commandBuilder.Add("basicinformation write node-label ");
-        commandBuilder.AddFormat("'%s' %s %d ", friendlyName.c_str(), nodeId.c_str(), 0);
-        PushCommand(commandBuilder.c_str());
     }
 
-    if (onStr != "") {
-        const bool on = (onStr == ("true"));
+    if (device != NULL) {
+        if (friendlyName != "") {
+            (*device)["friendlyName"] = friendlyName;
 
-        if (nodeId == lightNodeId) {
-            lightOn = on;
+            StringBuilder<kMaxCommandSize> commandBuilder;
+            commandBuilder.Add("basicinformation write node-label ");
+            commandBuilder.AddFormat("'%s' %s %d ", friendlyName.c_str(), nodeId.c_str(), 0);
+            PushCommand(commandBuilder.c_str());
         }
 
-        StringBuilder<kMaxCommandSize> commandBuilder;
-        if (on) {
-            commandBuilder.Add("onoff on ");
-            commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
-        } else {
-            commandBuilder.Add("onoff off ");
-            commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+        if (deviceType == 0) {
+            (*device)["on"] = on;
+
+            StringBuilder<kMaxCommandSize> commandBuilder;
+            if (on) {
+                commandBuilder.Add("onoff on ");
+                commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+            } else {
+                commandBuilder.Add("onoff off ");
+                commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+            }
+            PushCommand(commandBuilder.c_str());
         }
-        PushCommand(commandBuilder.c_str());
     }
 
     result["errorCode"] = 0;
@@ -199,6 +222,8 @@ static Json::Value handleMethod(std::string method, Json::Value data) {
 }
 
 static void handleClientConnection() {
+    initDevices();
+
     while (true) {
         // Receive the message length
         int32_t messageLength;
@@ -223,7 +248,7 @@ static void handleClientConnection() {
             totalBytesReceived += bytes;
         }
 
-        //ChipLogProgress(NotSpecified, "Received message = %s, len = %d", buffer.c_str(), totalBytesReceived);
+        ChipLogProgress(NotSpecified, "Received message = %s, len = %d", buffer.c_str(), totalBytesReceived);
 
         Json::Value root;
         JSONCPP_STRING err;
@@ -255,6 +280,8 @@ static void handleClientConnection() {
             std::cerr << "Error sending message data" << std::endl;
             break;
         }
+
+        ChipLogProgress(NotSpecified, "Sent message = %s, len = %.d", json.c_str(), json.size());
     }
 }
 
