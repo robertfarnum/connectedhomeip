@@ -324,6 +324,8 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     }
 
     ChipDN noc_dn;
+
+#if defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR
     char fabricIDBytes[10];
     uint16_t fabricIDBytesReadSize = sizeof(fabricIDBytes);
 
@@ -342,6 +344,9 @@ CHIP_ERROR ExampleOperationalCredentialsIssuer::GenerateNOCChainAfterValidation(
     {
         ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId(fabricId));
     }
+#else
+    ReturnErrorOnFailure(noc_dn.AddAttribute_MatterFabricId(fabricId));
+#endif // defined(JF_GENERATE_CERTS_FOR_ANCHOR) && JF_GENERATE_CERTS_FOR_ANCHOR
 
     ReturnErrorOnFailure(noc_dn.AddAttribute_MatterNodeId(nodeId));
     ReturnErrorOnFailure(noc_dn.AddCATs(cats));
