@@ -65,29 +65,41 @@ static Json::Value handleCommissionDevice(Json::Value data) {
     return result;
 }
 
-static bool on = false;
-static std::string friendlyName = "Test 1";
-static std::string nodeId = "10";
+static std::string lightFriendlyName = "Xfinity Light";
+static std::string adminFriendlyName = "NXP Administrator";
+static bool lightOn = false;
+static std::string lightNodeId = "10";
+static std::string adminNodeId = "1";
 
 static Json::Value handleGetDevices(Json::Value data) {
     Json::Value result;
-
-    //ChipLogProgress(NotSpecified, "handleGetDevices()");
 
     // TODO: Replace with actual devices
     Json::Value devices(Json::arrayValue);
 
     // TODO: Loop start here
-    Json::Value device;
-    device["nodeId"] = nodeId;
-    device["friendlyName"] = friendlyName;
-    device["connected"] = true;
-    device["on"] = on;
-    device["manufacturer"] = "tapo";
-    device["model"] = "tapo";
-    device["hardwareVersion"] = "1.0";
-    device["firmwareVersion"] = "1.0";
-    devices.append(device);
+    Json::Value lightDevice;
+    lightDevice["nodeId"] = lightNodeId;
+    lightDevice["friendlyName"] = lightFriendlyName;
+    lightDevice["reachable"] = true;
+    lightDevice["on"] = lightOn;
+    lightDevice["vendorName"] = "tapo";
+    lightDevice["productName"] = "tapo";
+    lightDevice["hardwareVersion"] = "1.0";
+    lightDevice["softwareVersion"] = "1.0";
+    lightDevice["type"] = 0;
+    devices.append(lightDevice);
+
+    Json::Value adminDevice;
+    adminDevice["nodeId"] = adminNodeId;
+    adminDevice["friendlyName"] = adminFriendlyName;
+    adminDevice["reachable"] = true;
+    adminDevice["vendorName"] = "NXP";
+    adminDevice["productName"] = "RW612";
+    adminDevice["hardwareVersion"] = "1.0";
+    adminDevice["softwareVersion"] = "1.0";
+    adminDevice["type"] = 1;
+    devices.append(adminDevice);
     // TODO: Loop end here
 
     result["devices"] =  devices;
@@ -99,33 +111,61 @@ static Json::Value handleGetDevices(Json::Value data) {
 
 static Json::Value handleControlDevice(Json::Value data) {
     Json::Value result;
-
     const std::string nodeId = data.get("nodeId", "UTF-8").asString();
-    friendlyName = data.get("friendlyName", "UTF-8").asString();
+    const std::string friendlyName = data.get("friendlyName", "UTF-8").asString(); 
     const std::string onStr = data["on"].asString();
-    on = (onStr == ("true"));
 
     ChipLogProgress(NotSpecified, "handleControlDevice(nodeId=\"%s\", friendlyName=\"%s\", on=\"%d\")",
-        nodeId.c_str(), friendlyName.c_str(), on);
-
-    StringBuilder<kMaxCommandSize> commandBuilder;
-    if (on) {
-        commandBuilder.Add("onoff on ");
-        commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
-    } else {
-        commandBuilder.Add("onoff off ");
-        commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
-    }
-    PushCommand(commandBuilder.c_str());
+        nodeId.c_str(), friendlyName.c_str(), onStr.c_str());
 
     if (friendlyName != "") {
-        StringBuilder<kMaxCommandSize> commandBuilder;
+        if (nodeId == adminNodeId) {
+            adminFriendlyName = friendlyName;
+        } else if (nodeId == lightNodeId) {
+            lightFriendlyName = friendlyName;
+        }
 
+        StringBuilder<kMaxCommandSize> commandBuilder;
         commandBuilder.Add("basicinformation write node-label ");
         commandBuilder.AddFormat("'%s' %s %d ", friendlyName.c_str(), nodeId.c_str(), 0);
-
         PushCommand(commandBuilder.c_str());
     }
+
+    if (onStr != "") {
+        const bool on = (onStr == ("true"));
+
+        if (nodeId == lightNodeId) {
+            lightOn = on;
+        }
+
+        StringBuilder<kMaxCommandSize> commandBuilder;
+        if (on) {
+            commandBuilder.Add("onoff on ");
+            commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+        } else {
+            commandBuilder.Add("onoff off ");
+            commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+        }
+        PushCommand(commandBuilder.c_str());
+    }
+
+    result["errorCode"] = 0;
+
+    return result;
+}
+
+static Json::Value handleDeleteDevice(Json::Value data) {
+    Json::Value result;
+
+    const std::string nodeId = data.get("nodeId", "UTF-8").asString();
+
+    ChipLogProgress(NotSpecified, "handleDeleteDevice(nodeId=\"%s\")",
+        nodeId.c_str());
+
+    StringBuilder<kMaxCommandSize> commandBuilder;
+    commandBuilder.Add("pairing unpair ");
+    commandBuilder.AddFormat("%s ", nodeId.c_str());
+    PushCommand(commandBuilder.c_str());
 
     result["errorCode"] = 0;
 
@@ -138,6 +178,7 @@ std::map<std::string, Json::Value (*)(Json::Value)> methodHandlers = {
     {"CommissionAdminDevice", handleCommissionAdminDevice},
     {"GetDevices", handleGetDevices},
     {"ControlDevice", handleControlDevice},
+    {"DeleteDevice", handleDeleteDevice},
 };
 
 static Json::Value handleMethod(std::string method, Json::Value data) {
