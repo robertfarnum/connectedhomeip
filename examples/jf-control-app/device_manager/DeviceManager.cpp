@@ -38,7 +38,7 @@ DeviceManager DeviceManager::sInstance;
 
 void DeviceManager::Init()
 {
-    mInitialized    = true;
+    mInitialized = true;
 }
 
 void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
@@ -49,7 +49,7 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
         commandBuilder.Add("jointfabricdatastore add-pending-node ");
         commandBuilder.AddFormat("%lu FriendlyName %lu %d ", nodeId, jfAdminAppNodeId, kRootEndpointId);
         PushCommand(commandBuilder.c_str());
-    
+
         commandBuilder.Reset();
         commandBuilder.Add("jointfabricdatastore refresh-node ");
         commandBuilder.AddFormat("%lu %lu %d ", nodeId, jfAdminAppNodeId, kRootEndpointId);
@@ -57,7 +57,7 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
     }
     else
     {
-    	jfAdminAppNodeId = nodeId;
+        jfAdminAppNodeId       = nodeId;
         jfAdminAppCommissioned = true;
 
         /* establish a subscription to JFA DS Node-List*/
@@ -89,7 +89,7 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
 {
     CHIP_ERROR error = CHIP_NO_ERROR;
 
-    uint8_t friendlyNameBuffer[16] = {0};
+    uint8_t friendlyNameBuffer[16] = { 0 };
     MutableByteSpan friendlyNameMutableByteSpan{ friendlyNameBuffer };
     CharSpan friendlyNameCharSpan;
     StringBuilder<kMaxCommandSize> commandBuilder;
@@ -103,10 +103,10 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
             if (CHIP_NO_ERROR == error)
             {
                 size_to_copy = friendlyNameCharSpan.size() > 15 ? 15 : friendlyNameCharSpan.size();
-                memcpy (friendlyNameMutableByteSpan.data(), friendlyNameCharSpan.data(), size_to_copy);
+                memcpy(friendlyNameMutableByteSpan.data(), friendlyNameCharSpan.data(), size_to_copy);
 
                 commandBuilder.Add("jointfabricdatastore update-node ");
-                commandBuilder.AddFormat("%lu %s %lu %d",nodeIdToRefreshFriendlyName, friendlyNameMutableByteSpan.data(),
+                commandBuilder.AddFormat("%lu '%s' %lu %d", nodeIdToRefreshFriendlyName, friendlyNameMutableByteSpan.data(),
                                          jfAdminAppNodeId, kRootEndpointId);
                 PushCommand(commandBuilder.c_str());
             }
@@ -116,7 +116,7 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
     }
 }
 
-const char* DeviceManager::GetCurrentCommissioner()
+const char * DeviceManager::GetCurrentCommissioner()
 {
     if (!jfOnboarded)
     {
