@@ -343,6 +343,12 @@ static void RunSocketServer(void)
         return;
     }
 
+    const int enable = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    {
+        ChipLogError(NotSpecified, "ERROR: setsockop failed");
+    }
+
     // Bind the socket to an address and port
     address.sin_family      = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
@@ -374,6 +380,8 @@ static void RunSocketServer(void)
         ChipLogProgress(NotSpecified, "Client connected");
 
         handleClientConnection();
+
+        ChipLogProgress(NotSpecified, "Client disconnected");
     }
 
     // Close the socket
