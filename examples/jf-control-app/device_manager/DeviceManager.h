@@ -36,7 +36,8 @@ public:
     void HandleOnResponse(const chip::app::ConcreteDataAttributePath & path, chip::NodeId remotePeerNodeId);
 
     /* callback for attribute read */
-    void HandleOnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data);
+    void HandleOnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data,
+                               chip::NodeId destinationId);
 
     /* callback for getting device commissioner */
     const char* GetCurrentCommissioner();
@@ -52,7 +53,8 @@ private:
     chip::NodeId jfAdminAppNodeId = chip::kUndefinedNodeId;
     bool jfOnboarded = false;
 
-    chip::NodeId nodeIdToRefreshFriendlyName = chip::kUndefinedNodeId;
+    static void TriggerDatastoreCachePopulation(chip::NodeId nodeId);
+    static void AddNewNodeInDatastoreCache(chip::NodeId nodeId, chip::Optional<chip::CharSpan> label = chip::NullOptional);
 };
 
 /**

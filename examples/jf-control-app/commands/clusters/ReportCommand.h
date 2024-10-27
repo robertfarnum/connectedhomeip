@@ -54,6 +54,8 @@ public:
 
         LogErrorOnFailure(RemoteDataModelLogger::LogAttributeAsJSON(path, data));
 
+        DeviceMgr().HandleOnAttributeData(path, data, GetDestinationId());
+
         error = DataModelLogger::LogAttribute(path, data);
         if (CHIP_NO_ERROR != error)
         {
@@ -61,8 +63,6 @@ public:
             mError = error;
             return;
         }
-
-        DeviceMgr().HandleOnAttributeData(path, data);
     }
 
     void OnEventData(const chip::app::EventHeader & eventHeader, chip::TLV::TLVReader * data,
