@@ -21,20 +21,9 @@
 #include <app-common/zap-generated/cluster-objects.h>
 #include <platform/CHIPDeviceLayer.h>
 
-
 struct DeviceEntry
 {
 public:
-    chip::NodeId nodeId = chip::kUndefinedNodeId;
-    chip::CharSpan friendlyName;
-    chip::CharSpan vendorName;
-    chip::CharSpan productName;
-    bool reachable = false;
-    uint16_t hardwareVersion = 0;
-    uint32_t softwareVersion = 0;
-    bool on = false; // valid only for on-off devices.
-
-
     DeviceEntry(chip::NodeId nodeIdValue, chip::Optional<chip::CharSpan> label = chip::NullOptional)
     {
         Set(nodeIdValue, label);
@@ -47,11 +36,12 @@ public:
         Set(op.nodeId, MakeOptional(op.friendlyName));
         SetVendorName(MakeOptional(op.vendorName));
         SetProductName(MakeOptional(op.productName));
-
         SetReachable(op.reachable);
-        SetHardwareVersion(op.hardwareVersion);
-		SetSoftwareVersion(op.softwareVersion);
-		SetOn(op.on);
+        SetHardwareVersion(MakeOptional(op.hardwareVersionString));
+        SetSoftwareVersion(MakeOptional(op.softwareVersionString));
+        SetOn(op.on);
+        SetOnOffSubscriptionEstablished(OnOffSubscriptionEstablished);
+        SetType(op.type);
 
         return *this;
     }
@@ -62,70 +52,52 @@ public:
         SetFriendlyName(label);
     }
 
-    void SetFriendlyName(chip::Optional<chip::CharSpan> label = chip::NullOptional)
+    void SetCharSpan(chip::CharSpan * spanToSet, char* charSpanBuffer, size_t bufSize,
+                     chip::Optional<chip::CharSpan> label = chip::NullOptional)
     {
         if (label.HasValue())
         {
-            memset(mFriendlyNameBuffer, 0, sizeof(mFriendlyNameBuffer));
-            if (label.Value().size() > sizeof(mFriendlyNameBuffer))
+            memset(charSpanBuffer, 0, bufSize);
+            if (label.Value().size() > bufSize)
             {
-                memcpy(mFriendlyNameBuffer, label.Value().data(), sizeof(mFriendlyNameBuffer));
-                this->friendlyName = chip::CharSpan(mFriendlyNameBuffer, sizeof(mFriendlyNameBuffer));
+                memcpy(charSpanBuffer, label.Value().data(), bufSize);
+                *spanToSet = chip::CharSpan(charSpanBuffer, bufSize);
             }
             else
             {
-                memcpy(mFriendlyNameBuffer, label.Value().data(), label.Value().size());
-                this->friendlyName = chip::CharSpan(mFriendlyNameBuffer, label.Value().size());
+                memcpy(charSpanBuffer, label.Value().data(), label.Value().size());
+                *spanToSet = chip::CharSpan(charSpanBuffer, label.Value().size());
             }
         }
         else
         {
-            this->friendlyName = chip::CharSpan();
+            *spanToSet = chip::CharSpan();
         }
+    }
+
+    void SetFriendlyName(chip::Optional<chip::CharSpan> label = chip::NullOptional)
+    {
+        SetCharSpan(&(this->friendlyName), this->mFriendlyNameBuffer, kFriendlyNameMaxSize, label);
     }
 
     void SetVendorName(chip::Optional<chip::CharSpan> label = chip::NullOptional)
     {
-        if (label.HasValue())
-        {
-            memset(mVendorNameBuffer, 0, sizeof(mVendorNameBuffer));
-            if (label.Value().size() > sizeof(mVendorNameBuffer))
-            {
-                memcpy(mVendorNameBuffer, label.Value().data(), sizeof(mVendorNameBuffer));
-                this->vendorName = chip::CharSpan(mVendorNameBuffer, sizeof(mVendorNameBuffer));
-            }
-            else
-            {
-                memcpy(mVendorNameBuffer, label.Value().data(), label.Value().size());
-                this->vendorName = chip::CharSpan(mVendorNameBuffer, label.Value().size());
-            }
-        }
-        else
-        {
-            this->vendorName = chip::CharSpan();
-        }
+        SetCharSpan(&(this->vendorName), this->mVendorNameBuffer, kVendorNameMaxSize, label);
     }
 
     void SetProductName(chip::Optional<chip::CharSpan> label = chip::NullOptional)
     {
-        if (label.HasValue())
-        {
-            memset(mProductNameBuffer, 0, sizeof(mProductNameBuffer));
-            if (label.Value().size() > sizeof(mProductNameBuffer))
-            {
-                memcpy(mProductNameBuffer, label.Value().data(), sizeof(mProductNameBuffer));
-                this->productName = chip::CharSpan(mProductNameBuffer, sizeof(mProductNameBuffer));
-            }
-            else
-            {
-                memcpy(mProductNameBuffer, label.Value().data(), label.Value().size());
-                this->productName = chip::CharSpan(mProductNameBuffer, label.Value().size());
-            }
-        }
-        else
-        {
-            this->productName = chip::CharSpan();
-        }
+        SetCharSpan(&(this->productName), this->mProductNameBuffer, kProductNameMaxSize, label);
+    }
+
+    void SetHardwareVersion(chip::Optional<chip::CharSpan> label = chip::NullOptional)
+    {
+        SetCharSpan(&(this->hardwareVersionString), this->mHardwareVersionBuffer, kHardwareVersionMaxSize, label);
+    }
+
+    void SetSoftwareVersion(chip::Optional<chip::CharSpan> label = chip::NullOptional)
+    {
+        SetCharSpan(&(this->softwareVersionString), this->mSoftwareVersionBuffer, kSoftwareVersionMaxSize, label);
     }
 
     void SetReachable(bool value)
@@ -133,22 +105,83 @@ public:
 	    this->reachable = value;
     }
 
-    void SetHardwareVersion(uint16_t value)
-    {
-	    this->hardwareVersion = value;
-    }
-
-    void SetSoftwareVersion(uint32_t value)
-    {
-	    this->softwareVersion = value;
-    }
-
     void SetOn(bool value)
     {
 	    this->on = value;
     }
 
+    chip::NodeId GetNodeId()
+    {
+        return this->nodeId;
+    }
+
+    chip::CharSpan GetFriendlyName()
+    {
+        return this->friendlyName;
+    }
+
+    chip::CharSpan GetVendorName()
+    {
+        return this->vendorName;
+    }
+
+    chip::CharSpan GetProductName()
+    {
+        return this->productName;
+    }
+
+    bool GetReachable()
+    {
+        return this->reachable = true;
+    }
+
+    chip::CharSpan GetHardwareVersionString()
+    {
+        return this->hardwareVersionString;
+    }
+
+    chip::CharSpan GetSoftwareVersionString()
+    {
+	    return this->softwareVersionString;
+    }
+
+    bool GetOn()
+    {
+	    return this->on;
+    }
+
+    bool GetOnOffSubscriptionEstablished()
+    {
+        return this->OnOffSubscriptionEstablished;
+    }
+
+    uint8_t GetType()
+    {
+        return this->type;
+    }
+
+    void SetOnOffSubscriptionEstablished(bool value)
+    {
+        this->OnOffSubscriptionEstablished = value;
+    }
+
+    void SetType(uint8_t value)
+    {
+        this->type = value;
+    }
+
 private:
+    chip::NodeId nodeId = chip::kUndefinedNodeId;
+    chip::CharSpan friendlyName;
+    chip::CharSpan vendorName;
+    chip::CharSpan productName;
+    bool reachable = true; // fixed value for now
+    chip::CharSpan hardwareVersionString;
+    chip::CharSpan softwareVersionString;
+    bool on = false; // valid only for on-off devices.
+    bool OnOffSubscriptionEstablished = false; // valid only for on-off devices.
+    uint8_t type = 0; // 1 for admin devices
+
     static constexpr size_t kFriendlyNameMaxSize = 32u;
     char mFriendlyNameBuffer[kFriendlyNameMaxSize];
 
@@ -157,6 +190,12 @@ private:
 
     static constexpr size_t kProductNameMaxSize = 32u;
     char mProductNameBuffer[kProductNameMaxSize];
+
+    static constexpr size_t kHardwareVersionMaxSize = 32u;
+    char mHardwareVersionBuffer[kHardwareVersionMaxSize];
+
+    static constexpr size_t kSoftwareVersionMaxSize = 32u;
+    char mSoftwareVersionBuffer[kSoftwareVersionMaxSize];
 };
 
 class DeviceDatastoreCache
@@ -169,7 +208,6 @@ public:
     CHIP_ERROR AddDevice(chip::NodeId nodeIdValue, chip::Optional<chip::CharSpan> friendlyName = chip::NullOptional);
     DeviceEntry* GetDevice(chip::NodeId nodeIdValue);
     void PrintDevices();
-
 
 private:
     friend DeviceDatastoreCache & DeviceDatastoreCacheInstance();

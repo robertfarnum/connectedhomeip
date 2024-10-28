@@ -48,7 +48,7 @@ DeviceEntry* DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
 {
     for (auto & deviceEntry : mDeviceDataStoreCache)
     {
-        if (deviceEntry.nodeId == nodeIdValue)
+        if (deviceEntry.GetNodeId() == nodeIdValue)
         {
 		return &deviceEntry;
         }
@@ -63,9 +63,10 @@ void DeviceDatastoreCache::PrintDevices()
 
     for (auto & deviceEntry : mDeviceDataStoreCache)
     {
-        ChipLogProgress(JointFabric, "NodeID: %lu, friendlyName: %s", deviceEntry.nodeId, deviceEntry.friendlyName.data());
-        ChipLogProgress(JointFabric, "VendorName: %s, ProductName: %s", deviceEntry.vendorName.data(), deviceEntry.productName.data());
-        ChipLogProgress(JointFabric, "Reachable: %d, HW-Version: %d, SW-Version: %d, On: %d", deviceEntry.reachable,
-                        deviceEntry.hardwareVersion, deviceEntry.softwareVersion, deviceEntry.on);
+        ChipLogProgress(JointFabric, "NodeID: %lu, friendlyName: %s", deviceEntry.GetNodeId(), deviceEntry.GetFriendlyName().data());
+        ChipLogProgress(JointFabric, "VendorName: %s, ProductName: %s", deviceEntry.GetVendorName().data(), deviceEntry.GetProductName().data());
+        ChipLogProgress(JointFabric, "Reachable: %d, HW-Version: %s, SW-Version: %s, On: %d", deviceEntry.GetReachable(),
+                        deviceEntry.GetHardwareVersionString().data(), deviceEntry.GetSoftwareVersionString().data(), deviceEntry.GetOn());
+        ChipLogProgress(JointFabric, "Type:%d", deviceEntry.GetType());
     }
 }
