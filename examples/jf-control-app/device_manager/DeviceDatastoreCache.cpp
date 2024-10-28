@@ -18,39 +18,62 @@
 
 #include "DeviceDatastoreCache.h"
 
+#include <algorithm>
+#include <vector>
+
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 
-namespace {
-}
+namespace {}
 
 DeviceDatastoreCache DeviceDatastoreCache::sInstance;
 
 void DeviceDatastoreCache::Init()
 {
-    mInitialized    = true;
+    mInitialized = true;
 }
-
 
 CHIP_ERROR DeviceDatastoreCache::AddDevice(NodeId nodeIdValue, chip::Optional<chip::CharSpan> friendlyName)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    VerifyOrReturnError(mDeviceDataStoreCache.size() < kMaxDevices, CHIP_ERROR_NO_MEMORY);
+    VerifyOrReturnError(mDeviceDatastoreCache.size() < kMaxDevices, CHIP_ERROR_NO_MEMORY);
 
-    mDeviceDataStoreCache.push_back(DeviceEntry(nodeIdValue, friendlyName));
+    mDeviceDatastoreCache.push_back(DeviceEntry(nodeIdValue, friendlyName));
+
+    triggerDeviceAddedListeners(nodeIdValue);
 
     return err;
 }
 
-DeviceEntry* DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
+CHIP_ERROR DeviceDatastoreCache::RemoveDevice(NodeId nodeIdValue)
 {
-    for (auto & deviceEntry : mDeviceDataStoreCache)
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    VerifyOrReturnError(mDeviceDatastoreCache.size() > 0, CHIP_ERROR_NOT_FOUND);
+
+    mDeviceDatastoreCache.erase(std::remove_if(mDeviceDatastoreCache.begin(), mDeviceDatastoreCache.end(),
+                                               [&](DeviceEntry deviceEntry) { return deviceEntry.nodeId == nodeIdValue; }),
+                                mDeviceDatastoreCache.end());
+
+    triggerDeviceRemovedListeners(nodeIdValue);
+
+    return err;
+}
+
+std::vector<DeviceEntry> DeviceDatastoreCache::GetDevices()
+{
+    return mDeviceDatastoreCache;
+}
+
+DeviceEntry * DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
+{
+    for (auto & deviceEntry : mDeviceDatastoreCache)
     {
         if (deviceEntry.nodeId == nodeIdValue)
         {
-		return &deviceEntry;
+            return &deviceEntry;
         }
     }
 
@@ -61,10 +84,11 @@ void DeviceDatastoreCache::PrintDevices()
 {
     ChipLogProgress(JointFabric, "DeviceDatastoreCache contents: ");
 
-    for (auto & deviceEntry : mDeviceDataStoreCache)
+    for (auto & deviceEntry : mDeviceDatastoreCache)
     {
         ChipLogProgress(JointFabric, "NodeID: %lu, friendlyName: %s", deviceEntry.nodeId, deviceEntry.friendlyName.data());
-        ChipLogProgress(JointFabric, "VendorName: %s, ProductName: %s", deviceEntry.vendorName.data(), deviceEntry.productName.data());
+        ChipLogProgress(JointFabric, "VendorName: %s, ProductName: %s", deviceEntry.vendorName.data(),
+                        deviceEntry.productName.data());
         ChipLogProgress(JointFabric, "Reachable: %d, HW-Version: %d, SW-Version: %d, On: %d", deviceEntry.reachable,
                         deviceEntry.hardwareVersion, deviceEntry.softwareVersion, deviceEntry.on);
     }

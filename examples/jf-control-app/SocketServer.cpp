@@ -15,6 +15,7 @@
 
 #include "JFAdmin.h"
 #include "SocketServer.h"
+#include "device_manager/DeviceDatastoreCache.h"
 
 using namespace pw;
 using namespace chip;
@@ -23,23 +24,86 @@ using namespace chip::app::Clusters;
 
 static uint16_t socketServerPort = 8112;
 static int sockfd                = -1;
-
-static Json::Value handleOpenCommissioningWindow(Json::Value data)
-{
-    Json::Value result;
-
-    ChipLogProgress(NotSpecified, "handleOpenCommissioningWindow called");
-
-    return result;
-}
-static std::string lightFriendlyName = "Xfinity Light";
-static std::string adminFriendlyName = "NXP Administrator";
-static chip::NodeId lightNodeId      = 10;
-static chip::NodeId adminNodeId      = 1;
-static chip::NodeId nextNodeId       = 20;
+static chip::NodeId nextNodeId   = 20;
 static Json::Value devices(Json::arrayValue);
 
 static bool inited = false;
+
+static Json::Value * findDevice(chip::NodeId nodeId)
+{
+    Json::Value * device = NULL;
+
+    for (unsigned int index = 0; index < devices.size(); index++)
+    {
+        if (devices[index]["nodeId"] == nodeId)
+        {
+            device = &devices[index];
+        }
+    }
+
+    return device;
+}
+
+static void updateDevice(Json::Value * device, DeviceEntry * deviceEntry)
+{
+    ChipLogProgress(NotSpecified, "updateDevice() called");
+
+    if (device == NULL)
+    {
+        return;
+    }
+
+    (*device)["nodeId"] = std::to_string(deviceEntry->nodeId);
+    //(*device)["friendlyName"]    = deviceEntry->friendlyName;
+    (*device)["reachable"] = true;
+    (*device)["on"]        = deviceEntry->on;
+    //(*device)["vendorName"]      = deviceEntry->vendorName;
+    //(*device)["productName"]     = deviceEntry->productName;
+    (*device)["hardwareVersion"] = deviceEntry->hardwareVersion;
+    (*device)["softwareVersion"] = deviceEntry->softwareVersion;
+    (*device)["type"]            = 0;
+}
+
+static void addDevice(DeviceEntry * deviceEntry)
+{
+    ChipLogProgress(NotSpecified, "addDevice() called");
+
+    if (deviceEntry == NULL)
+    {
+        return;
+    }
+
+    if (findDevice(deviceEntry->nodeId) != NULL)
+    {
+        ChipLogProgress(NotSpecified, "addDevice(); device already exists");
+        return;
+    }
+
+    Json::Value device;
+    updateDevice(&device, deviceEntry);
+    devices.append(device);
+}
+
+static void removeDevice(DeviceEntry * deviceEntry)
+{
+    ChipLogProgress(NotSpecified, "removeDevice() called");
+}
+
+class ControlDeviceDatastoreCacheListener : DeviceDatastoreCacheListener
+{
+    void DeviceAdded(chip::NodeId nodeId)
+    {
+        DeviceEntry * deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
+        addDevice(deviceEntry);
+    }
+
+    void DeviceRemoved(DeviceEntry * deviceEntry) { removeDevice(deviceEntry); }
+};
+
+class ControlDeviceEntryListener : DeviceEntryListener
+{
+    void Updated(DeviceEntry * deviceEntry) { Json::Value device = findDevice(deviceEntry->nodeId); }
+};
 
 static void initDevices()
 {
@@ -50,9 +114,18 @@ static void initDevices()
 
     inited = true;
 
+    ChipLogProgress(NotSpecified, "initDevices() called");
+
+    std::vector<DeviceEntry> deviceEntries = DeviceDatastoreCacheInstance().GetDevices();
+
+    for (auto & deviceEntry : deviceEntries)
+    {
+        addDevice(&deviceEntry);
+    }
+
     Json::Value lightDevice;
-    lightDevice["nodeId"]          = std::to_string(lightNodeId);
-    lightDevice["friendlyName"]    = lightFriendlyName;
+    lightDevice["nodeId"]          = std::to_string(10);
+    lightDevice["friendlyName"]    = "Xfinity Light";
     lightDevice["reachable"]       = true;
     lightDevice["on"]              = false;
     lightDevice["vendorName"]      = "tapo";
@@ -63,8 +136,8 @@ static void initDevices()
     devices.append(lightDevice);
 
     Json::Value adminDevice;
-    adminDevice["nodeId"]          = std::to_string(adminNodeId);
-    adminDevice["friendlyName"]    = adminFriendlyName;
+    adminDevice["nodeId"]          = std::to_string(1);
+    adminDevice["friendlyName"]    = "NXP Administrator";
     adminDevice["reachable"]       = true;
     adminDevice["vendorName"]      = "NXP";
     adminDevice["productName"]     = "RW612";
@@ -72,6 +145,15 @@ static void initDevices()
     adminDevice["softwareVersion"] = "1.0";
     adminDevice["type"]            = 1;
     devices.append(adminDevice);
+}
+
+static Json::Value handleOpenCommissioningWindow(Json::Value data)
+{
+    Json::Value result;
+
+    ChipLogProgress(NotSpecified, "handleOpenCommissioningWindow called");
+
+    return result;
 }
 
 static Json::Value handleCommissionAdminDevice(Json::Value data)
@@ -101,24 +183,17 @@ static Json::Value handleCommissionDevice(Json::Value data)
     const std::string setupPinCode  = data["setupPinCode"].asString();
     const std::string discriminator = data["discriminator"].asString();
 
-    chip::NodeId nodeId = lightNodeId;
-
-    if (nextNodeId > 20)
-    {
-        nodeId = nextNodeId;
-    }
-
     ChipLogProgress(NotSpecified,
                     "handleCommissionDevice(setup_pin_code=\"%s\", discriminator=\"%s\", duration=\"%s\"), ssid=\"%s\"",
                     setupPinCode.c_str(), discriminator.c_str(), duration.c_str(), ssid.c_str());
 
     StringBuilder<kMaxCommandSize> commandBuilder;
     commandBuilder.Add("pairing ble-wifi ");
-    commandBuilder.AddFormat("%lu %s %s %s %s --bypass-attestation-verifier 1", nodeId, ssid.c_str(), password.c_str(),
+    commandBuilder.AddFormat("%lu %s %s %s %s --bypass-attestation-verifier 1", nextNodeId, ssid.c_str(), password.c_str(),
                              setupPinCode.c_str(), discriminator.c_str());
     PushCommand(commandBuilder.c_str());
 
-    nodeId++;
+    nextNodeId++;
 
     result["errorCode"] = 0;
 
@@ -343,7 +418,7 @@ static void RunSocketServer(void)
         return;
     }
 
-    const int enable = 1;
+    const int enable = 0;
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
     {
         ChipLogError(NotSpecified, "ERROR: setsockop failed");
