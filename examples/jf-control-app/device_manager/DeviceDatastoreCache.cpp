@@ -44,6 +44,20 @@ CHIP_ERROR DeviceDatastoreCache::AddDevice(NodeId nodeIdValue, chip::Optional<ch
     return err;
 }
 
+CHIP_ERROR DeviceDatastoreCache::RemoveDevice(NodeId nodeIdValue)
+{
+    for (auto it = mDeviceDataStoreCache.begin(); it != mDeviceDataStoreCache.end(); ++it)
+    {
+        if (it->GetNodeId() == nodeIdValue)
+        {
+            mDeviceDataStoreCache.erase(it);
+            return CHIP_NO_ERROR;
+        }
+    }
+
+    return CHIP_ERROR_KEY_NOT_FOUND;
+}
+
 DeviceEntry* DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
 {
     for (auto & deviceEntry : mDeviceDataStoreCache)
@@ -67,6 +81,6 @@ void DeviceDatastoreCache::PrintDevices()
         ChipLogProgress(JointFabric, "VendorName: %s, ProductName: %s", deviceEntry.GetVendorName().data(), deviceEntry.GetProductName().data());
         ChipLogProgress(JointFabric, "Reachable: %d, HW-Version: %s, SW-Version: %s, On: %d", deviceEntry.GetReachable(),
                         deviceEntry.GetHardwareVersionString().data(), deviceEntry.GetSoftwareVersionString().data(), deviceEntry.GetOn());
-        ChipLogProgress(JointFabric, "Type:%d", deviceEntry.GetType());
+        ChipLogProgress(JointFabric, "Type:%d, OnOffSubscriptionEstablished: %d", deviceEntry.GetType(), deviceEntry.GetOnOffSubscriptionEstablished());
     }
 }

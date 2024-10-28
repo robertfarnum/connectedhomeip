@@ -40,7 +40,7 @@ public:
         SetHardwareVersion(MakeOptional(op.hardwareVersionString));
         SetSoftwareVersion(MakeOptional(op.softwareVersionString));
         SetOn(op.on);
-        SetOnOffSubscriptionEstablished(OnOffSubscriptionEstablished);
+        SetOnOffSubscriptionEstablished(op.OnOffSubscriptionEstablished);
         SetType(op.type);
 
         return *this;
@@ -224,6 +224,8 @@ public:
     void Init();
 
     CHIP_ERROR AddDevice(chip::NodeId nodeIdValue, chip::Optional<chip::CharSpan> friendlyName = chip::NullOptional);
+    CHIP_ERROR RemoveDevice(chip::NodeId nodeIdValue);
+
     DeviceEntry* GetDevice(chip::NodeId nodeIdValue);
     void PrintDevices();
 
