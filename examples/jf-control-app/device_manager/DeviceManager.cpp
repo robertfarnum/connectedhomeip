@@ -18,10 +18,10 @@
 
 #include "DeviceManager.h"
 
+#include "DeviceDatastoreCache.h"
 #include <commands/common/CHIPCommand.h>
 #include <commands/interactive/InteractiveCommands.h>
 #include <lib/support/StringBuilder.h>
-#include "DeviceDatastoreCache.h"
 
 using namespace chip;
 using namespace chip::app;
@@ -47,8 +47,6 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
     StringBuilder<kMaxCommandSize> commandBuilder;
     if (jfAdminAppCommissioned)
     {
-        AddNewNodeInDatastoreCache(nodeId);
-
         commandBuilder.Add("jointfabricdatastore add-pending-node ");
         commandBuilder.AddFormat("%lu FriendlyName %lu %d ", nodeId, jfAdminAppNodeId, kRootEndpointId);
         PushCommand(commandBuilder.c_str());
@@ -69,6 +67,8 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
         commandBuilder.AddFormat("1 180 %lu %d", jfAdminAppNodeId, kRootEndpointId);
         PushCommand(commandBuilder.c_str());
     }
+
+    AddNewNodeInDatastoreCache(nodeId);
 }
 
 void DeviceManager::HandleOnResponse(const app::ConcreteDataAttributePath & path, NodeId remotePeerNodeId)
@@ -96,43 +96,32 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
 
     if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::NodeLabel::Id))
     {
-        uint8_t friendlyNameBuffer[33] = {0}; // one extra byte required for the null terminator
+        uint8_t friendlyNameBuffer[33] = { 0 }; // one extra byte required for the null terminator
         CharSpan friendlyNameCharSpan;
         size_t size_to_copy = 0;
-        error = DataModel::Decode(reader, friendlyNameCharSpan);
+        error               = DataModel::Decode(reader, friendlyNameCharSpan);
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned && friendlyNameCharSpan.size())
         {
             size_to_copy = friendlyNameCharSpan.size() > 32 ? 32 : friendlyNameCharSpan.size();
-            memcpy (friendlyNameBuffer, friendlyNameCharSpan.data(), size_to_copy);
+            memcpy(friendlyNameBuffer, friendlyNameCharSpan.data(), size_to_copy);
 
-            DeviceEntry* deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
+            DeviceEntry * deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
             if (deviceEntry)
             {
                 deviceEntry->SetFriendlyName(MakeOptional(friendlyNameCharSpan));
             }
 
             commandBuilder.Add("jointfabricdatastore update-node ");
-            commandBuilder.AddFormat("%lu %s %lu %d", destinationId, friendlyNameBuffer, jfAdminAppNodeId, kRootEndpointId);
+            commandBuilder.AddFormat("%lu '%s' %lu %d", destinationId, friendlyNameBuffer, jfAdminAppNodeId, kRootEndpointId);
             PushCommand(commandBuilder.c_str());
-        }
-    }
-    else if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::Reachable::Id))
-    {
-        bool value = false;
-        error = chip::app::DataModel::Decode(reader, value);
-
-        DeviceEntry* deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
-        if (deviceEntry)
-        {
-            deviceEntry->SetReachable(value);
         }
     }
     else if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::VendorName::Id))
     {
         CharSpan value;
         error = chip::app::DataModel::Decode(reader, value);
-        DeviceEntry* deviceEntry;
+        DeviceEntry * deviceEntry;
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
@@ -147,7 +136,7 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
     {
         CharSpan value;
         error = chip::app::DataModel::Decode(reader, value);
-        DeviceEntry* deviceEntry;
+        DeviceEntry * deviceEntry;
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
@@ -158,67 +147,97 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
             }
         }
     }
-    else if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::HardwareVersion::Id))
+    else if ((path.mClusterId == BasicInformation::Id) &&
+             (path.mAttributeId == BasicInformation::Attributes::HardwareVersionString::Id))
     {
-        uint16_t value;
+        CharSpan value;
         error = chip::app::DataModel::Decode(reader, value);
-        DeviceEntry* deviceEntry;
+        DeviceEntry * deviceEntry;
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
             deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
             if (deviceEntry)
             {
-                deviceEntry->SetHardwareVersion(value);
+                deviceEntry->SetHardwareVersion(MakeOptional(value));
             }
         }
     }
-    else if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::SoftwareVersion::Id))
+    else if ((path.mClusterId == BasicInformation::Id) &&
+             (path.mAttributeId == BasicInformation::Attributes::SoftwareVersionString::Id))
     {
-        uint32_t value;
+        CharSpan value;
         error = chip::app::DataModel::Decode(reader, value);
-        DeviceEntry* deviceEntry;
+        DeviceEntry * deviceEntry;
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
             deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
             if (deviceEntry)
             {
-                deviceEntry->SetSoftwareVersion(value);
+                deviceEntry->SetSoftwareVersion(MakeOptional(value));
             }
         }
     }
     else if ((path.mClusterId == OnOff::Id) && (path.mAttributeId == OnOff::Attributes::OnOff::Id))
     {
         bool value = false;
-        error = chip::app::DataModel::Decode(reader, value);
-        DeviceEntry* deviceEntry;
+        error      = chip::app::DataModel::Decode(reader, value);
+        DeviceEntry * deviceEntry;
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
-             deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
-             if (deviceEntry)
-             {
-                 deviceEntry->SetOn(value);
-             }
+            deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
+            if (deviceEntry)
+            {
+                deviceEntry->SetOn(value);
+            }
+
+            if (!deviceEntry->GetOnOffSubscriptionEstablished())
+            {
+                /* establish subscription to on-off attribute */
+                commandBuilder.Add("onoff subscribe on-off 1 180 ");
+                commandBuilder.AddFormat("%lu %d ", destinationId, kRootEndpointId + 1);
+                PushCommand(commandBuilder.c_str());
+
+                deviceEntry->SetOnOffSubscriptionEstablished(true);
+            }
+        }
+    }
+    else if ((path.mClusterId == JointFabricDatastore::Id) &&
+             (path.mAttributeId == JointFabricDatastore::Attributes::ClusterRevision::Id))
+    {
+        uint16_t value = 0;
+        error          = chip::app::DataModel::Decode(reader, value);
+        DeviceEntry * deviceEntry;
+
+        if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
+        {
+            deviceEntry = DeviceDatastoreCacheInstance().GetDevice(destinationId);
+            if (deviceEntry)
+            {
+                deviceEntry->SetType(1);
+            }
         }
     }
     else if ((path.mClusterId == JointFabricDatastore::Id) && (path.mAttributeId == JointFabricDatastore::Attributes::NodeList::Id))
     {
         chip::app::DataModel::DecodableList<
-            chip::app::Clusters::JointFabricDatastore::Structs::DatastoreNodeInformationEntry::DecodableType> value;
+            chip::app::Clusters::JointFabricDatastore::Structs::DatastoreNodeInformationEntry::DecodableType>
+            value;
         error = chip::app::DataModel::Decode(reader, value);
+        DeviceEntry * deviceEntry;
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
             auto iter = value.begin();
             while (iter.Next())
             {
-                NodeId nodeId = iter.GetValue().nodeID;
+                NodeId nodeId         = iter.GetValue().nodeID;
                 CharSpan friendlyName = iter.GetValue().friendlyName;
 
-                DeviceEntry* deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
-                if (deviceEntry && (deviceEntry->friendlyName.data_equal(friendlyName) == false))
+                deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
+                if (deviceEntry && (deviceEntry->GetFriendlyName().data_equal(friendlyName) == false))
                 {
                     deviceEntry->SetFriendlyName(MakeOptional(friendlyName));
                 }
@@ -240,11 +259,6 @@ void DeviceManager::TriggerDatastoreCachePopulation(NodeId nodeId)
     PushCommand(commandBuilder.c_str());
 
     commandBuilder.Reset();
-    commandBuilder.Add("basicinformation read reachable ");
-    commandBuilder.AddFormat("%lu %d ", nodeId, kRootEndpointId);
-    PushCommand(commandBuilder.c_str());
-
-    commandBuilder.Reset();
     commandBuilder.Add("basicinformation read vendor-name ");
     commandBuilder.AddFormat("%lu %d ", nodeId, kRootEndpointId);
     PushCommand(commandBuilder.c_str());
@@ -255,12 +269,17 @@ void DeviceManager::TriggerDatastoreCachePopulation(NodeId nodeId)
     PushCommand(commandBuilder.c_str());
 
     commandBuilder.Reset();
-    commandBuilder.Add("basicinformation read hardware-version ");
+    commandBuilder.Add("basicinformation read hardware-version-string ");
     commandBuilder.AddFormat("%lu %d ", nodeId, kRootEndpointId);
     PushCommand(commandBuilder.c_str());
 
     commandBuilder.Reset();
-    commandBuilder.Add("basicinformation read software-version ");
+    commandBuilder.Add("basicinformation read software-version-string ");
+    commandBuilder.AddFormat("%lu %d ", nodeId, kRootEndpointId);
+    PushCommand(commandBuilder.c_str());
+
+    commandBuilder.Reset();
+    commandBuilder.Add("jointfabricdatastore read cluster-revision ");
     commandBuilder.AddFormat("%lu %d ", nodeId, kRootEndpointId);
     PushCommand(commandBuilder.c_str());
 
@@ -276,11 +295,6 @@ void DeviceManager::AddNewNodeInDatastoreCache(chip::NodeId nodeId, chip::Option
 
     /* add device in the DS cache */
     DeviceDatastoreCacheInstance().AddDevice(nodeId, friendlyName);
-
-    /* establish subscription to on-off attribute */
-    commandBuilder.Add("onoff subscribe on-off 1 180 ");
-    commandBuilder.AddFormat("%lu %d ", nodeId, kRootEndpointId + 1);
-    PushCommand(commandBuilder.c_str());
 
     TriggerDatastoreCachePopulation(nodeId);
 }

@@ -83,6 +83,15 @@ public:
 
     void SetMaximallyLargeCertsUsed(bool enabled) { mExampleOpCredsIssuer.SetMaximallyLargeCertsUsed(enabled); }
 
+    CHIP_ERROR ObtainIcaCsr(MutableByteSpan & icaCsr) { return CHIP_ERROR_NOT_IMPLEMENTED; }
+
+    CHIP_ERROR SignNOCIssuer(const ByteSpan & icaCsr, Callback::Callback<chip::Controller::OnNOCIssuerSigned> * onCompletion)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
+    CHIP_ERROR SignNOC(const ByteSpan & icac, const ByteSpan & nocCsr, MutableByteSpan & noc) { return CHIP_ERROR_NOT_IMPLEMENTED; }
+
 private:
     CHIP_ERROR GenerateNOCChain(const ByteSpan & csrElements, const ByteSpan & csrNonce, const ByteSpan & attestationSignature,
                                 const ByteSpan & attestationChallenge, const ByteSpan & DAC, const ByteSpan & PAI,

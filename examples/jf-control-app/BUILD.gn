@@ -95,8 +95,10 @@ static_library("jf-control-app-utils") {
 
   if (config_enable_grpc) {
     sources += [
-      "SocketServer.cpp",
-      "SocketServer.h"
+      "control_server/ControlServer.cpp",
+      "control_server/ControlServer.h",
+      "control_server/SocketServer.cpp",
+      "control_server/SocketServer.h"
     ]
   }
 

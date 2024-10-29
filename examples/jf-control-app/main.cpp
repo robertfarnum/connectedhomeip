@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include "RpcClient.h"
+#include "RpcServer.h"
 #include "commands/clusters/SubscriptionsCommands.h"
 #include "commands/icd/ICDCommand.h"
 #include "commands/interactive/Commands.h"
@@ -29,11 +31,9 @@
 #include "commands/pairing/Commands.h"
 #include "commands/rpc/Commands.h"
 #include <device_manager/DeviceManager.h>
-#include "RpcClient.h"
-#include "RpcServer.h"
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-//#include "GrpcServer.h"
-#include "SocketServer.h"
+// #include "GrpcServer.h"
+#include "control_server/SocketServer.h"
 #endif /* CONFIG_ENABLE_GRPC */
 
 #include <zap-generated/cluster/Commands.h>
@@ -53,12 +53,14 @@ int main(int argc, char * argv[])
     int i = 0;
 
     /* Check for special command line options */
-    while (i < argc) {
-        auto arg = args[(unsigned)i];
-        if (arg.compare("--enable-grpc") == 0) {
+    while (i < argc)
+    {
+        auto arg = args[(unsigned) i];
+        if (arg.compare("--enable-grpc") == 0)
+        {
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-            //StartGrpcServer();
-            StartSocketServer();
+            // StartGrpcServer();
+            SocketServer().start();
 #endif /* CONFIG_ENABLE_GRPC */
             /* Remove this option from the argument list so that it is not
              * propagated further to the command processing engine. */

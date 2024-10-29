@@ -5,17 +5,17 @@
 
 #include "RpcClient.h"
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
-//#include "GrpcServer.h"
-#include "SocketServer.h"
+// #include "GrpcServer.h"
+#include "control_server/SocketServer.h"
 #endif /* CONFIG_ENABLE_GRPC */
 
-#define MAX_MESSAGE_LEN         65
+#define MAX_MESSAGE_LEN 65
 
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 CHIP_ERROR RpcStartGrpcServerCommand::Run()
 {
-    //return StartGrpcServer();
-    return StartSocketServer();
+    // return StartGrpcServer();
+    return SocketServer().start();
 }
 #endif /* CONFIG_ENABLE_GRPC */
 
@@ -29,7 +29,8 @@ CHIP_ERROR RpcStatusCommand::Run()
 {
     int rpcStatus = RpcGetStatus();
 
-    switch(rpcStatus) {
+    switch (rpcStatus)
+    {
     case RPC_DISCONNECTED:
         ChipLogProgress(NotSpecified, "jf-admin NOT connected.");
         break;

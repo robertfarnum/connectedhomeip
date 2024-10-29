@@ -56,6 +56,15 @@ public:
     void SetNodeIdForNextNOCRequest(NodeId nodeId) override {}
 
     void SetFabricIdForNextNOCRequest(FabricId fabricId) override {}
+
+    CHIP_ERROR ObtainIcaCsr(MutableByteSpan & icaCsr) { return CHIP_ERROR_NOT_IMPLEMENTED; }
+
+    CHIP_ERROR SignNOCIssuer(const ByteSpan & icaCsr, Callback::Callback<chip::Controller::OnNOCIssuerSigned> * onCompletion)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+
+    CHIP_ERROR SignNOC(const ByteSpan & icac, const ByteSpan & nocCsr, MutableByteSpan & noc) { return CHIP_ERROR_NOT_IMPLEMENTED; }
 };
 
 } // namespace Python
