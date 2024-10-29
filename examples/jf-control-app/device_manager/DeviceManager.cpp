@@ -313,17 +313,32 @@ void DeviceManager::SetJfOnboarded(uint64_t nodeId)
 {
     StringBuilder<kMaxCommandSize> commandBuilder;
 
-    jfOnboarded = true;
-    /* stop all subscriptions */
+    /* stop all subscriptions before using the new operational identity */
     commandBuilder.Reset();
     commandBuilder.Add("subscriptions shutdown-all");
     PushCommand(commandBuilder.c_str());
 
-    jfAdminAppNodeId = nodeId;
+    DeviceDatastoreCacheInstance().RemoveDevice(jfAdminAppNodeId);
 
+    /* set it to true for the GetCurrentCommissioner() callbacks */
+    jfOnboarded = true;
+
+    jfAdminAppNodeId = nodeId;
     /* establish a subscription to Anchor JFA DS Node-List*/
     commandBuilder.Reset();
     commandBuilder.Add("jointfabricdatastore subscribe node-list ");
     commandBuilder.AddFormat("1 180 %lu %d", jfAdminAppNodeId, kRootEndpointId);
     PushCommand(commandBuilder.c_str());
+
+    /* re-establish subscriptions to the on off devices */
+    for (DeviceEntry deviceEntry : DeviceDatastoreCacheInstance().GetDeviceDatastoreCache())
+    {
+        if (deviceEntry.GetOnOffSubscriptionEstablished())
+        {
+            commandBuilder.Reset();
+            commandBuilder.Add("onoff subscribe on-off 1 180 ");
+            commandBuilder.AddFormat("%lu %d ", deviceEntry.GetNodeId(), kRootEndpointId + 1);
+            PushCommand(commandBuilder.c_str());
+        }
+    }
 }

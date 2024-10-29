@@ -49,22 +49,19 @@ CHIP_ERROR DeviceDatastoreCache::AddDevice(NodeId nodeIdValue, chip::Optional<ch
 
 CHIP_ERROR DeviceDatastoreCache::RemoveDevice(NodeId nodeIdValue)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    for (auto it = mDeviceDatastoreCache.begin(); it != mDeviceDatastoreCache.end(); ++it)
+    {
+        if (it->GetNodeId() == nodeIdValue)
+        {
+            mDeviceDatastoreCache.erase(it);
 
-    VerifyOrReturnError(mDeviceDatastoreCache.size() > 0, CHIP_ERROR_NOT_FOUND);
+            triggerDeviceRemovedListeners(nodeIdValue);
 
-    mDeviceDatastoreCache.erase(std::remove_if(mDeviceDatastoreCache.begin(), mDeviceDatastoreCache.end(),
-                                               [&](DeviceEntry deviceEntry) { return deviceEntry.GetNodeId() == nodeIdValue; }),
-                                mDeviceDatastoreCache.end());
+            return CHIP_NO_ERROR;
+        }
+    }
 
-    triggerDeviceRemovedListeners(nodeIdValue);
-
-    return err;
-}
-
-std::vector<DeviceEntry> DeviceDatastoreCache::GetDevices()
-{
-    return mDeviceDatastoreCache;
+    return CHIP_ERROR_KEY_NOT_FOUND;
 }
 
 DeviceEntry * DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
@@ -93,6 +90,7 @@ void DeviceDatastoreCache::PrintDevices()
         ChipLogProgress(JointFabric, "Reachable: %d, HW-Version: %s, SW-Version: %s, On: %d", deviceEntry.GetReachable(),
                         deviceEntry.GetHardwareVersionString().data(), deviceEntry.GetSoftwareVersionString().data(),
                         deviceEntry.GetOn());
-        ChipLogProgress(JointFabric, "Type:%d", deviceEntry.GetType());
+        ChipLogProgress(JointFabric, "Type:%d, OnOffSubscriptionEstablished: %d", deviceEntry.GetType(),
+                        deviceEntry.GetOnOffSubscriptionEstablished());
     }
 }

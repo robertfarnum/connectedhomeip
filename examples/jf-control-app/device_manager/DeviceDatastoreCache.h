@@ -46,7 +46,7 @@ public:
         SetHardwareVersion(MakeOptional(op.hardwareVersionString));
         SetSoftwareVersion(MakeOptional(op.softwareVersionString));
         SetOn(op.on);
-        SetOnOffSubscriptionEstablished(OnOffSubscriptionEstablished);
+        SetOnOffSubscriptionEstablished(op.OnOffSubscriptionEstablished);
         SetType(op.type);
 
         return *this;
@@ -108,9 +108,25 @@ public:
         SetCharSpan(&(this->softwareVersionString), this->mSoftwareVersionBuffer, kSoftwareVersionMaxSize, label);
     }
 
-    void SetReachable(bool value) { this->reachable = value; }
+    void SetReachable(bool value)
+    {
+        if (this->reachable != value)
+        {
+            this->reachable = value;
 
-    void SetOn(bool value) { this->on = value; }
+            triggerListeners();
+        }
+    }
+
+    void SetOn(bool value)
+    {
+        if (this->on != value)
+        {
+            this->on = value;
+
+            triggerListeners();
+        }
+    }
 
     chip::NodeId GetNodeId() { return this->nodeId; }
 
@@ -132,9 +148,25 @@ public:
 
     uint8_t GetType() { return this->type; }
 
-    void SetOnOffSubscriptionEstablished(bool value) { this->OnOffSubscriptionEstablished = value; }
+    void SetOnOffSubscriptionEstablished(bool value)
+    {
+        if (this->OnOffSubscriptionEstablished != value)
+        {
+            this->OnOffSubscriptionEstablished = value;
 
-    void SetType(uint8_t value) { this->type = value; }
+            triggerListeners();
+        }
+    }
+
+    void SetType(uint8_t value)
+    {
+        if (this->type != value)
+        {
+            this->type = value;
+
+            triggerListeners();
+        }
+    }
 
     void AddListener(DeviceEntryListener * listener) { listeners.push_back(listener); }
 
@@ -199,9 +231,11 @@ public:
 
     CHIP_ERROR AddDevice(chip::NodeId nodeIdValue, chip::Optional<chip::CharSpan> friendlyName = chip::NullOptional);
     CHIP_ERROR RemoveDevice(chip::NodeId nodeIdValue);
+
     DeviceEntry * GetDevice(chip::NodeId nodeIdValue);
-    std::vector<DeviceEntry> GetDevices();
     void PrintDevices();
+
+    const std::vector<DeviceEntry> & GetDeviceDatastoreCache() { return mDeviceDatastoreCache; }
 
     void AddListener(DeviceDatastoreCacheListener * listener) { listeners.push_back(listener); }
 

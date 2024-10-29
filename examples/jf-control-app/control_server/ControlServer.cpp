@@ -25,7 +25,7 @@ ControlServer::ControlServer()
 
     DeviceDatastoreCacheInstance().AddListener(this);
 
-    std::vector<DeviceEntry> deviceEntries = DeviceDatastoreCacheInstance().GetDevices();
+    std::vector<DeviceEntry> deviceEntries = DeviceDatastoreCacheInstance().GetDeviceDatastoreCache();
 
     for (auto & deviceEntry : deviceEntries)
     {
