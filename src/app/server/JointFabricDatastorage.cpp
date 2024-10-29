@@ -72,6 +72,11 @@ CHIP_ERROR JointFabricDatastorage::AddPendingNode(FabricIndex fabricId, NodeId n
     mNodeInformationEntries.push_back(GenericDatastoreNodeInformationEntry(
         nodeId, fabricId, Clusters::JointFabricDatastore::DatastoreStateEnum::kPending, MakeOptional(friendlyName)));
 
+    for (Listener * listener = mListeners; listener != nullptr; listener = listener->mNext)
+    {
+        listener->MarkNodeListChanged();
+    }
+
     return CHIP_NO_ERROR;
 }
 
@@ -82,6 +87,12 @@ CHIP_ERROR JointFabricDatastorage::UpdateNode(NodeId nodeId, const CharSpan & fr
         if (entry.nodeID == nodeId)
         {
             entry.Set(MakeOptional(friendlyName));
+
+            for (Listener * listener = mListeners; listener != nullptr; listener = listener->mNext)
+            {
+                listener->MarkNodeListChanged();
+            }
+
             return CHIP_NO_ERROR;
         }
     }
@@ -96,6 +107,12 @@ CHIP_ERROR JointFabricDatastorage::RemoveNode(NodeId nodeId)
         if (it->nodeID == nodeId)
         {
             mNodeInformationEntries.erase(it);
+
+            for (Listener * listener = mListeners; listener != nullptr; listener = listener->mNext)
+            {
+                listener->MarkNodeListChanged();
+            }
+
             return CHIP_NO_ERROR;
         }
     }
