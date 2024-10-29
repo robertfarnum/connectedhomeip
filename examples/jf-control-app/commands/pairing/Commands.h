@@ -166,6 +166,14 @@ public:
     {}
 };
 
+class PairCodeJointFabric : public PairingCommand
+{
+public:
+    PairCodeJointFabric(CredentialIssuerCommands * credsIssuerConfig) :
+        PairingCommand("code-joint-fabric", PairingMode::Code, PairingNetworkType::None, credsIssuerConfig)
+    {}
+};
+
 class PairBleWiFi : public PairingCommand
 {
 public:
@@ -278,6 +286,7 @@ void registerCommandsPairing(Commands & commands, CredentialIssuerCommands * cre
         make_unique<PairOnNetworkDeviceType>(credsIssuerConfig),
         make_unique<PairOnNetworkInstanceName>(credsIssuerConfig),
         make_unique<PairOnNetworkJointFabric>(credsIssuerConfig),
+        make_unique<PairCodeJointFabric>(credsIssuerConfig),
         // TODO(#13973) - enable CommissionedListCommand once DNS Cache is implemented
         //        make_unique<CommissionedListCommand>(),
         make_unique<StartUdcServerCommand>(credsIssuerConfig),
