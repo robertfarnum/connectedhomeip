@@ -17,6 +17,8 @@ void SocketServer::handleConnection()
 {
     ControlServer controlServer;
 
+    bool firstAttempt = true;
+
     while (true)
     {
         // Receive the message length
@@ -26,6 +28,12 @@ void SocketServer::handleConnection()
         {
             // Handle error or disconnection
             ChipLogError(NotSpecified, "Recv length Error: %ld", bytesReceived);
+            if (firstAttempt)
+            {
+                firstAttempt = false;
+                continue;
+            }
+
             break;
         }
 
@@ -75,7 +83,7 @@ void SocketServer::handleConnection()
         ssize_t bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
         if (bytesSent < 0)
         {
-            ChipLogError(NotSpecified, "Error sending message length: %ld", bytesSent);
+            ChipLogError(NotSpecified, "Error sending message length: %ld, error = %ld", messageLength, bytesSent);
             break;
         }
 

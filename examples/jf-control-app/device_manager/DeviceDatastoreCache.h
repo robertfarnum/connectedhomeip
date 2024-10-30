@@ -169,6 +169,17 @@ public:
     }
 
     void AddListener(DeviceEntryListener * listener) { listeners.push_back(listener); }
+    void RemoveListener(DeviceEntryListener * listener)
+    {
+        for (size_t i = 0; i < listeners.size(); i++)
+        {
+            if (listeners[i] == listener)
+            {
+                listeners.erase(listeners.begin() + i);
+                break;
+            }
+        }
+    }
 
 private:
     chip::NodeId nodeId = chip::kUndefinedNodeId;
@@ -231,10 +242,17 @@ public:
 
     const std::vector<DeviceEntry> & GetDeviceDatastoreCache() { return mDeviceDatastoreCache; }
 
-    void AddListener(DeviceDatastoreCacheListener * listener)
+    void AddListener(DeviceDatastoreCacheListener * listener) { listeners.push_back(listener); }
+    void RemoveListener(DeviceDatastoreCacheListener * listener)
     {
-        ChipLogProgress(JointFabric, "listener = %p", listener);
-        listeners.push_back(listener);
+        for (size_t i = 0; i < listeners.size(); i++)
+        {
+            if (listeners[i] == listener)
+            {
+                listeners.erase(listeners.begin() + i);
+                break;
+            }
+        }
     }
 
 private:
@@ -253,7 +271,6 @@ private:
     {
         for (DeviceDatastoreCacheListener * listener : listeners)
         {
-            ChipLogProgress(JointFabric, "listener = %p", listener);
             listener->DeviceRemoved(nodeIdValue);
         }
     }
@@ -263,7 +280,6 @@ private:
     {
         for (DeviceDatastoreCacheListener * listener : listeners)
         {
-            ChipLogProgress(JointFabric, "listener = %p", listener);
             listener->DeviceAdded(nodeIdValue);
         }
     }

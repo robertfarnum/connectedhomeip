@@ -43,6 +43,18 @@ ControlServer::ControlServer()
     // devices.append(adminDevice);
 }
 
+ControlServer::~ControlServer()
+{
+    std::vector<DeviceEntry> deviceEntries = DeviceDatastoreCacheInstance().GetDeviceDatastoreCache();
+
+    for (auto & deviceEntry : deviceEntries)
+    {
+        deviceEntry.RemoveListener(this);
+    }
+
+    DeviceDatastoreCacheInstance().RemoveListener(this);
+}
+
 Json::Value * ControlServer::findDevice(chip::NodeId nodeId)
 {
     Json::Value * device = NULL;
@@ -130,6 +142,8 @@ void ControlServer::removeDevice(DeviceEntry & deviceEntry)
 
     ChipLogProgress(NotSpecified, "removeDevice(%lu) called", nodeId);
 
+    deviceEntry.RemoveListener(this);
+
     for (Json::ArrayIndex index = 0; index < devices.size(); index++)
     {
         Json::Value device        = devices[index];
@@ -180,16 +194,35 @@ Json::Value ControlServer::handleCommissionDevice(Json::Value data)
     const std::string password      = data["password"].asString();
     const std::string setupPinCode  = data["setupPinCode"].asString();
     const std::string discriminator = data["discriminator"].asString();
+    const bool useBle               = data["useBle"].asBool();
+    const bool useOnNetwork         = data["useOnNetwork"].asBool();
 
     ChipLogProgress(NotSpecified,
-                    "handleCommissionDevice(setup_pin_code=\"%s\", discriminator=\"%s\", duration=\"%s\"), ssid=\"%s\"",
-                    setupPinCode.c_str(), discriminator.c_str(), duration.c_str(), ssid.c_str());
+                    "handleCommissionDevice(setup_pin_code=\"%s\", discriminator=\"%s\", useBle=%d, useOnNetwork=%d, "
+                    "duration=\"%s\"), ssid=\"%s\"",
+                    setupPinCode.c_str(), discriminator.c_str(), useBle, useOnNetwork, duration.c_str(), ssid.c_str());
 
-    StringBuilder<kMaxCommandSize> commandBuilder;
-    commandBuilder.Add("pairing ble-wifi ");
-    commandBuilder.AddFormat("%lu %s %s %s %s --bypass-attestation-verifier 1", nextNodeId, ssid.c_str(), password.c_str(),
-                             setupPinCode.c_str(), discriminator.c_str());
-    PushCommand(commandBuilder.c_str());
+    if (useBle)
+    {
+        StringBuilder<kMaxCommandSize> commandBuilder;
+        commandBuilder.Add("pairing ble-wifi ");
+        commandBuilder.AddFormat("%lu %s %s %s %s --bypass-attestation-verifier 1", nextNodeId, ssid.c_str(), password.c_str(),
+                                 setupPinCode.c_str(), discriminator.c_str());
+        PushCommand(commandBuilder.c_str());
+    }
+    else if (useOnNetwork)
+    {
+        StringBuilder<kMaxCommandSize> commandBuilder;
+        commandBuilder.Add("pairing onnetwork ");
+        commandBuilder.AddFormat("%lu %s --bypass-attestation-verifier 1", nextNodeId, setupPinCode.c_str());
+        PushCommand(commandBuilder.c_str());
+    }
+    else
+    {
+        ChipLogError(NotSpecified, "Neither ble or onnetwork was selected");
+        result["errorCode"] = -1;
+        return result;
+    }
 
     nextNodeId++;
 

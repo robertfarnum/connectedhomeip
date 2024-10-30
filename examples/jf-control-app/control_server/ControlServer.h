@@ -8,8 +8,9 @@ class ControlServer : public DeviceDatastoreCacheListener, DeviceEntryListener
 {
 public:
     ControlServer();
+    ~ControlServer();
 
-    void DeviceAdded(chip::NodeId nodeId) override
+        void DeviceAdded(chip::NodeId nodeId) override
     {
         ChipLogProgress(NotSpecified, "DeviceAdded(%lu)", nodeId);
 
