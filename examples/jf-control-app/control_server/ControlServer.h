@@ -4,48 +4,63 @@
 
 #include "device_manager/DeviceDatastoreCache.h"
 
-class ControlServer : DeviceDatastoreCacheListener, DeviceEntryListener
+class ControlServer : public DeviceDatastoreCacheListener, DeviceEntryListener
 {
 public:
     ControlServer();
 
-    virtual void DeviceAdded(chip::NodeId nodeId)
+    void DeviceAdded(chip::NodeId nodeId) override
     {
         ChipLogProgress(NotSpecified, "DeviceAdded(%lu)", nodeId);
 
         DeviceEntry * deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
-        addDevice(deviceEntry);
+        if (deviceEntry == nullptr)
+        {
+            ChipLogError(NotSpecified, "DeviceUpdate() Invalid NodeId = %lu", nodeId);
+        }
+
+        addDevice(*deviceEntry);
     }
 
-    virtual void DeviceRemoved(chip::NodeId nodeId)
+    void DeviceRemoved(chip::NodeId nodeId) override
     {
         ChipLogProgress(NotSpecified, "DeviceRemoved(%lu)", nodeId);
 
-        removeDevice(nodeId);
+        DeviceEntry * deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
+        if (deviceEntry == nullptr)
+        {
+            ChipLogError(NotSpecified, "DeviceUpdate() Invalid NodeId = %lu", nodeId);
+        }
+
+        removeDevice(*deviceEntry);
     }
 
-    virtual void DeviceUpdated(DeviceEntry * deviceEntry)
+    void DeviceUpdated(chip::NodeId nodeId) override
     {
-        if (deviceEntry == NULL)
+        ChipLogProgress(NotSpecified, "Device Updated = %lu", nodeId);
+
+        DeviceEntry * deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
+        if (deviceEntry == nullptr)
         {
+            ChipLogError(NotSpecified, "DeviceUpdate() Invalid NodeId = %lu", nodeId);
             return;
         }
 
-        ChipLogProgress(NotSpecified, "Device Updated = %lu", deviceEntry->GetNodeId());
-
-        Json::Value * device = findDevice(deviceEntry->GetNodeId());
-
-        if (device != NULL)
+        Json::Value * device = findDevice(nodeId);
+        if (device == NULL)
         {
-            updateDevice(device, deviceEntry);
+            ChipLogError(NotSpecified, "DeviceUpdate() Failed to find device = %lu", nodeId);
+            return;
         }
+
+        updateDevice(*device, *deviceEntry);
     }
 
     Json::Value HandleMethod(std::string method, Json::Value data);
 
 private:
-    void updateOnOff(Json::Value * device, bool on);
-    void updateFriendlyName(Json::Value * device, std::string friendlyName);
+    void updateOnOff(Json::Value & device, bool on);
+    void updateFriendlyName(Json::Value & device, std::string friendlyName);
 
     // Method handlers
     Json::Value handleDeleteDevice(Json::Value data);
@@ -56,9 +71,9 @@ private:
     Json::Value handleOpenCommissioningWindow(Json::Value data);
 
     Json::Value * findDevice(chip::NodeId nodeId);
-    void updateDevice(Json::Value * device, DeviceEntry * deviceEntry);
-    void addDevice(DeviceEntry * deviceEntry);
-    void removeDevice(chip::NodeId nodeId);
+    void updateDevice(Json::Value & device, DeviceEntry & deviceEntry);
+    void addDevice(DeviceEntry & deviceEntry);
+    void removeDevice(DeviceEntry & deviceEntry);
 
     chip::NodeId nextNodeId = 20;
     Json::Value devices     = Json::Value(Json::arrayValue);

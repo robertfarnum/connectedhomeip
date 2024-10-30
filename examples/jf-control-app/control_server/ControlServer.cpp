@@ -21,8 +21,6 @@ using namespace chip::app::Clusters;
 
 ControlServer::ControlServer()
 {
-    ChipLogProgress(NotSpecified, "ControlServer() called");
-
     DeviceDatastoreCacheInstance().AddListener(this);
 
     std::vector<DeviceEntry> deviceEntries = DeviceDatastoreCacheInstance().GetDeviceDatastoreCache();
@@ -30,23 +28,11 @@ ControlServer::ControlServer()
     for (auto & deviceEntry : deviceEntries)
     {
         deviceEntry.AddListener(this);
-        addDevice(&deviceEntry);
+        addDevice(deviceEntry);
     }
 
-    // Json::Value lightDevice;
-    // lightDevice["nodeId"]          = std::to_string(10);
-    // lightDevice["friendlyName"]    = "Xfinity Light";
-    // lightDevice["reachable"]       = true;
-    // lightDevice["on"]              = false;
-    // lightDevice["vendorName"]      = "tapo";
-    // lightDevice["productName"]     = "tapo";
-    // lightDevice["hardwareVersion"] = "1.0";
-    // lightDevice["softwareVersion"] = "1.0";
-    // lightDevice["type"]            = 0;
-    // devices.append(lightDevice);
-
     // Json::Value adminDevice;
-    // adminDevice["nodeId"]          = std::to_string(1);
+    // adminDevice["nodeId"]          = chip::NodeId(1);
     // adminDevice["friendlyName"]    = "NXP Administrator";
     // adminDevice["reachable"]       = true;
     // adminDevice["vendorName"]      = "NXP";
@@ -61,9 +47,12 @@ Json::Value * ControlServer::findDevice(chip::NodeId nodeId)
 {
     Json::Value * device = NULL;
 
+    ChipLogProgress(NotSpecified, "findDevice(%lu), size = %d", nodeId, devices.size());
+
     for (unsigned int index = 0; index < devices.size(); index++)
     {
-        if (devices[index]["nodeId"] == nodeId)
+        chip::NodeId deviceNodeId = devices[index]["nodeId"].asUInt64();
+        if (deviceNodeId == nodeId)
         {
             device = &devices[index];
         }
@@ -72,51 +61,88 @@ Json::Value * ControlServer::findDevice(chip::NodeId nodeId)
     return device;
 }
 
-void ControlServer::updateDevice(Json::Value * device, DeviceEntry * deviceEntry)
+void ControlServer::updateDevice(Json::Value & device, DeviceEntry & deviceEntry)
 {
-    ChipLogProgress(NotSpecified, "updateDevice() called");
 
-    if (device == NULL)
+    chip::NodeId nodeId = deviceEntry.GetNodeId();
+
+    ChipLogProgress(NotSpecified, "updateDevice(%lu) called", nodeId);
+
+    ChipLogProgress(JointFabric, "NodeID: %lu, friendlyName: %s", deviceEntry.GetNodeId(), deviceEntry.GetFriendlyName().data());
+    ChipLogProgress(JointFabric, "VendorName: %s, ProductName: %s", deviceEntry.GetVendorName().data(),
+                    deviceEntry.GetProductName().data());
+    ChipLogProgress(JointFabric, "Reachable: %d, HW-Version: %s, SW-Version: %s, On: %d", deviceEntry.GetReachable(),
+                    deviceEntry.GetHardwareVersionString().data(), deviceEntry.GetSoftwareVersionString().data(),
+                    deviceEntry.GetOn());
+    ChipLogProgress(JointFabric, "Type:%d, OnOffSubscriptionEstablished: %d", deviceEntry.GetType(),
+                    deviceEntry.GetOnOffSubscriptionEstablished());
+
+    std::string friendlyName = std::string(deviceEntry.GetFriendlyName().data());
+    uint8_t type             = deviceEntry.GetType();
+
+    if (friendlyName == "")
     {
-        return;
+        switch (type)
+        {
+        case 0:
+            friendlyName = std::string("Light Bulb ");
+            break;
+        case 1:
+            friendlyName = std::string("Joint Fabric Administrator ");
+            break;
+        }
+        friendlyName += std::to_string(nodeId);
     }
 
-    (*device)["nodeId"]          = std::to_string(deviceEntry->GetNodeId());
-    (*device)["friendlyName"]    = std::string(deviceEntry->GetFriendlyName().data());
-    (*device)["reachable"]       = deviceEntry->GetReachable();
-    (*device)["on"]              = deviceEntry->GetOn();
-    (*device)["vendorName"]      = std::string(deviceEntry->GetVendorName().data());
-    (*device)["productName"]     = std::string(deviceEntry->GetProductName().data());
-    (*device)["hardwareVersion"] = std::string(deviceEntry->GetHardwareVersionString().data());
-    (*device)["softwareVersion"] = std::string(deviceEntry->GetSoftwareVersionString().data());
-    (*device)["type"]            = deviceEntry->GetType();
+    device["nodeId"]          = deviceEntry.GetNodeId();
+    device["friendlyName"]    = friendlyName;
+    device["reachable"]       = deviceEntry.GetReachable();
+    device["on"]              = deviceEntry.GetOn();
+    device["vendorName"]      = std::string(deviceEntry.GetVendorName().data());
+    device["productName"]     = std::string(deviceEntry.GetProductName().data());
+    device["hardwareVersion"] = std::string(deviceEntry.GetHardwareVersionString().data());
+    device["softwareVersion"] = std::string(deviceEntry.GetSoftwareVersionString().data());
+    device["type"]            = deviceEntry.GetType();
 }
 
-void ControlServer::addDevice(DeviceEntry * deviceEntry)
+void ControlServer::addDevice(DeviceEntry & deviceEntry)
 {
-    ChipLogProgress(NotSpecified, "addDevice() called");
+    chip::NodeId nodeId = deviceEntry.GetNodeId();
 
-    if (deviceEntry == NULL)
+    ChipLogProgress(NotSpecified, "addDevice(%lu) called", nodeId);
+
+    if (findDevice(nodeId) != NULL)
     {
+        ChipLogProgress(NotSpecified, "addDevice(); device already exists = %lu", nodeId);
         return;
     }
 
-    if (findDevice(deviceEntry->GetNodeId()) != NULL)
-    {
-        ChipLogProgress(NotSpecified, "addDevice(); device already exists");
-        return;
-    }
-
-    deviceEntry->AddListener(this);
+    deviceEntry.AddListener(this);
 
     Json::Value device;
-    updateDevice(&device, deviceEntry);
+    updateDevice(device, deviceEntry);
     devices.append(device);
 }
 
-void ControlServer::removeDevice(chip::NodeId nodeId)
+void ControlServer::removeDevice(DeviceEntry & deviceEntry)
 {
+    chip::NodeId nodeId = deviceEntry.GetNodeId();
+
     ChipLogProgress(NotSpecified, "removeDevice(%lu) called", nodeId);
+
+    for (Json::ArrayIndex index = 0; index < devices.size(); index++)
+    {
+        Json::Value device        = devices[index];
+        chip::NodeId deviceNodeId = device["nodeId"].asUInt64();
+        ChipLogProgress(NotSpecified, "%lu == %lu", deviceNodeId, nodeId);
+
+        if (deviceNodeId == nodeId)
+        {
+            Json::Value removed;
+            devices.removeIndex(index, &removed);
+            break;
+        }
+    }
 }
 
 Json::Value ControlServer::handleOpenCommissioningWindow(Json::Value data)
@@ -182,42 +208,42 @@ Json::Value ControlServer::handleGetDevices(Json::Value data)
     return result;
 }
 
-void ControlServer::updateFriendlyName(Json::Value * device, std::string friendlyName)
+void ControlServer::updateFriendlyName(Json::Value & device, std::string friendlyName)
 {
-    if ((*device)["friendlyName"].asString() != friendlyName)
+    if (device["friendlyName"].asString() != friendlyName)
     {
-        std::string nodeId        = (*device)["nodeId"].asString();
-        (*device)["friendlyName"] = friendlyName;
+        const chip::NodeId nodeId = std::stoull(device["nodeId"].asString());
+        device["friendlyName"]    = friendlyName;
 
         StringBuilder<kMaxCommandSize> commandBuilder;
         commandBuilder.Add("basicinformation write node-label ");
-        commandBuilder.AddFormat("'%s' %s %d ", friendlyName.c_str(), nodeId.c_str(), 0);
+        commandBuilder.AddFormat("'%s' %lu %d ", friendlyName.c_str(), nodeId, 0);
         PushCommand(commandBuilder.c_str());
     }
 }
 
-void ControlServer::updateOnOff(Json::Value * device, bool on)
+void ControlServer::updateOnOff(Json::Value & device, bool on)
 {
-    const int deviceType = (*device)["type"].asInt();
+    const int deviceType = device["type"].asInt();
 
     ChipLogProgress(NotSpecified, "deviceType = %d", deviceType);
 
-    if (deviceType == 0 && (*device)["on"] != on)
+    if (deviceType == 0 && device["on"] != on)
     {
-        (*device)["on"] = on;
+        device["on"] = on;
 
-        std::string nodeId = (*device)["nodeId"].asString();
+        const chip::NodeId nodeId = std::stoull(device["nodeId"].asString());
 
         StringBuilder<kMaxCommandSize> commandBuilder;
         if (on)
         {
             commandBuilder.Add("onoff on ");
-            commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+            commandBuilder.AddFormat("%lu %d ", nodeId, 1);
         }
         else
         {
             commandBuilder.Add("onoff off ");
-            commandBuilder.AddFormat("%s %d ", nodeId.c_str(), 1);
+            commandBuilder.AddFormat("%lu %d ", nodeId, 1);
         }
         PushCommand(commandBuilder.c_str());
     }
@@ -226,22 +252,13 @@ void ControlServer::updateOnOff(Json::Value * device, bool on)
 Json::Value ControlServer::handleControlDevice(Json::Value data)
 {
     Json::Value result;
-    const std::string nodeId       = data.get("nodeId", "UTF-8").asString();
-    const std::string friendlyName = data.get("friendlyName", "UTF-8").asString();
+    const chip::NodeId nodeId      = std::stoull(data["nodeId"].asString());
+    const std::string friendlyName = data.get("friendlyName", "").asString();
 
-    ChipLogProgress(NotSpecified, "handleControlDevice(nodeId=\"%s\", friendlyName=\"%s\", on=%d)", nodeId.c_str(),
-                    friendlyName.c_str(), data["on"].asBool());
+    ChipLogProgress(NotSpecified, "handleControlDevice(nodeId=%lu, friendlyName=\"%s\", on=%d)", nodeId, friendlyName.c_str(),
+                    data["on"].asBool());
 
-    Json::Value * device = NULL;
-
-    for (unsigned int index = 0; index < devices.size(); index++)
-    {
-        if (devices[index]["nodeId"] == nodeId)
-        {
-            device = &devices[index];
-        }
-    }
-
+    Json::Value * device = findDevice(nodeId);
     if (device == NULL)
     {
         result["errorCode"] = 0;
@@ -249,8 +266,8 @@ Json::Value ControlServer::handleControlDevice(Json::Value data)
         return result;
     }
 
-    updateFriendlyName(device, friendlyName);
-    updateOnOff(device, data["on"].asBool());
+    updateFriendlyName(*device, friendlyName);
+    updateOnOff(*device, data["on"].asBool());
 
     result["errorCode"] = 0;
 
@@ -261,13 +278,13 @@ Json::Value ControlServer::handleDeleteDevice(Json::Value data)
 {
     Json::Value result;
 
-    const std::string nodeId = data.get("nodeId", "UTF-8").asString();
+    const chip::NodeId nodeId = std::stoull(data["nodeId"].asString());
 
-    ChipLogProgress(NotSpecified, "handleDeleteDevice(nodeId=\"%s\")", nodeId.c_str());
+    ChipLogProgress(NotSpecified, "handleDeleteDevice(nodeId=%lu)", nodeId);
 
     StringBuilder<kMaxCommandSize> commandBuilder;
     commandBuilder.Add("pairing unpair ");
-    commandBuilder.AddFormat("%s ", nodeId.c_str());
+    commandBuilder.AddFormat("%lu ", nodeId);
     PushCommand(commandBuilder.c_str());
 
     result["errorCode"] = 0;

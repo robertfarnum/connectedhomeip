@@ -25,6 +25,7 @@ void SocketServer::handleConnection()
         if (bytesReceived <= 0)
         {
             // Handle error or disconnection
+            ChipLogError(NotSpecified, "Recv length Error: %ld", bytesReceived);
             break;
         }
 
@@ -40,12 +41,11 @@ void SocketServer::handleConnection()
             if (bytes <= 0)
             {
                 // Handle error or disconnection
+                ChipLogError(NotSpecified, "Recv message Error: %ld", bytes);
                 break;
             }
             totalBytesReceived += bytes;
         }
-
-        // ChipLogProgress(NotSpecified, "Received message = %s, len = %d", buffer.c_str(), totalBytesReceived);
 
         Json::Value root;
         JSONCPP_STRING err;
@@ -55,34 +55,41 @@ void SocketServer::handleConnection()
 
         if (!reader->parse(buffer.c_str(), buffer.c_str() + rawJsonLength, &root, &err))
         {
-            ChipLogError(NotSpecified, "Error");
+            ChipLogError(NotSpecified, "Json Error parsing buffer");
             break;
         }
 
         const std::string method = root["method"].asString();
         const Json::Value data   = root["data"];
 
+        if (method != "GetDevices")
+        {
+            ChipLogProgress(NotSpecified, "Received message = %s, len = %ld", buffer.c_str(), totalBytesReceived);
+        }
+
         Json::Value result = controlServer.HandleMethod(method, data);
         Json::StreamWriterBuilder writerBuilder;
         const std::string json = Json::writeString(writerBuilder, result);
 
-        messageLength = json.size();
-        int bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
+        messageLength     = json.size();
+        ssize_t bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
         if (bytesSent < 0)
         {
-            std::cerr << "Error sending message length" << std::endl;
+            ChipLogError(NotSpecified, "Error sending message length: %ld", bytesSent);
             break;
         }
 
         bytesSent = send(sockfd, json.c_str(), json.size(), 0);
         if (bytesSent < 0)
         {
-            std::cerr << "Error sending message data" << std::endl;
+            ChipLogError(NotSpecified, "Error sending message: %ld", bytesSent);
             break;
         }
 
         // ChipLogProgress(NotSpecified, "Sent message = %s, len = %ld", json.c_str(), json.size());
     }
+
+    ChipLogProgress(NotSpecified, "Client disconnected");
 
     close(sockfd);
 }

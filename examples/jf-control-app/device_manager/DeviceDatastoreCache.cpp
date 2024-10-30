@@ -40,6 +40,13 @@ CHIP_ERROR DeviceDatastoreCache::AddDevice(NodeId nodeIdValue, chip::Optional<ch
 
     VerifyOrReturnError(mDeviceDatastoreCache.size() < kMaxDevices, CHIP_ERROR_NO_MEMORY);
 
+    if (GetDevice(nodeIdValue) != nullptr)
+    {
+        ChipLogError(JointFabric, "AddDevice found: ");
+        PrintDevices();
+        return CHIP_ERROR_NOT_FOUND;
+    }
+
     mDeviceDatastoreCache.push_back(DeviceEntry(nodeIdValue, friendlyName));
 
     triggerDeviceAddedListeners(nodeIdValue);

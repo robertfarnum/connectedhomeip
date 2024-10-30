@@ -26,8 +26,8 @@ struct DeviceEntry;
 class DeviceEntryListener
 {
 public:
-    virtual void DeviceUpdated(DeviceEntry * deviceEntry) = 0;
-    virtual ~DeviceEntryListener()                        = default;
+    virtual void DeviceUpdated(chip::NodeId nodeId) = 0;
+    virtual ~DeviceEntryListener()                  = default;
 };
 
 struct DeviceEntry
@@ -203,7 +203,7 @@ private:
     {
         for (const auto & listener : listeners)
         {
-            listener->DeviceUpdated(this);
+            listener->DeviceUpdated(nodeId);
         }
     }
 };
@@ -211,15 +211,9 @@ private:
 class DeviceDatastoreCacheListener
 {
 public:
-    virtual void DeviceAdded(chip::NodeId nodeIdValue)   = 0;
-    virtual void DeviceRemoved(chip::NodeId nodeIdValue) = 0;
-    virtual ~DeviceDatastoreCacheListener()              = default;
-
-    static constexpr size_t kHardwareVersionMaxSize = 32u;
-    char mHardwareVersionBuffer[kHardwareVersionMaxSize];
-
-    static constexpr size_t kSoftwareVersionMaxSize = 32u;
-    char mSoftwareVersionBuffer[kSoftwareVersionMaxSize];
+    virtual void DeviceAdded(chip::NodeId nodeId)   = 0;
+    virtual void DeviceRemoved(chip::NodeId nodeId) = 0;
+    virtual ~DeviceDatastoreCacheListener()         = default;
 };
 
 class DeviceDatastoreCache
@@ -237,7 +231,11 @@ public:
 
     const std::vector<DeviceEntry> & GetDeviceDatastoreCache() { return mDeviceDatastoreCache; }
 
-    void AddListener(DeviceDatastoreCacheListener * listener) { listeners.push_back(listener); }
+    void AddListener(DeviceDatastoreCacheListener * listener)
+    {
+        ChipLogProgress(JointFabric, "listener = %p", listener);
+        listeners.push_back(listener);
+    }
 
 private:
     friend DeviceDatastoreCache & DeviceDatastoreCacheInstance();
@@ -253,8 +251,9 @@ private:
     // Trigger Device Removed Listeners
     void triggerDeviceRemovedListeners(chip::NodeId nodeIdValue)
     {
-        for (const auto & listener : listeners)
+        for (DeviceDatastoreCacheListener * listener : listeners)
         {
+            ChipLogProgress(JointFabric, "listener = %p", listener);
             listener->DeviceRemoved(nodeIdValue);
         }
     }
@@ -262,8 +261,9 @@ private:
     // Trigger Device Added Listeners
     void triggerDeviceAddedListeners(chip::NodeId nodeIdValue)
     {
-        for (const auto & listener : listeners)
+        for (DeviceDatastoreCacheListener * listener : listeners)
         {
+            ChipLogProgress(JointFabric, "listener = %p", listener);
             listener->DeviceAdded(nodeIdValue);
         }
     }
