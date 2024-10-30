@@ -255,6 +255,8 @@ public:
         }
     }
 
+    chip::NodeId CheckForRemovalInDatastoreCache(std::vector<chip::NodeId> & dsNodeLists);
+
 private:
     friend DeviceDatastoreCache & DeviceDatastoreCacheInstance();
 

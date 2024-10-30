@@ -71,6 +71,26 @@ CHIP_ERROR DeviceDatastoreCache::RemoveDevice(NodeId nodeIdValue)
     return CHIP_ERROR_KEY_NOT_FOUND;
 }
 
+NodeId DeviceDatastoreCache::CheckForRemovalInDatastoreCache(std::vector<chip::NodeId> & dsNodeList)
+{
+    NodeId removedNodeId = kUndefinedNodeId;
+
+    if (mDeviceDatastoreCache.size() > dsNodeList.size())
+    {
+        for (auto itDsCache = mDeviceDatastoreCache.begin(); itDsCache != mDeviceDatastoreCache.end(); ++itDsCache)
+        {
+            if (find(dsNodeList.begin(), dsNodeList.end(), itDsCache->GetNodeId()) == dsNodeList.end())
+            {
+                removedNodeId = itDsCache->GetNodeId();
+                RemoveDevice(itDsCache->GetNodeId());
+                break;
+            }
+        }
+    }
+
+    return removedNodeId;
+}
+
 DeviceEntry * DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
 {
     for (auto & deviceEntry : mDeviceDatastoreCache)

@@ -71,12 +71,30 @@ void DeviceManager::HandleCommissioningComplete(chip::NodeId nodeId)
     AddNewNodeInDatastoreCache(nodeId);
 }
 
+void DeviceManager::HandleUnpair(chip::NodeId nodeId)
+{
+    StringBuilder<kMaxCommandSize> commandBuilder;
+
+    commandBuilder.Reset();
+    commandBuilder.Add("jointfabricdatastore remove-node ");
+    commandBuilder.AddFormat("%lu %lu %d", nodeId, jfAdminAppNodeId, kRootEndpointId);
+    PushCommand(commandBuilder.c_str());
+
+    commandBuilder.Reset();
+    commandBuilder.Add("subscriptions shutdown-all-for-node ");
+    commandBuilder.AddFormat("%lu", nodeId);
+    PushCommand(commandBuilder.c_str());
+
+    DeviceDatastoreCacheInstance().RemoveDevice(nodeId);
+}
+
 void DeviceManager::HandleOnResponse(const app::ConcreteDataAttributePath & path, NodeId remotePeerNodeId)
 {
     StringBuilder<kMaxCommandSize> commandBuilder;
 
     if ((path.mClusterId == BasicInformation::Id) && (path.mAttributeId == BasicInformation::Attributes::NodeLabel::Id))
     {
+        DeviceDatastoreCacheInstance().PrintDevices();
         if (jfAdminAppCommissioned)
         {
             commandBuilder.Add("basicinformation read node-label ");
@@ -230,11 +248,15 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
 
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
+            std::vector<chip::NodeId> dsNodeList;
             auto iter = value.begin();
+            NodeId removedNodeId = kUndefinedNodeId;
+
             while (iter.Next())
             {
                 NodeId nodeId         = iter.GetValue().nodeID;
                 CharSpan friendlyName = iter.GetValue().friendlyName;
+                dsNodeList.push_back(nodeId);
 
                 deviceEntry = DeviceDatastoreCacheInstance().GetDevice(nodeId);
                 if (deviceEntry && (deviceEntry->GetFriendlyName().data_equal(friendlyName) == false))
@@ -245,6 +267,16 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
                 {
                     AddNewNodeInDatastoreCache(nodeId, MakeOptional(friendlyName));
                 }
+            }
+            dsNodeList.push_back(jfAdminAppNodeId);
+            removedNodeId = DeviceDatastoreCacheInstance().CheckForRemovalInDatastoreCache(dsNodeList);
+
+            if (removedNodeId != kUndefinedNodeId)
+            {
+                commandBuilder.Reset();
+                commandBuilder.Add("subscriptions shutdown-all-for-node ");
+                commandBuilder.AddFormat("%lu", removedNodeId);
+                PushCommand(commandBuilder.c_str());
             }
         }
     }
@@ -324,6 +356,8 @@ void DeviceManager::SetJfOnboarded(uint64_t nodeId)
     jfOnboarded = true;
 
     jfAdminAppNodeId = nodeId;
+    AddNewNodeInDatastoreCache(jfAdminAppNodeId);
+
     /* establish a subscription to Anchor JFA DS Node-List*/
     commandBuilder.Reset();
     commandBuilder.Add("jointfabricdatastore subscribe node-list ");

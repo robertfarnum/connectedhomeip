@@ -32,6 +32,9 @@ public:
     /* callback for commissioning complete */
     void HandleCommissioningComplete(chip::NodeId nodeId);
 
+    /* callback for commissioning complete */
+    void HandleUnpair(chip::NodeId nodeId);
+
     /* callback for attribute write */
     void HandleOnResponse(const chip::app::ConcreteDataAttributePath & path, chip::NodeId remotePeerNodeId);
 

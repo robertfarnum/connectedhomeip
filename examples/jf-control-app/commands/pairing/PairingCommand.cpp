@@ -16,6 +16,8 @@
  *
  */
 
+#include <device_manager/DeviceManager.h>
+
 #include "PairingCommand.h"
 #include "platform/PlatformManager.h"
 #include <commands/common/DeviceScanner.h>
@@ -554,6 +556,7 @@ void PairingCommand::OnCurrentFabricRemove(void * context, NodeId nodeId, CHIP_E
 
     if (err == CHIP_NO_ERROR)
     {
+        DeviceMgr().HandleUnpair(nodeId);
         ChipLogProgress(chipTool, "Device unpair completed with success: " ChipLogFormatX64, ChipLogValueX64(nodeId));
     }
     else
