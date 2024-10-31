@@ -16,21 +16,18 @@
  *
  */
 
-#pragma once
+#include <device_manager/DeviceDatastoreCache.h>
+#include "ShowDatastoreCommand.h"
 
-#include <commands/common/Commands.h>
-#include <commands/joint-fabric/JointFabricCommand.h>
-#include <commands/joint-fabric/ShowDatastoreCommand.h>
+using namespace ::chip;
 
-void registerCommandsJointFabric(Commands & commands, CredentialIssuerCommands * credsIssuerConfig)
+namespace
 {
-    const char * clusterName = "JointFabric";
+}
 
-    commands_list clusterCommands = {
-        make_unique<JointFabricCommand>(credsIssuerConfig),
-        make_unique<OnboardCommand>(),
-        make_unique<ShowDatastoreCommand>(),
-    };
+CHIP_ERROR ShowDatastoreCommand::Run()
+{
+    DeviceDatastoreCacheInstance().PrintDevices();
 
-    commands.RegisterCommandSet(clusterName, clusterCommands, "Commands for joint fabric.");
+    return CHIP_NO_ERROR;
 }

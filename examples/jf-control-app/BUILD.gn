@@ -68,6 +68,8 @@ static_library("jf-control-app-utils") {
     "commands/common/RemoteDataModelLogger.h",
     "commands/joint-fabric/JointFabricCommand.cpp",
     "commands/joint-fabric/JointFabricCommand.h",
+    "commands/joint-fabric/ShowDatastoreCommand.cpp",
+    "commands/joint-fabric/ShowDatastoreCommand.h",
     "commands/icd/ICDCommand.cpp",
     "commands/icd/ICDCommand.h",
     "commands/pairing/OpenCommissioningWindowCommand.cpp",

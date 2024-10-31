@@ -18,19 +18,17 @@
 
 #pragma once
 
-#include <commands/common/Commands.h>
-#include <commands/joint-fabric/JointFabricCommand.h>
-#include <commands/joint-fabric/ShowDatastoreCommand.h>
+#include <commands/common/CHIPCommand.h>
 
-void registerCommandsJointFabric(Commands & commands, CredentialIssuerCommands * credsIssuerConfig)
+class ShowDatastoreCommand : public Command
 {
-    const char * clusterName = "JointFabric";
+public:
+    ShowDatastoreCommand() : Command("ds-show", "Show Datastore.") {
+    	AddArgument("commissioner-name", &mCommissionerName,"");
+    }
 
-    commands_list clusterCommands = {
-        make_unique<JointFabricCommand>(credsIssuerConfig),
-        make_unique<OnboardCommand>(),
-        make_unique<ShowDatastoreCommand>(),
-    };
-
-    commands.RegisterCommandSet(clusterName, clusterCommands, "Commands for joint fabric.");
-}
+    CHIP_ERROR Run();
+    
+private:
+    chip::Optional<char *> mCommissionerName;
+};

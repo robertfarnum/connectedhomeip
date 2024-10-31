@@ -106,7 +106,7 @@ DeviceEntry * DeviceDatastoreCache::GetDevice(NodeId nodeIdValue)
 
 void DeviceDatastoreCache::PrintDevices()
 {
-    ChipLogProgress(JointFabric, "DeviceDatastoreCache contents: ");
+    ChipLogProgress(JointFabric, "\r\n ---- DeviceDatastoreCache contents ---- ");
 
     for (auto & deviceEntry : mDeviceDatastoreCache)
     {
@@ -119,5 +119,6 @@ void DeviceDatastoreCache::PrintDevices()
                         deviceEntry.GetOn());
         ChipLogProgress(JointFabric, "Type:%d, OnOffSubscriptionEstablished: %d", deviceEntry.GetType(),
                         deviceEntry.GetOnOffSubscriptionEstablished());
+        ChipLogProgress(JointFabric, "\r\n");
     }
 }
