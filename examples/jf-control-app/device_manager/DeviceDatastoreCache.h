@@ -49,6 +49,11 @@ public:
         SetOnOffSubscriptionEstablished(op.OnOffSubscriptionEstablished);
         SetType(op.type);
 
+        for (const auto & listener : op.listeners)
+        {
+            this->listeners.push_back(listener);
+        }
+
         return *this;
     }
 
