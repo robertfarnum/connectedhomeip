@@ -804,6 +804,7 @@ CHIP_ERROR ReadClient::ProcessAttributeReportIBs(TLV::TLVReader & aAttributeRepo
             ReturnErrorOnFailure(status.GetErrorStatus(&errorStatus));
             ReturnErrorOnFailure(errorStatus.DecodeStatusIB(statusIB));
             NoteReportingData();
+            statusIB.peerNodeId = GetPeerNodeId();
             mpCallback.OnAttributeData(attributePath, nullptr, statusIB);
         }
         else if (CHIP_END_OF_TLV == err)
@@ -860,6 +861,7 @@ CHIP_ERROR ReadClient::ProcessAttributeReportIBs(TLV::TLVReader & aAttributeRepo
             }
 
             NoteReportingData();
+            statusIB.peerNodeId = GetPeerNodeId();
             mpCallback.OnAttributeData(attributePath, &dataReader, statusIB);
         }
     }

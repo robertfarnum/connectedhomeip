@@ -35,6 +35,7 @@ public:
     void OnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data,
                          const chip::app::StatusIB & status) override
     {
+        chip::NodeId peerNodeId = status.peerNodeId;
         CHIP_ERROR error = status.ToChipError();
         if (CHIP_NO_ERROR != error)
         {
@@ -54,7 +55,7 @@ public:
 
         LogErrorOnFailure(RemoteDataModelLogger::LogAttributeAsJSON(path, data));
 
-        DeviceMgr().HandleOnAttributeData(path, data, GetDestinationId());
+        DeviceMgr().HandleOnAttributeData(path, data, (peerNodeId != chip::kUndefinedNodeId) ? peerNodeId : GetDestinationId());
 
         error = DataModelLogger::LogAttribute(path, data);
         if (CHIP_NO_ERROR != error)

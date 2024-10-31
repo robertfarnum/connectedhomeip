@@ -123,6 +123,8 @@ struct StatusIB
     Protocols::InteractionModel::Status mStatus = Protocols::InteractionModel::Status::Success;
     Optional<ClusterStatus> mClusterStatus      = Optional<ClusterStatus>::Missing();
 
+    chip::NodeId peerNodeId = kUndefinedNodeId;
+
 }; // struct StatusIB
 
 constexpr bool operator==(const StatusIB & one, const StatusIB & two)
