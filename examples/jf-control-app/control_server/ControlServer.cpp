@@ -165,6 +165,23 @@ Json::Value ControlServer::handleOpenCommissioningWindow(Json::Value data)
 
     ChipLogProgress(NotSpecified, "handleOpenCommissioningWindow called");
 
+    const chip::NodeId nodeId     = std::stoull(data["nodeId"].asString());
+    const u_int32_t option        = data["option"].asUInt();
+    const u_int32_t windowTimeout = data["windowTimeout"].asUInt();
+    const u_int32_t iteration     = data["iteration"].asUInt();
+    const u_int32_t discriminator = data["discriminator"].asUInt();
+
+    ChipLogProgress(NotSpecified,
+                    "handleOpenCommissioningWindow(nodeId=%lu, option=%d, window_timeout=%d, iteration=%d, discriminator=%d ",
+                    nodeId, option, windowTimeout, iteration, discriminator);
+
+    StringBuilder<kMaxCommandSize> commandBuilder;
+    commandBuilder.Add("pairing open-commissioning-window ");
+    commandBuilder.AddFormat("%lu %d %d %d %d", nodeId, option, windowTimeout, iteration, discriminator);
+    PushCommand(commandBuilder.c_str());
+
+    result["errorCode"] = 0;
+
     return result;
 }
 

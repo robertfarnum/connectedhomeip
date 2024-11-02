@@ -114,9 +114,8 @@ void SocketServer::waitForConnection(void)
         ChipLogError(NotSpecified, "ERROR: socket failed");
         return;
     }
-
-    const int enable = 0;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    const int enable = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
     {
         ChipLogError(NotSpecified, "ERROR: setsockop failed");
     }
