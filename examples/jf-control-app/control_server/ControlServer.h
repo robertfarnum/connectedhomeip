@@ -10,7 +10,7 @@ public:
     ControlServer();
     ~ControlServer();
 
-        void DeviceAdded(chip::NodeId nodeId) override
+    void DeviceAdded(chip::NodeId nodeId) override
     {
         ChipLogProgress(NotSpecified, "DeviceAdded(%lu)", nodeId);
 
@@ -18,6 +18,7 @@ public:
         if (deviceEntry == nullptr)
         {
             ChipLogError(NotSpecified, "DeviceUpdate() Invalid NodeId = %lu", nodeId);
+            return;
         }
 
         addDevice(*deviceEntry);
@@ -31,6 +32,7 @@ public:
         if (deviceEntry == nullptr)
         {
             ChipLogError(NotSpecified, "DeviceUpdate() Invalid NodeId = %lu", nodeId);
+            return;
         }
 
         removeDevice(*deviceEntry);

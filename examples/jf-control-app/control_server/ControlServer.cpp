@@ -206,24 +206,36 @@ Json::Value ControlServer::handleCommissionDevice(Json::Value data)
 {
     Json::Value result;
 
-    const std::string duration      = data["duration"].asString();
-    const std::string ssid          = data["ssid"].asString();
-    const std::string password      = data["password"].asString();
-    const std::string setupPinCode  = data["setupPinCode"].asString();
-    const std::string discriminator = data["discriminator"].asString();
-    const bool useBle               = data["useBle"].asBool();
-    const bool useOnNetwork         = data["useOnNetwork"].asBool();
+    const std::string duration           = data["duration"].asString();
+    const std::string ssid               = data["ssid"].asString();
+    const std::string password           = data["password"].asString();
+    const std::string setupPinCode       = data["setupPinCode"].asString();
+    const std::string discriminator      = data["discriminator"].asString();
+    const std::string operationalDataset = data["operationalDataset"].asString();
+    const bool useBle                    = data["useBle"].asBool();
+    const bool useBleWiFi                = data["useBleWiFi"].asBool();
+    const bool useBleThread              = data["useBleThread"].asBool();
+    const bool useOnNetwork              = data["useOnNetwork"].asBool();
 
-    ChipLogProgress(NotSpecified,
-                    "handleCommissionDevice(setup_pin_code=\"%s\", discriminator=\"%s\", useBle=%d, useOnNetwork=%d, "
-                    "duration=\"%s\"), ssid=\"%s\"",
-                    setupPinCode.c_str(), discriminator.c_str(), useBle, useOnNetwork, duration.c_str(), ssid.c_str());
+    ChipLogProgress(
+        NotSpecified,
+        "handleCommissionDevice(setup_pin_code=\"%s\", discriminator=\"%s\", useBleWiFi=%d, useBleThread=%d, useOnNetwork=%d, "
+        "duration=\"%s\"), ssid=\"%s\"",
+        setupPinCode.c_str(), discriminator.c_str(), useBleWiFi, useBleThread, useOnNetwork, duration.c_str(), ssid.c_str());
 
-    if (useBle)
+    if (useBle || useBleWiFi)
     {
         StringBuilder<kMaxCommandSize> commandBuilder;
         commandBuilder.Add("pairing ble-wifi ");
         commandBuilder.AddFormat("%lu %s %s %s %s --bypass-attestation-verifier 1", nextNodeId, ssid.c_str(), password.c_str(),
+                                 setupPinCode.c_str(), discriminator.c_str());
+        PushCommand(commandBuilder.c_str());
+    }
+    if (useBleThread)
+    {
+        StringBuilder<kMaxCommandSize> commandBuilder;
+        commandBuilder.Add("pairing ble-thread ");
+        commandBuilder.AddFormat("%lu %s %s %s --bypass-attestation-verifier 1", nextNodeId, operationalDataset.c_str(),
                                  setupPinCode.c_str(), discriminator.c_str());
         PushCommand(commandBuilder.c_str());
     }
