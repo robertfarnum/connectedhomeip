@@ -4,6 +4,7 @@ class SocketServer
 {
 public:
     SocketServer();
+    ssize_t Send(Json::Value value);
 
     CHIP_ERROR start();
 

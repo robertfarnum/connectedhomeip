@@ -13,6 +13,36 @@ using namespace pw;
 
 SocketServer::SocketServer() {}
 
+ssize_t SocketServer::Send(Json::Value value)
+{
+    Json::StreamWriterBuilder writerBuilder;
+    const std::string json = Json::writeString(writerBuilder, value);
+
+    size_t messageLength = json.size();
+    ChipLogProgress(NotSpecified, "messageLength = %ld", messageLength);
+    ssize_t bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
+    if (bytesSent < 0)
+    {
+        ChipLogError(NotSpecified, "Error sending message length: %ld, error = %ld", messageLength, bytesSent);
+        return bytesSent;
+    }
+
+    ChipLogProgress(NotSpecified, "header send bytes = %ld", bytesSent);
+
+    bytesSent = send(sockfd, json.c_str(), json.size(), 0);
+    if (bytesSent < 0)
+    {
+        ChipLogError(NotSpecified, "Error sending message: %ld", bytesSent);
+        return bytesSent;
+    }
+
+    ChipLogProgress(NotSpecified, "data send bytes = %ld", bytesSent);
+
+    ChipLogProgress(NotSpecified, "Sent message = %s, len = %ld", json.c_str(), json.size());
+
+    return 0;
+}
+
 void SocketServer::handleConnection()
 {
     ControlServer controlServer;
@@ -75,26 +105,11 @@ void SocketServer::handleConnection()
             ChipLogProgress(NotSpecified, "Received message = %s, len = %ld", buffer.c_str(), totalBytesReceived);
         }
 
-        Json::Value result = controlServer.HandleMethod(method, data);
-        Json::StreamWriterBuilder writerBuilder;
-        const std::string json = Json::writeString(writerBuilder, result);
-
-        messageLength     = json.size();
-        ssize_t bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
-        if (bytesSent < 0)
+        Json::Value value = controlServer.HandleMethod(method, data);
+        if (Send(value) < 0)
         {
-            ChipLogError(NotSpecified, "Error sending message length: %ld, error = %ld", messageLength, bytesSent);
             break;
         }
-
-        bytesSent = send(sockfd, json.c_str(), json.size(), 0);
-        if (bytesSent < 0)
-        {
-            ChipLogError(NotSpecified, "Error sending message: %ld", bytesSent);
-            break;
-        }
-
-        // ChipLogProgress(NotSpecified, "Sent message = %s, len = %ld", json.c_str(), json.size());
     }
 
     ChipLogProgress(NotSpecified, "Client disconnected");

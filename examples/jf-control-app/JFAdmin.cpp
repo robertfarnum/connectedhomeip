@@ -6,7 +6,7 @@
 
 #include "RpcClient.h"
 
-#define DEFAULT_ONBOARDED_ADMIN_NODE_ID         1
+#define DEFAULT_ONBOARDED_ADMIN_NODE_ID         2
 
 class JointFabricAdmin jf_admin;
 

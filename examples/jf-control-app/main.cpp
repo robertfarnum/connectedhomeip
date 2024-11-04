@@ -42,6 +42,9 @@ void ApplicationInit()
 {
     DeviceMgr().Init();
 }
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
+static SocketServer socketServer = SocketServer();
+#endif
 
 // ================================================================================
 // Main Code
@@ -60,7 +63,7 @@ int main(int argc, char * argv[])
         {
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
             // StartGrpcServer();
-            SocketServer().start();
+            socketServer.start();
 #endif /* CONFIG_ENABLE_GRPC */
             /* Remove this option from the argument list so that it is not
              * propagated further to the command processing engine. */
