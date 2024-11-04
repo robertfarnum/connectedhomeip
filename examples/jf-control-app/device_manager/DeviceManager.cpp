@@ -23,8 +23,8 @@
 #include <commands/interactive/InteractiveCommands.h>
 #include <lib/support/StringBuilder.h>
 
-#include <setup_payload/QRCodeSetupPayloadGenerator.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
+#include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 #include "control_server/SocketServer.h"
 
@@ -116,10 +116,10 @@ void DeviceManager::HandleOnOpenCommissioningWindowResponse(chip::NodeId remoteI
         return;
     }
 
-    char payloadBufferManualCode[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    char payloadBufferManualCode[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1] = { 0 };
     MutableCharSpan manualCode(payloadBufferManualCode);
 
-    char payloadBuffer[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    char payloadBuffer[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1] = { 0 };
     MutableCharSpan QRCode(payloadBuffer);
 
     err = ManualSetupPayloadGenerator(payload).payloadDecimalStringRepresentation(manualCode);
@@ -144,11 +144,13 @@ void DeviceManager::HandleOnOpenCommissioningWindowResponse(chip::NodeId remoteI
 
     Json::Value ocwResponseJson;
 
-    ocwResponseJson["method"] = "OpenCommissioningWindow";
+    ocwResponseJson["method"]     = "OpenCommissioningWindow";
     ocwResponseJson["manualCode"] = std::string(manualCode.data());
-    ocwResponseJson["qrcode"] = std::string(QRCode.data());
-    ocwResponseJson["errorCode"] = 0;
-    SocketServer::sInstance.Send(ocwResponseJson);
+    ocwResponseJson["qrCode"]     = std::string(QRCode.data());
+    ocwResponseJson["errorCode"]  = 0;
+    ChipLogProgress(NotSpecified, "SocketServer::sInstance = %p", &SockSrv);
+
+    SockSrv().Send(ocwResponseJson);
 }
 
 void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath & path, TLV::TLVReader * data, NodeId destinationId)
@@ -296,7 +298,7 @@ void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath &
         if ((CHIP_NO_ERROR == error) && jfAdminAppCommissioned)
         {
             std::vector<chip::NodeId> dsNodeList;
-            auto iter = value.begin();
+            auto iter            = value.begin();
             NodeId removedNodeId = kUndefinedNodeId;
 
             while (iter.Next())

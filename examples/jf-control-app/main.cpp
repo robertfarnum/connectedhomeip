@@ -60,7 +60,8 @@ int main(int argc, char * argv[])
         {
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
             // StartGrpcServer();
-            SocketServer::sInstance.start();
+            ChipLogProgress(NotSpecified, "SocketServer::sInstance = %p", &SockSrv);
+            SockSrv().start();
 #endif /* CONFIG_ENABLE_GRPC */
             /* Remove this option from the argument list so that it is not
              * propagated further to the command processing engine. */

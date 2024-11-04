@@ -21,7 +21,7 @@ ssize_t SocketServer::Send(Json::Value value)
     const std::string json = Json::writeString(writerBuilder, value);
 
     size_t messageLength = json.size();
-    // ChipLogProgress(NotSpecified, "messageLength = %ld", messageLength);
+    // ChipLogProgress(NotSpecified, "sockfd = %d, messageLength = %ld", sockfd, messageLength);
     ssize_t bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
     if (bytesSent < 0)
     {
@@ -181,7 +181,7 @@ void SocketServer::waitForConnection(void)
 
 CHIP_ERROR SocketServer::start(void)
 {
-    SocketServer socketServer;
+    SocketServer & socketServer = SockSrv();
 
     /* Create a thread dedicated to the GRPC server */
     thread::stl::Options options;
