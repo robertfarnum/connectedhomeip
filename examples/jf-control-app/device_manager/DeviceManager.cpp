@@ -23,6 +23,11 @@
 #include <commands/interactive/InteractiveCommands.h>
 #include <lib/support/StringBuilder.h>
 
+#include <setup_payload/QRCodeSetupPayloadGenerator.h>
+#include <setup_payload/ManualSetupPayloadGenerator.h>
+
+#include "control_server/SocketServer.h"
+
 using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
@@ -102,6 +107,48 @@ void DeviceManager::HandleOnResponse(const app::ConcreteDataAttributePath & path
             PushCommand(commandBuilder.c_str());
         }
     }
+}
+
+void DeviceManager::HandleOnOpenCommissioningWindowResponse(chip::NodeId remoteId, CHIP_ERROR err, chip::SetupPayload payload)
+{
+    if (err != CHIP_NO_ERROR)
+    {
+        return;
+    }
+
+    char payloadBufferManualCode[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    MutableCharSpan manualCode(payloadBufferManualCode);
+
+    char payloadBuffer[QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    MutableCharSpan QRCode(payloadBuffer);
+
+    err = ManualSetupPayloadGenerator(payload).payloadDecimalStringRepresentation(manualCode);
+    if (err == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(Controller, "Manual pairing code to be sent over RPC: [%s]", payloadBufferManualCode);
+    }
+    else
+    {
+        ChipLogError(Controller, "Unable to generate manual code for setup payload: %" CHIP_ERROR_FORMAT, err.Format());
+    }
+
+    err = QRCodeBasicSetupPayloadGenerator(payload).payloadBase38Representation(QRCode);
+    if (err == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(Controller, "SetupQRCode to be sent over RPC: [%s]", payloadBuffer);
+    }
+    else
+    {
+        ChipLogError(Controller, "Unable to generate QR code for setup payload: %" CHIP_ERROR_FORMAT, err.Format());
+    }
+
+    Json::Value ocwResponseJson;
+
+    ocwResponseJson["method"] = "OpenCommissioningWindow";
+    ocwResponseJson["manualCode"] = std::string(manualCode.data());
+    ocwResponseJson["qrcode"] = std::string(QRCode.data());
+    ocwResponseJson["errorCode"] = 0;
+    SocketServer::sInstance.Send(ocwResponseJson);
 }
 
 void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath & path, TLV::TLVReader * data, NodeId destinationId)

@@ -16,6 +16,8 @@
  *
  */
 
+#include <device_manager/DeviceManager.h>
+
 #include "OpenCommissioningWindowCommand.h"
 
 #include <system/SystemClock.h>
@@ -54,6 +56,8 @@ void OpenCommissioningWindowCommand::OnOpenCommissioningWindowResponse(void * co
     LogErrorOnFailure(err);
 
     OnOpenBasicCommissioningWindowResponse(context, remoteId, err);
+
+    DeviceMgr().HandleOnOpenCommissioningWindowResponse(remoteId, err, payload);
 }
 
 void OpenCommissioningWindowCommand::OnOpenBasicCommissioningWindowResponse(void * context, NodeId remoteId, CHIP_ERROR err)

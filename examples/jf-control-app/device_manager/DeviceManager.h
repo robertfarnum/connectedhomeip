@@ -21,6 +21,7 @@
 #include <app-common/zap-generated/cluster-objects.h>
 #include <commands/pairing/PairingCommand.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <setup_payload/QRCodeSetupPayloadGenerator.h>
 
 class DeviceManager
 {
@@ -41,6 +42,9 @@ public:
     /* callback for attribute read */
     void HandleOnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data,
                                chip::NodeId destinationId);
+
+    /* callback for OCW response */
+    void HandleOnOpenCommissioningWindowResponse(chip::NodeId remoteId, CHIP_ERROR err, chip::SetupPayload payload);
 
     /* callback for getting device commissioner */
     const char* GetCurrentCommissioner();
