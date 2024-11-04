@@ -3,6 +3,8 @@
 class SocketServer
 {
 public:
+    static SocketServer sInstance;
+
     SocketServer();
     ssize_t Send(Json::Value value);
 

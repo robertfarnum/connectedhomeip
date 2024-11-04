@@ -11,6 +11,8 @@
 
 using namespace pw;
 
+SocketServer SocketServer::sInstance;
+
 SocketServer::SocketServer() {}
 
 ssize_t SocketServer::Send(Json::Value value)
@@ -19,7 +21,7 @@ ssize_t SocketServer::Send(Json::Value value)
     const std::string json = Json::writeString(writerBuilder, value);
 
     size_t messageLength = json.size();
-    ChipLogProgress(NotSpecified, "messageLength = %ld", messageLength);
+    // ChipLogProgress(NotSpecified, "messageLength = %ld", messageLength);
     ssize_t bytesSent = send(sockfd, &messageLength, sizeof(messageLength), 0);
     if (bytesSent < 0)
     {
@@ -27,7 +29,7 @@ ssize_t SocketServer::Send(Json::Value value)
         return bytesSent;
     }
 
-    ChipLogProgress(NotSpecified, "header send bytes = %ld", bytesSent);
+    // ChipLogProgress(NotSpecified, "header send bytes = %ld", bytesSent);
 
     bytesSent = send(sockfd, json.c_str(), json.size(), 0);
     if (bytesSent < 0)
@@ -36,9 +38,9 @@ ssize_t SocketServer::Send(Json::Value value)
         return bytesSent;
     }
 
-    ChipLogProgress(NotSpecified, "data send bytes = %ld", bytesSent);
+    // ChipLogProgress(NotSpecified, "data send bytes = %ld", bytesSent);
 
-    ChipLogProgress(NotSpecified, "Sent message = %s, len = %ld", json.c_str(), json.size());
+    // ChipLogProgress(NotSpecified, "Sent message = %s, len = %ld", json.c_str(), json.size());
 
     return 0;
 }
