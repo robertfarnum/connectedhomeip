@@ -90,7 +90,6 @@ typedef WsServer::message_ptr message_ptr;
 //using namespace WsServer::message_ptr;
 
 ExampleCredentialIssuerCommands credIssuerCommands;
-PersistentStorage webCommissionerStorage;
 
 Commands commands;
 bool initialized = false;
@@ -168,35 +167,6 @@ void wsClientConecting()
         }
         this_thread::sleep_for(chrono::seconds(10));
     }
-}
-
-ptree getStorageKeyNodeID()
-{
-    ptree storageNodes;
-    const char * storageWebDirectory = webCommissionerStorage.GetDirectory();
-    std::string storageWebFile = std::string(storageWebDirectory) + "/chip_tool_config.web.ini";
-    std::ifstream ifs(storageWebFile, std::ios::in);
-    if (!ifs.is_open())
-    {
-        ChipLogError(NotSpecified, "Failed to open storage file chip_tool_config.web.ini.");
-        return ptree();
-    }
-    std::string line;
-    std::getline(ifs, line);
-    while(std::getline(ifs, line))
-    {
-        size_t equalsPos = line.find('=');
-        if (equalsPos != std::string::npos)
-        {
-            std::string storageNodeAlias = line.substr(0, equalsPos);
-            chip::NodeId storageNodeId =  webCommissionerStorage.GetLocalKeyNodeId(storageNodeAlias.c_str());
-            storageNodes.put(storageNodeAlias.c_str(), static_cast<int>(storageNodeId));
-        }
-    }
-    ifs.close();
-
-    ChipLogError(NotSpecified, "Get web local storage node alias and nodeID successfully.");
-    return storageNodes;
 }
 
 void generateMessages(WsServer* s, websocketpp::connection_hdl hdl, message_ptr msg, string nodeId, string nodeAlias)
@@ -364,7 +334,6 @@ void addCrowRouteForStaticFileServer(crow::App<crow::CORSHandler>& crowApplicati
 int main()
 {
     chipToolInit();
-    webCommissionerStorage.Init("web");
     constexpr int SERVER_PORT = 8889;
     constexpr int WS_PORT = 9002;
 
@@ -526,52 +495,43 @@ int main()
             auto x_body_decoded = crow::json::load(req.body);
             auto nodeId = std::string(x_body_decoded["nodeId"].s());
             auto type = std::string(x_body_decoded["type"].s());
-            auto nodeAlias = std::string(x_body_decoded["nodeAlias"].s());
-            ChipLogError(NotSpecified, "Received POST request for pairing with Node ID: %s, Type: %s, Node Alias: %s",
-                std::string(nodeId).c_str(), std::string(type).c_str(), std::string(nodeAlias).c_str());
-            if(webCommissionerStorage.SyncDoesKeyExist(std::string(nodeAlias).c_str())){
+            //auto nodeAlias = std::string(x_body_decoded["nodeAlias"].s());
+            ChipLogError(NotSpecified, "Received POST request for pairing with Node ID: %s, Type: %s", std::string(nodeId).c_str(), std::string(type).c_str());
+            std::string command;
+            if (type == "onnetwork") {
+                auto passCode = std::string(x_body_decoded["passCode"].s());
+                command = "pairing onnetwork " + nodeId + " " + passCode;
+            } else if (type == "ble-wifi") {
+                auto ssId = std::string(x_body_decoded["ssId"].s());
+                auto password = std::string(x_body_decoded["password"].s());
+                auto pinCode = std::string(x_body_decoded["pinCode"].s());
+                auto discriminator = std::string(x_body_decoded["discriminator"].s());
+                command = "pairing ble-wifi " + nodeId + " " + ssId + " " + password + " " + pinCode + " " + discriminator;
+            } else if (type == "ble-thread") {
+                auto dataset = std::string(x_body_decoded["dataset"].s());
+                auto pinCode = std::string(x_body_decoded["pinCode"].s());
+                auto discriminator = std::string(x_body_decoded["discriminator"].s());
+                command = "pairing ble-thread " + nodeId + " hex:" + dataset + " " + pinCode + " " + discriminator;
+            }
+            wsClient.sendMessage(command);
+            ChipLogError(NotSpecified, "Send pairing command to chip-tool ws server.");
+            int sleepTime = 0;
+            while (reportQueue.empty() && sleepTime < 60)
+            {
+                this_thread::sleep_for(chrono::seconds(1));
+                sleepTime++;
+            }
+            if (sleepTime == 60) {
                 root.put("result", RESPONSE_FAILURE);
-                root.put("cause", "repeat nodeAlias");
+                ChipLogError(NotSpecified, "Execute pairing command overtime!");
             } else {
-                std::string command;
-                if (type == "onnetwork") {
-                    auto passCode = std::string(x_body_decoded["passCode"].s());
-                    command = "pairing onnetwork " + nodeId + " " + passCode;
-                } else if (type == "ble-wifi") {
-                    auto ssId = std::string(x_body_decoded["ssId"].s());
-                    auto password = std::string(x_body_decoded["password"].s());
-                    auto pinCode = std::string(x_body_decoded["pinCode"].s());
-                    auto discriminator = std::string(x_body_decoded["discriminator"].s());
-                    command = "pairing ble-wifi " + nodeId + " " + ssId + " " + password + " " + pinCode + " " + discriminator;
-                } else if (type == "ble-thread") {
-                    auto dataset = std::string(x_body_decoded["dataset"].s());
-                    auto pinCode = std::string(x_body_decoded["pinCode"].s());
-                    auto discriminator = std::string(x_body_decoded["discriminator"].s());
-                    command = "pairing ble-thread " + nodeId + " hex:" + dataset + " " + pinCode + " " + discriminator;
-                }
-                wsClient.sendMessage(command);
-                ChipLogError(NotSpecified, "Send pairing command to chip-tool ws server.");
-                int sleepTime = 0;
-                while (reportQueue.empty() && sleepTime < 60)
-                {
-                    this_thread::sleep_for(chrono::seconds(1));
-                    sleepTime++;
-                }
-                if (sleepTime == 60) {
-                    root.put("result", RESPONSE_FAILURE);
-                    ChipLogError(NotSpecified, "Execute pairing command overtime!");
+                Json::Value resultsReport = wsClient.dequeueReport();
+                int resultsReportSize = resultsReport.size();
+                if (resultsReportSize == 0) {
+                    root.put("result", RESPONSE_SUCCESS);
                 } else {
-                    Json::Value resultsReport = wsClient.dequeueReport();
-                    int resultsReportSize = resultsReport.size();
-                    if (resultsReportSize == 0) {
-                        root.put("result", RESPONSE_SUCCESS);
-                        chip::NodeId nodeIdStorage = std::stoul(nodeId);
-                        const char * nodeAliasStorage = nodeAlias.c_str();
-                        webCommissionerStorage.SetLocalKeyNodeId(nodeAliasStorage, nodeIdStorage);
-                    } else {
-                        root.put("result", RESPONSE_FAILURE);
-                        ChipLogError(NotSpecified, "Recieved response meaasge after sending pairing command, but pairing failed!");
-                    }
+                    root.put("result", RESPONSE_FAILURE);
+                    ChipLogError(NotSpecified, "Recieved response meaasge after sending pairing command, but pairing failed!");
                 }
             }
             stringstream ss;
@@ -636,43 +596,34 @@ int main()
             ChipLogError(NotSpecified, "Received ON/OFF read POST request for device with Node ID: %s, End Point ID: %s",
                 std::string(nodeId).c_str(), std::string(endPointId).c_str());
             std::string command;
-
-            // Get the id of the node from the alias
-            chip::NodeId nodeIdStorage = webCommissionerStorage.GetLocalKeyNodeId(nodeAlias.c_str());
-            if (nodeIdStorage == 0) {
+            command = "onoff read on-off " + nodeId + " " + endPointId;
+            wsClient.sendMessage(command);
+            ChipLogError(NotSpecified, "Send onoff read command to chip-tool ws server");
+            int sleepTime = 0;
+            while (reportQueue.empty() && sleepTime < 20)
+            {
+                this_thread::sleep_for(chrono::seconds(1));
+                sleepTime++;
+            }
+            if (sleepTime == 20) {
                 root.put("result", RESPONSE_FAILURE);
-                root.put("cause", "nodeAlias not found");
-                ChipLogError(NotSpecified, "Node Alias not found in the storage");
+                ChipLogError(NotSpecified, "Generated onoff report overtime!");
             } else {
-              command = "onoff read on-off " + nodeId + " " + endPointId;
-              wsClient.sendMessage(command);
-              ChipLogError(NotSpecified, "Send onoff read command to chip-tool ws server");
-              int sleepTime = 0;
-              while (reportQueue.empty() && sleepTime < 20)
-              {
-                  this_thread::sleep_for(chrono::seconds(1));
-                  sleepTime++;
-              }
-              if (sleepTime == 20) {
-                  root.put("result", RESPONSE_FAILURE);
-                  ChipLogError(NotSpecified, "Generated onoff report overtime!");
-              } else {
-                  Json::Value resultsReport = wsClient.dequeueReport();
-                  Json::Value resultsValue = resultsReport[0];
-                  if (resultsValue.isMember("error"))
-                  {
-                      root.put("result", RESPONSE_FAILURE);
-                      ChipLogError(NotSpecified, "Generated report failed!");
-                  } else {
-                      stringstream report_ss;
-                      report_ss << "Report from " << nodeAlias << " " << nodeId << ": " << resultsValue["endpointId"] << ". " << "Cluster: "
-                                << resultsValue["clusterId"] << "; " << "On-Off" << ": " << resultsValue["value"];
-                      string report_text = report_ss.str();
-                      root.put("result", RESPONSE_SUCCESS);
-                      ChipLogError(NotSpecified, "Generated report successfully: %s", report_text.c_str());
-                      root.put("report", report_text);
-                  }
-              }
+                Json::Value resultsReport = wsClient.dequeueReport();
+                Json::Value resultsValue = resultsReport[0];
+                if (resultsValue.isMember("error"))
+                {
+                    root.put("result", RESPONSE_FAILURE);
+                    ChipLogError(NotSpecified, "Generated report failed!");
+                } else {
+                    stringstream report_ss;
+                    report_ss << "Report from " << nodeAlias << " " << nodeId << ": " << resultsValue["endpointId"] << ". " << "Cluster: "
+                              << resultsValue["clusterId"] << "; " << "On-Off" << ": " << resultsValue["value"];
+                    string report_text = report_ss.str();
+                    root.put("result", RESPONSE_SUCCESS);
+                    ChipLogError(NotSpecified, "Generated report successfully: %s", report_text.c_str());
+                    root.put("report", report_text);
+                }
             }
             stringstream ss;
             write_json(ss, root);
@@ -801,6 +752,52 @@ int main()
         }
     });
 
+    CROW_ROUTE(crowApplication, "/api/basicinformation").methods("POST"_method)([](const crow::request& req) {
+        try
+        {
+            ptree root;
+            auto x_body_decoded = crow::json::load(req.body);
+            auto nodeAlias = std::string(x_body_decoded["nodeAlias"].s());
+            auto nodeId = std::string(x_body_decoded["nodeId"].s());
+            auto endPointId = std::string(x_body_decoded["endPointId"].s());
+            ChipLogError(NotSpecified, "Received POST request to write the nodeAlias");
+            std::string command;
+            command = "basicinformation write node-label " + nodeAlias + " " + nodeId + " " + endPointId;
+            wsClient.sendMessage(command);
+            ChipLogError(NotSpecified, "send basicinformation write command to chip-tool ws server");
+            int sleepTime = 0;
+            while (reportQueue.empty() && sleepTime < 20)
+            {
+                this_thread::sleep_for(chrono::seconds(1));
+                sleepTime++;
+            }
+            if (sleepTime == 20) {
+                root.put("result", RESPONSE_FAILURE);
+                ChipLogError(NotSpecified, "Execute basicinformation command overtime!");
+            } else {
+                Json::Value resultsValue = wsClient.dequeueReport();
+                int jsonObjectsize = resultsValue.size();
+                if (jsonObjectsize == 0) {
+                    root.put("result", RESPONSE_SUCCESS);
+                } else {
+                    root.put("result", RESPONSE_FAILURE);
+                    ChipLogError(NotSpecified, "Execute basicinformation command failed!");
+                }
+            }
+            stringstream ss;
+            write_json(ss, root);
+            string strContent = ss.str();
+            crow::response response(strContent);
+            response.add_header("Access-Control-Allow-Origin", "*");
+            return response;
+        } catch (const exception &e)
+        {
+            crow::response response(400, e.what());
+            response.add_header("Access-Control-Allow-Origin", "*");
+            return response;
+        }
+    });
+
     CROW_ROUTE(crowApplication, "/api/payload_parse").methods("POST"_method)([](const crow::request& req) {
         try
         {
@@ -888,77 +885,6 @@ int main()
             response.add_header("Access-Control-Allow-Origin", "*");
             return response;
         } catch (const exception & e)
-        {
-            crow::response response(400, e.what());
-            response.add_header("Access-Control-Allow-Origin", "*");
-            return response;
-        }
-    });
-
-    CROW_ROUTE(crowApplication, "/api/get_status").methods("GET"_method)([]() {
-        try
-        {
-            ptree root;
-            ptree storageNodes;
-            ChipLogError(NotSpecified, "Received GET request for get status");
-            auto start_time = std::chrono::steady_clock::now();
-            try{
-                storageNodes = getStorageKeyNodeID();
-                root.put("result", RESPONSE_SUCCESS);
-                root.add_child("status", storageNodes);
-            } catch (const exception & e)
-            {
-                ChipLogError(NotSpecified, "GET request for get status failed");
-                root.put("result", RESPONSE_FAILURE);
-            }
-            auto end_time = std::chrono::steady_clock::now();
-            auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
-            if (elapsed_seconds > 60) {
-                root.put("result", RESPONSE_FAILURE);
-            }
-            stringstream ss;
-            write_json(ss, root);
-            string strContent = ss.str();
-            crow::response response(strContent);
-            response.add_header("Access-Control-Allow-Origin", "*");
-            return response;
-        } catch (const exception & e)
-        {
-            crow::response response(400, e.what());
-            response.add_header("Access-Control-Allow-Origin", "*");
-            return response;
-        }
-    });
-
-    CROW_ROUTE(crowApplication, "/api/delete_storageNode").methods("POST"_method)([](const crow::request& req) {
-        try
-        {
-            ptree root;
-            auto x_body_decoded = crow::json::load(req.body);
-            auto nodeAlias = std::string(x_body_decoded["nodeAlias"].s());
-            ChipLogError(NotSpecified, "Received POST request to delete storage node with node alias: %s", nodeAlias.c_str());
-            auto start_time = std::chrono::steady_clock::now();
-            try
-            {
-                webCommissionerStorage.SyncDeleteKeyValue(nodeAlias.c_str());
-                root.put("result", RESPONSE_SUCCESS);
-            } catch (const exception & e)
-            {
-                ChipLogError(NotSpecified, "Delete storage node with nodeAlias: %s failed", nodeAlias.c_str());
-                root.put("result", RESPONSE_FAILURE);
-            }
-            auto end_time = std::chrono::steady_clock::now();
-            auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
-            if (elapsed_seconds > 60) {
-                root.put("result", RESPONSE_FAILURE);
-            }
-            stringstream ss;
-            write_json(ss, root);
-            string strContent = ss.str();
-            crow::response response(strContent);
-            response.add_header("Access-Control-Allow-Origin", "*");
-            return response;
-        } catch (const exception &e)
         {
             crow::response response(400, e.what());
             response.add_header("Access-Control-Allow-Origin", "*");
