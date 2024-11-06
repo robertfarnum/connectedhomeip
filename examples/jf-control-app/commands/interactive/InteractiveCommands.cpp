@@ -393,6 +393,7 @@ InteractiveServerResult gInteractiveServerResult;
 
 std::queue<std::string> sCommandQueue;
 std::mutex sQueueMutex;
+std::mutex sParserMutex;
 std::condition_variable sQueueCondition;
 
 void ReadCommandThread()
@@ -408,6 +409,35 @@ void ReadCommandThread()
             free(command);
             sQueueCondition.notify_one();
         }
+    }
+}
+
+void BackgroundCommandsThread(InteractiveCommand * cmdParser)
+{
+    std::unique_lock<std::mutex> lock(sQueueMutex);
+    int status;
+    std::string cmd;
+
+    /* TODO: Should add a mechanism to gracefully shut down this thread */
+    while (true) {
+        sQueueCondition.wait(lock, [&] { return !sCommandQueue.empty(); });
+        cmd = sCommandQueue.front();
+        sCommandQueue.pop();
+
+        /*
+         * Unlock the commands queue while waiting so that other threads can
+         * still push to it
+         */
+        lock.unlock();
+        {
+            /*
+             * Locking the parser to make sure we're not executing commands in
+             * parallel with web server
+             */
+            std::unique_lock<std::mutex> execLock(sParserMutex);
+            cmdParser->ParseCommand(cmd.data(), &status);
+        }
+        lock.lock();
     }
 }
 
@@ -480,6 +510,10 @@ std::string InteractiveStartCommand::GetHistoryFilePath() const
 
 CHIP_ERROR InteractiveServerCommand::RunCommand()
 {
+    /* Start up the task that is servicing the commands queue */
+    std::thread backgroundCommandsThread(BackgroundCommandsThread, this);
+    backgroundCommandsThread.detach();
+
     // Logs needs to be redirected in order to refresh the screen appropriately when something
     // is dumped to stdout while the user is typing a command.
     chip::Logging::SetLogRedirectCallback(InteractiveServerLoggingCallback);
@@ -496,6 +530,8 @@ bool InteractiveServerCommand::OnWebSocketMessageReceived(char * msg)
 {
     bool isAsyncReport = strlen(msg) == 0;
     uint16_t timeout   = 0;
+    bool shouldStop;
+
     if (!isAsyncReport && strlen(msg) <= 5 /* Only look for numeric values <= 65535 */)
     {
         std::stringstream ss;
@@ -509,10 +545,17 @@ bool InteractiveServerCommand::OnWebSocketMessageReceived(char * msg)
 
     gInteractiveServerResult.Setup(isAsyncReport, timeout);
     VerifyOrReturnValue(!isAsyncReport, true);
+    {
+        /*
+         * Locking the parser mutex to make sure we're not executing commands
+         * in parallel with the background commands thread
+         */
+        std::unique_lock<std::mutex> lock(sParserMutex);
 
-    auto shouldStop = ParseCommand(msg, &gInteractiveServerResult.mStatus);
-    mWebSocketServer.Send(gInteractiveServerResult.AsJsonString().c_str());
-    gInteractiveServerResult.Reset();
+        shouldStop = ParseCommand(msg, &gInteractiveServerResult.mStatus);
+        mWebSocketServer.Send(gInteractiveServerResult.AsJsonString().c_str());
+        gInteractiveServerResult.Reset();
+    }
 
     #if (CHIP_WITH_WEBUI2)
     if(strstr(msg, "subscribe"))
