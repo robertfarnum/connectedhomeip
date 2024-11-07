@@ -142,7 +142,7 @@ void DeviceManager::HandleOnOpenCommissioningWindowResponse(chip::NodeId remoteI
         ChipLogError(Controller, "Unable to generate QR code for setup payload: %" CHIP_ERROR_FORMAT, err.Format());
     }
 
-#if CONFIG_ENABLE_GRPC
+#if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
     Json::Value ocwResponseJson;
 
     ocwResponseJson["method"]     = "OpenCommissioningWindow";
@@ -150,9 +150,9 @@ void DeviceManager::HandleOnOpenCommissioningWindowResponse(chip::NodeId remoteI
     ocwResponseJson["qrCode"]     = std::string(QRCode.data());
     ocwResponseJson["errorCode"]  = 0;
     ChipLogProgress(NotSpecified, "SocketServer::sInstance = %p", &SockSrv);
-#endif
 
     SockSrv().Send(ocwResponseJson);
+#endif /* CONFIG_ENABLE_GRPC */
 }
 
 void DeviceManager::HandleOnAttributeData(const app::ConcreteDataAttributePath & path, TLV::TLVReader * data, NodeId destinationId)
