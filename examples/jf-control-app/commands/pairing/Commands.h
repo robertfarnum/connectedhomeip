@@ -170,7 +170,8 @@ class PairCodeJointFabric : public PairingCommand
 {
 public:
     PairCodeJointFabric(CredentialIssuerCommands * credsIssuerConfig) :
-        PairingCommand("code-joint-fabric", PairingMode::Code, PairingNetworkType::None, credsIssuerConfig)
+        PairingCommand("code-joint-fabric", PairingMode::Code, PairingNetworkType::None, credsIssuerConfig,
+                       chip::Dnssd::DiscoveryFilterType::kJointFabricMode)
     {}
 };
 
