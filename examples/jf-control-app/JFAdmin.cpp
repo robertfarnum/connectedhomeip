@@ -12,12 +12,13 @@
 #define RPC_SERVER_PORT         8111
 #define DEFAULT_RPC_CHANNEL     1
 
-static void OnOpenCommissioningWindowDone(const ::joint_fabric_ErrorCode &result, ::pw::Status status);
+static void OnOpenCommissioningWindowDone(const ::joint_fabric_OpenCommissioningWindowOut &result, ::pw::Status status);
 
 static class JointFabricAdmin jf_admin;
 static char rpcServerAddress[48] = { "127.0.0.1" };
 static int rpcStatus = RPC_DISCONNECTED;
 static volatile bool rpcCallCompleted;
+::joint_fabric_OpenCommissioningWindowOut ocw_result;
 
 void RpcConnect(void)
 {
@@ -69,7 +70,9 @@ CHIP_ERROR JointFabricAdmin::OpenCommissioningWindow(uint16_t timeout)
     }
 
     /* Populate request */
-    request.window_timeout = timeout;
+    memset(&request, 0, sizeof(request));
+    request.mode                = 0;
+    request.window_timeout      = timeout;
 
     rpcCallCompleted = false;
 
@@ -81,7 +84,11 @@ CHIP_ERROR JointFabricAdmin::OpenCommissioningWindow(uint16_t timeout)
     }
 
     /* Wait for the RPC call to complete */
+    /* TODO: Should add a timeout here instead of waiting forever */
     do { } while (!rpcCallCompleted);
+
+    ChipLogProgress(NotSpecified, "OpenCommissioningWindow() response:");
+    ChipLogProgress(NotSpecified, "    - manual_code = \"%s\"", ocw_result.manual_code);
 
     return CHIP_NO_ERROR;
 }
@@ -98,14 +105,9 @@ CHIP_ERROR JointFabricAdmin::OnboardAdmin(const char *passcode)
     return CHIP_NO_ERROR;
 }
 
-static void OnOpenCommissioningWindowDone(const ::joint_fabric_ErrorCode &result, ::pw::Status status)
+static void OnOpenCommissioningWindowDone(const ::joint_fabric_OpenCommissioningWindowOut &result, ::pw::Status status)
 {
-    if (status.ok()) {
-        ChipLogProgress(NotSpecified, "RPC call successful (server err_code = %d).",
-            result.err_code);
-    } else {
-        ChipLogError(NotSpecified, "ERROR: RPC call failed!");
-    }
-
+    ChipLogProgress(NotSpecified, "RPC call completed (status = %d).", status.code());
+    memcpy(&ocw_result, &result, sizeof(ocw_result));
     rpcCallCompleted = true;
 }

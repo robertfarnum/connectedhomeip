@@ -12,12 +12,14 @@ message TextMessage {
 
 /* OpenCommissioningWindow command parameters and response */
 message OpenCommissioningWindowIn {
-    uint32 window_timeout = 1;
+    uint32 mode = 1;
+    uint32 window_timeout = 2;
+    uint32 iterations = 3;
+    uint32 discriminator = 4;
 }
 
 message OpenCommissioningWindowOut {
-    string vendor_id = 1;
-    string product_id = 2;
+    string manual_code = 1;
 }
 
 /* CommissionDevice command parameters and response */
@@ -45,7 +47,7 @@ message UpdateOperationalIdentityIn {
 }
 
 service JointFabric {
-    rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (ErrorCode) {}
+    rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (OpenCommissioningWindowOut) {}
 }
 
 service ReverseJointFabric {

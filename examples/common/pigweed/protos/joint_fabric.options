@@ -1,6 +1,5 @@
 joint_fabric.TextMessage.msg_data max_length:64
-joint_fabric.OpenCommissioningWindowOut.vendor_id max_length:64
-joint_fabric.OpenCommissioningWindowOut.product_id max_length:64
+joint_fabric.OpenCommissioningWindowOut.manual_code max_length:21
 joint_fabric.CommissionDeviceIn.manual_code max_length:64
 joint_fabric.CommissionDeviceIn.duration max_length:64
 joint_fabric.Device.display_name max_length:256

@@ -5,8 +5,8 @@ namespace joint_fabric {
 
 class JointFabricServiceImpl : public pw_rpc::nanopb::JointFabric::Service<JointFabricServiceImpl> {
     public:
-        pw::Status OpenCommissioningWindow(const ::joint_fabric_OpenCommissioningWindowIn& request,
-            joint_fabric_ErrorCode& response);
+        pw::Status OpenCommissioningWindow(const joint_fabric_OpenCommissioningWindowIn& request,
+            joint_fabric_OpenCommissioningWindowOut& response);
 };
 
 class JointFabricControlServiceImpl : public pw_rpc::nanopb::JointFabricControl::Service<JointFabricControlServiceImpl> {
