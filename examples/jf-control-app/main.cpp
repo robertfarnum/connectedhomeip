@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-#include "RpcClient.h"
 #include "RpcServer.h"
 #include "commands/clusters/SubscriptionsCommands.h"
 #include "commands/icd/ICDCommand.h"

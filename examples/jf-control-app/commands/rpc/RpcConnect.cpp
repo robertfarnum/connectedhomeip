@@ -3,7 +3,7 @@
 
 #include <lib/support/logging/CHIPLogging.h>
 
-#include "RpcClient.h"
+#include "JFAdmin.h"
 
 CHIP_ERROR RpcConnectCommand::Run()
 {
@@ -11,6 +11,6 @@ CHIP_ERROR RpcConnectCommand::Run()
         RpcSetServerAddress(ipaddr.Value().data());
     }
     RpcConnect();
-    
+
     return CHIP_NO_ERROR;
 }

@@ -3,7 +3,7 @@
 
 #include <lib/support/logging/CHIPLogging.h>
 
-#include "RpcClient.h"
+#include "JFAdmin.h"
 #if defined(CONFIG_ENABLE_GRPC) && CONFIG_ENABLE_GRPC
 // #include "GrpcServer.h"
 #include "control_server/SocketServer.h"
@@ -50,5 +50,5 @@ CHIP_ERROR RpcStatusCommand::Run()
 
 CHIP_ERROR RpcOpenCommissioningWindowCommand::Run()
 {
-    return RpcOpenCommissioningWindow(window_timeout);
+    return JointFabricAdmin::GetInstance().OpenCommissioningWindow(window_timeout);
 }

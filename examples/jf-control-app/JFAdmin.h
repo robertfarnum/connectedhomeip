@@ -4,6 +4,10 @@
 
 #include <lib/core/CHIPError.h>
 
+#define RPC_DISCONNECTED        0
+#define RPC_CONNECTING          1
+#define RPC_CONNECTED           2
+
 class JointFabricAdmin;
 
 class JointFabricAdmin {
@@ -14,5 +18,11 @@ public:
 
     CHIP_ERROR OnboardAdmin(const char *passcode);
 };
+
+void RpcSetServerAddress(const char *addr);
+
+int RpcGetStatus(void);
+
+void RpcConnect(void);
 
 #endif /* __JFADMIN_H__ */
