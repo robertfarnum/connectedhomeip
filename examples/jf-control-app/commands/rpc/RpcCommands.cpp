@@ -50,5 +50,23 @@ CHIP_ERROR RpcStatusCommand::Run()
 
 CHIP_ERROR RpcOpenCommissioningWindowCommand::Run()
 {
-    return JointFabricAdmin::GetInstance().OpenCommissioningWindow(window_timeout);
+    uint32_t vIterations = (uint32_t)atol(DEFAULT_ITERATIONS);
+    uint16_t vDiscriminator = (uint16_t)atoi(DEFAULT_DISCRIMINATOR);
+
+    if (mode == 0) {
+        return JointFabricAdmin::GetInstance().OpenCommissioningWindow(window_timeout);
+    }
+
+    if (iterations.HasValue()) {
+        vIterations = iterations.Value();
+        iterations.ClearValue();
+    }
+
+    if (discriminator.HasValue()) {
+        vDiscriminator = discriminator.Value();
+        discriminator.ClearValue();
+    }
+
+    return JointFabricAdmin::GetInstance().OpenCommissioningWindow(window_timeout,
+        vIterations, vDiscriminator);
 }
