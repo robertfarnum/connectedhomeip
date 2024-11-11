@@ -57,6 +57,7 @@ class JointFabricAdmin & JointFabricAdmin::GetInstance(void)
     return jf_admin;
 }
 
+// BCM
 CHIP_ERROR JointFabricAdmin::OpenCommissioningWindow(uint16_t timeout)
 {
     joint_fabric_OpenCommissioningWindowIn request;
@@ -87,7 +88,51 @@ CHIP_ERROR JointFabricAdmin::OpenCommissioningWindow(uint16_t timeout)
     /* TODO: Should add a timeout here instead of waiting forever */
     do { } while (!rpcCallCompleted);
 
-    ChipLogProgress(NotSpecified, "OpenCommissioningWindow() response:");
+    ChipLogProgress(NotSpecified, "OpenCommissioningWindow(BCM) response:");
+    ChipLogProgress(NotSpecified, "    - manual_code = \"%s\"", ocw_result.manual_code);
+
+    return CHIP_NO_ERROR;
+}
+
+// ECM
+CHIP_ERROR JointFabricAdmin::OpenCommissioningWindow(uint16_t timeout, uint32_t iterations, uint16_t discriminator, Json::Value * result)
+{
+    joint_fabric_OpenCommissioningWindowIn request;
+    joint_fabric::pw_rpc::nanopb::JointFabric::Client rpcClient(
+        chip::rpc::client::GetDefaultRpcClient(),
+        DEFAULT_RPC_CHANNEL);
+
+    /* Reset the result object */
+    if (result) {
+        result->clear();
+    }
+
+    if (rpcStatus != RPC_CONNECTED) {
+        ChipLogError(NotSpecified, "ERROR: Not connected to the jf-admin!");
+        return CHIP_ERROR_NOT_CONNECTED;
+    }
+
+    /* Populate request */
+    memset(&request, 0, sizeof(request));
+    request.mode                = 1;
+    request.window_timeout      = timeout;
+    request.iterations          = iterations;
+    request.discriminator       = discriminator;
+
+    rpcCallCompleted = false;
+
+    auto call = rpcClient.OpenCommissioningWindow(request, OnOpenCommissioningWindowDone);
+    if (!call.active())
+    {
+        ChipLogError(NotSpecified, "ERROR: Failed to initiate RPC call!");
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    /* Wait for the RPC call to complete */
+    /* TODO: Shoul add a timeout here instead of waiting forever */
+    do { } while (!rpcCallCompleted);
+
+    ChipLogProgress(NotSpecified, "OpenCommissioningWindow(ECM) response:");
     ChipLogProgress(NotSpecified, "    - manual_code = \"%s\"", ocw_result.manual_code);
 
     return CHIP_NO_ERROR;

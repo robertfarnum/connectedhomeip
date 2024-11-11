@@ -25,8 +25,6 @@ class ReverseJointFabricServiceImpl : public pw_rpc::nanopb::ReverseJointFabric:
 
 pw::Status ReverseJointFabricServiceImpl::UpdateOperationalIdentity(const joint_fabric_UpdateOperationalIdentityIn& request, joint_fabric_ErrorCode& response)
 {
-    ChipLogProgress(NotSpecified, "UpdateOperationalIdentity(%lu)", request.node_id);
-
     DeviceMgr().SetJfOnboarded(request.node_id);
 
     return pw::OkStatus();
