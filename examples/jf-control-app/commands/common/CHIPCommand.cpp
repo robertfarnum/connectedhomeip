@@ -28,6 +28,7 @@
 #include <lib/support/ScopedBuffer.h>
 #include <lib/support/TestGroupData.h>
 #include <platform/LockTracker.h>
+#include <device_manager/DeviceManager.h>
 
 #include <string>
 
@@ -266,6 +267,10 @@ CHIP_ERROR CHIPCommand::EnsureCommissionerForIdentity(std::string identity)
 
 CHIP_ERROR CHIPCommand::Run()
 {
+    std::string commissionerName(DeviceMgr().GetCurrentCommissioner());
+
+    mCommissionerName.SetValue(commissionerName.data());
+
     ReturnErrorOnFailure(MaybeSetUpStack());
 
     CHIP_ERROR err = StartWaiting(GetWaitDuration());
