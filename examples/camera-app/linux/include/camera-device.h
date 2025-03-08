@@ -19,6 +19,7 @@
 #pragma once
 #include "camera-device-interface.h"
 #include "chime-manager.h"
+#include "webrtc-transport-provider-manager.h"
 #include <protocols/interaction_model/StatusCode.h>
 
 namespace Camera {
@@ -29,11 +30,14 @@ class CameraDevice : public CameraDeviceInterface
 public:
     CameraDevice();
 
-    virtual chip::app::Clusters::ChimeDelegate & GetChimeDelegate();
+    // Delegate getters for each cluster
+    virtual chip::app::Clusters::ChimeDelegate & GetChimeDelegate() override;
+    virtual chip::app::Clusters::WebRTCTransportProvider::Delegate & GetWebRTCTransportProviderDelegate() override;
 
 private:
     // Various cluster server delegates
     ChimeManager mChimeManager;
+    chip::app::WebRTCTransportProviderManager mWebRTCTransportProviderManager;
 };
 
 } // namespace Camera

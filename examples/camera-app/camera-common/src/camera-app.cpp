@@ -21,6 +21,7 @@ using namespace chip;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::Chime;
+using namespace chip::app::Clusters::WebRTCTransportProvider;
 
 template <typename T>
 using List   = chip::app::DataModel::List<T>;
@@ -30,6 +31,9 @@ void CameraApp::InitCameraDeviceClusters()
 {
     // Initialize Cluster Servers
     mChimeServer.Init();
+    
+    // Register WebRTC Transport Provider attribute access interface
+    Server::RegisterAttributeAccessInterface(kCameraEndpointId);
 }
 
 static constexpr EndpointId kCameraEndpointId = 1;

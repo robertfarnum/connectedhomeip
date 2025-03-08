@@ -14,6 +14,7 @@
 
 import("//build_overrides/build.gni")
 import("//build_overrides/chip.gni")
+import("//build_overrides/libdatachannel.gni")
 
 import("${chip_root}/build/chip/tools.gni")
 import("${chip_root}/src/app/common_flags.gni")
@@ -31,6 +32,7 @@ executable("chip-camera-app") {
   sources = [
     "${chip_root}/examples/camera-app/linux/src/camera-device.cpp",
     "${chip_root}/examples/camera-app/linux/src/clusters/chime/chime-manager.cpp",
+    "${chip_root}/examples/camera-app/linux/src/webrtc-transport-provider-manager.cpp",
     "include/CHIPProjectAppConfig.h",
     "main.cpp",
   ]
@@ -39,13 +41,16 @@ executable("chip-camera-app") {
     "${chip_root}/examples/camera-app/camera-common",
     "${chip_root}/examples/camera-app/camera-common:camera-lib",
     "${chip_root}/examples/platform/linux:app-main",
+    "${chip_root}/src/app/clusters/webrtc-transport-provider-server",
     "${chip_root}/src/lib",
+    "${chip_root}/third_party/libdatachannel:libdatachannel",
   ]
 
   include_dirs = [
     "include",
     "include/clusters/chime",
     "${chip_root}/examples/camera-app/camera-common/include",
+    "${chip_root}/src/app/clusters/webrtc-transport-provider-server",
   ]
 
   cflags = [ "-Wconversion" ]

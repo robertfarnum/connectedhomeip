@@ -17,6 +17,13 @@ import("${chip_root}/src/ble/ble.gni")
 import("${chip_root}/src/inet/inet.gni")
 import("${chip_root}/src/platform/device.gni")
 
+import("//build_overrides/libdatachannel.gni")
+
+declare_args() {
+  # Enable WebRTC transport
+  chip_enable_webrtc_transport = false
+}
+
 static_library("raw") {
   output_name = "libRawTransport"
 
@@ -45,10 +52,18 @@ static_library("raw") {
       "BLE.h",
     ]
   }
+  
   if (chip_device_config_enable_wifipaf) {
     sources += [
       "WiFiPAF.cpp",
       "WiFiPAF.h",
+    ]
+  }
+  
+  if (chip_enable_webrtc_transport) {
+    sources += [
+      "WebRTC.cpp",
+      "WebRTC.h",
     ]
   }
 
@@ -62,4 +77,8 @@ static_library("raw") {
     "${chip_root}/src/lib/support:type-traits",
     "${chip_root}/src/platform",
   ]
+  
+  if (chip_enable_webrtc_transport) {
+    public_deps += [ "${libdatachannel_root}:libdatachannel" ]
+  }
 }

@@ -22,6 +22,7 @@
 
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::Chime;
+using namespace chip::app::Clusters::WebRTCTransportProvider;
 using namespace Camera;
 
 CameraDevice::CameraDevice()
@@ -32,4 +33,9 @@ CameraDevice::CameraDevice()
 ChimeDelegate & CameraDevice::GetChimeDelegate()
 {
     return mChimeManager;
+}
+
+Delegate & CameraDevice::GetWebRTCTransportProviderDelegate()
+{
+    return mWebRTCTransportProviderManager;
 }

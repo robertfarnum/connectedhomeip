@@ -21,6 +21,7 @@
 #include <app-common/zap-generated/cluster-objects.h>
 
 #include "camera-device-interface.h"
+#include <app/clusters/webrtc-transport-provider-server/webrtc-transport-provider-server.h>
 #include <app/util/config.h>
 #include <cstring>
 #include <protocols/interaction_model/StatusCode.h>
@@ -33,8 +34,11 @@ class CameraApp
 public:
     // This class is responsible for initialising all the camera clusters and managing the interactions between them
     explicit CameraApp(chip::EndpointId aClustersEndpoint, CameraDeviceInterface * cameraDevice) :
-        mChimeServer(aClustersEndpoint, cameraDevice->GetChimeDelegate())
-    {}
+        mChimeServer(aClustersEndpoint, cameraDevice->GetChimeDelegate()),
+        mWebRTCTransportProviderServer(&chip::app::Clusters::WebRTCTransportProvider::Server::Instance())
+    {
+        mWebRTCTransportProviderServer.SetDelegate(&cameraDevice->GetWebRTCTransportProviderDelegate());
+    }
 
     // Initialize all the camera device clusters.
     void InitCameraDeviceClusters();
@@ -42,6 +46,7 @@ public:
 private:
     // SDK cluster servers
     chip::app::Clusters::ChimeServer mChimeServer;
+    chip::app::Clusters::WebRTCTransportProvider::Server & mWebRTCTransportProviderServer;
 };
 
 void CameraAppInit(CameraDeviceInterface * cameraDevice);
