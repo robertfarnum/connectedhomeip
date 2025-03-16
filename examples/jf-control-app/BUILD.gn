@@ -55,11 +55,18 @@ config("config") {
 
 static_library("jf-control-app-utils") {
   sources = [
+    "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",
+    "${chip_root}/examples/platform/linux/RpcClientProcessor.h",
+    "${chip_root}/examples/platform/linux/system_rpc_server.cc",
     "${chip_root}/src/controller/ExamplePersistentStorage.cpp",
     "${chip_root}/src/controller/ExamplePersistentStorage.h",
     "${chip_root}/zzz_generated/chip-tool/zap-generated/cluster/ComplexArgumentParser.cpp",
     "${chip_root}/zzz_generated/chip-tool/zap-generated/cluster/logging/DataModelLogger.cpp",
     "${chip_root}/zzz_generated/chip-tool/zap-generated/cluster/logging/EntryToText.cpp",
+    "JFAdmin.cpp",
+    "JFAdmin.h",
+    "RpcServer.cpp",
+    "RpcServer.h",
     "commands/clusters/ModelCommand.cpp",
     "commands/clusters/ModelCommand.h",
     "commands/common/BDXDiagnosticLogsServerDelegate.cpp",
@@ -73,12 +80,12 @@ static_library("jf-control-app-utils") {
     "commands/common/HexConversion.h",
     "commands/common/RemoteDataModelLogger.cpp",
     "commands/common/RemoteDataModelLogger.h",
+    "commands/icd/ICDCommand.cpp",
+    "commands/icd/ICDCommand.h",
     "commands/joint-fabric/JointFabricCommand.cpp",
     "commands/joint-fabric/JointFabricCommand.h",
     "commands/joint-fabric/ShowDatastoreCommand.cpp",
     "commands/joint-fabric/ShowDatastoreCommand.h",
-    "commands/icd/ICDCommand.cpp",
-    "commands/icd/ICDCommand.h",
     "commands/pairing/OpenCommissioningWindowCommand.cpp",
     "commands/pairing/OpenCommissioningWindowCommand.h",
     "commands/pairing/PairingCommand.cpp",
@@ -87,17 +94,10 @@ static_library("jf-control-app-utils") {
     "commands/rpc/RpcCommands.h",
     "commands/rpc/RpcConnect.cpp",
     "commands/rpc/RpcConnect.h",
-    "device_manager/DeviceManager.cpp",
-    "device_manager/DeviceManager.h",
     "device_manager/DeviceDatastoreCache.cpp",
     "device_manager/DeviceDatastoreCache.h",
-    "RpcServer.cpp",
-    "RpcServer.h",
-    "JFAdmin.cpp",
-    "JFAdmin.h",
-    "${chip_root}/examples/platform/linux/system_rpc_server.cc",
-    "${chip_root}/examples/platform/linux/RpcClientProcessor.cpp",
-    "${chip_root}/examples/platform/linux/RpcClientProcessor.h"
+    "device_manager/DeviceManager.cpp",
+    "device_manager/DeviceManager.h",
   ]
 
   if (config_enable_grpc) {
@@ -105,7 +105,7 @@ static_library("jf-control-app-utils") {
       "control_server/ControlServer.cpp",
       "control_server/ControlServer.h",
       "control_server/SocketServer.cpp",
-      "control_server/SocketServer.h"
+      "control_server/SocketServer.h",
     ]
   }
 
@@ -123,17 +123,17 @@ static_library("jf-control-app-utils") {
   }
 
   public_deps = [
-    "$dir_pw_hdlc:pw_hdlc",
-    "$dir_pw_hdlc:default_addresses",
-    "$dir_pw_hdlc:rpc_channel_output",
     "$dir_pw_chrono:system_timer",
-    "$dir_pw_stream:socket_stream",
+    "$dir_pw_hdlc:default_addresses",
+    "$dir_pw_hdlc:pw_hdlc",
+    "$dir_pw_hdlc:rpc_channel_output",
     "$dir_pw_rpc:server",
     "$dir_pw_rpc/system_server:facade",
     "$dir_pw_rpc/system_server:socket",
+    "$dir_pw_stream:socket_stream",
     "$dir_pw_thread:thread",
-    "${chip_root}/examples/common/tracing:commandline",
     "${chip_root}/examples/common/pigweed:joint_fabric.nanopb_rpc",
+    "${chip_root}/examples/common/tracing:commandline",
     "${chip_root}/src/app/icd/client:handler",
     "${chip_root}/src/app/icd/client:manager",
     "${chip_root}/src/app/server",
@@ -151,11 +151,11 @@ static_library("jf-control-app-utils") {
 
   if (config_enable_grpc) {
     public_deps += [
-      "$dir_pw_grpc:connection",
-      "$dir_pw_grpc:pw_rpc_handler",
-      "$dir_pw_grpc:send_queue",
+      #"$dir_pw_grpc:connection",
+      #"$dir_pw_grpc:pw_rpc_handler",
+      #"$dir_pw_grpc:send_queue",
       "$dir_pw_thread:test_thread_context",
-      "${chip_root}/examples/common/pigweed:rpc_services"
+      "${chip_root}/examples/common/pigweed:rpc_services",
     ]
   }
 
@@ -198,15 +198,15 @@ if (chip_with_web2) {
       "webui-2_0/MatterApplicationBackend/libs/crow/",
     ]
     sources = [
-      "webui-2_0/MatterApplicationBackend/src/chip_tool_web.cpp",
-      "webui/websocketapp/config/asio_no_tls.hpp",
-      "webui/websocketapp/server.hpp",
+      "webui-2_0/MatterApplicationBackend/libs/crow/crow/app.h",
       "webui-2_0/MatterApplicationBackend/libs/crow/crow/http_request.h",
       "webui-2_0/MatterApplicationBackend/libs/crow/crow/http_response.h",
       "webui-2_0/MatterApplicationBackend/libs/crow/crow/json.h",
-      "webui-2_0/MatterApplicationBackend/libs/crow/crow/app.h",
       "webui-2_0/MatterApplicationBackend/libs/crow/crow/middlewares/cors.h",
+      "webui-2_0/MatterApplicationBackend/src/chip_tool_web.cpp",
       "webui/WebSocketClient.h",
+      "webui/websocketapp/config/asio_no_tls.hpp",
+      "webui/websocketapp/server.hpp",
     ]
 
     deps = [ ":jf-control-app-utils" ]
