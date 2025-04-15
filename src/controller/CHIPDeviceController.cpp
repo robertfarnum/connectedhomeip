@@ -1370,7 +1370,7 @@ CHIP_ERROR DeviceCommissioner::StartJCMTrustVerification()
 {
     ChipLogProgress(Controller, "Starting JCM Trust Verification");
 
-    ReturnErrorOnFailure(mJCMCommissioner.StartTrustVerification(mDeviceBeingCommissioned, &mJCMCommissionerCompleteCallback));
+    ReturnErrorOnFailure(mJCMCommissioner.Start(mDeviceBeingCommissioned, &mJCMCommissionerCompleteCallback));
     
     return CHIP_NO_ERROR;
 }

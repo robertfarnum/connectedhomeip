@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021-2024 Project CHIP Authors
+ *    Copyright (c) 2025 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +73,7 @@ class JCMCommissioner : public app::ClusterStateCache::Callback
 public:
     JCMCommissioner();
     ~JCMCommissioner(){};
-    CHIP_ERROR StartTrustVerification(
+    CHIP_ERROR Start(
         DeviceProxy * device,
         chip::Callback::Callback<JCMCommissionerCompleteCallback> *callback);
 
