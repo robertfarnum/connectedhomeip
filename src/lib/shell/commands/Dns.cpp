@@ -217,6 +217,11 @@ bool ParseSubType(int argc, char ** argv, Dnssd::DiscoveryFilter & filter)
     case 'I':
         filterType = Dnssd::DiscoveryFilterType::kCompressedFabricId;
         break;
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    case 'J':
+        filterType = Dnssd::DiscoveryFilterType::kJointFabricMode;
+        break;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     default:
         return false;
     }

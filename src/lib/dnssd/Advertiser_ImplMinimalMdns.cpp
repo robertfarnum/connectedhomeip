@@ -756,6 +756,25 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
                 return CHIP_ERROR_NO_MEMORY;
             }
         }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        if (params.GetJointFabricMode().value_or(0) != 0)
+        {
+            MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
+                               DiscoveryFilter(DiscoveryFilterType::kJointFabricMode, params.GetJointFabricMode().value()));
+            FullQName longServiceName =
+                allocator->AllocateQName(nameBuffer, kSubtypeServiceNamePart, serviceType, kCommissionProtocol, kLocalDomain);
+            VerifyOrReturnError(longServiceName.nameCount != 0, CHIP_ERROR_NO_MEMORY);
+            if (!allocator->AddResponder<PtrResponder>(longServiceName, instanceName)
+                     .SetReportAdditional(instanceName)
+                     .SetReportInServiceListing(true)
+                     .IsValid())
+            {
+                ChipLogError(Discovery, "Failed to add joint fabric mode PTR record mDNS responder");
+                return CHIP_ERROR_NO_MEMORY;
+            }
+        }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     }
 
     TxtResourceRecord txtRecord(instanceName, GetCommissioningTxtEntries(params));
@@ -848,6 +867,9 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
     char txtRotatingDeviceId[chip::Dnssd::kKeyRotatingDeviceIdMaxLength + 4];
     char txtPairingHint[chip::Dnssd::kKeyPairingInstructionMaxLength + 4];
     char txtPairingInstr[chip::Dnssd::kKeyPairingInstructionMaxLength + 4];
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    char txtJointFabricMode[chip::Dnssd::kKeyJointFabricModeMaxLength + 4];
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     // the following sub types only apply to commissioner discovery advertisements
     char txtCommissionerPasscode[chip::Dnssd::kKeyCommissionerPasscodeMaxLength + 4];
@@ -878,6 +900,14 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
             snprintf(txtPairingInstr, sizeof(txtPairingInstr), "PI=%s", *pairingInstruction);
             txtFields[numTxtFields++] = txtPairingInstr;
         }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        if (const auto & jointFabricMode = params.GetJointFabricMode(); jointFabricMode.has_value())
+        {
+            snprintf(txtJointFabricMode, sizeof(txtJointFabricMode), "JF=%d", *jointFabricMode);
+            txtFields[numTxtFields++] = txtJointFabricMode;
+        }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     }
     else
     {

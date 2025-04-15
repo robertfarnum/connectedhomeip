@@ -30,6 +30,10 @@
 #include <matter/tracing/build_config.h>
 #include <system/SystemClock.h>
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+#include <controller/JCMCommissioner.h>
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+
 namespace chip {
 namespace Controller {
 
@@ -51,6 +55,9 @@ enum CommissioningStage : uint8_t
     kSendAttestationRequest,     ///< Send AttestationRequest (0x3E:0) command to the device
     kAttestationVerification,    ///< Verify AttestationResponse (0x3E:1) validity
     kAttestationRevocationCheck, ///< Verify Revocation Status of device's DAC chain
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    kJCMTrustVerification,       ///< Verify trust towards Ecosystem Administrator
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     kSendOpCertSigningRequest,   ///< Send CSRRequest (0x3E:4) command to the device
     kValidateCSR,                ///< Verify CSRResponse (0x3E:5) validity
     kGenerateNOCChain,           ///< TLV encode Node Operational Credentials (NOC) chain certs
@@ -551,6 +558,16 @@ public:
         return *this;
     }
 
+    // Check for Joint Commissioning Method
+    bool UseJCM() const { return mUseJCM; }
+
+    // Set the Joint Commissioning Method
+    CommissioningParameters & SetUseJCM(bool useJCM)
+    {
+        mUseJCM = useJCM;
+        return *this;
+    }
+
     ICDRegistrationStrategy GetICDRegistrationStrategy() const { return mICDRegistrationStrategy; }
     CommissioningParameters & SetICDRegistrationStrategy(ICDRegistrationStrategy icdRegistrationStrategy)
     {
@@ -678,6 +695,7 @@ private:
     Optional<uint32_t> mICDStayActiveDurationMsec;
     ICDRegistrationStrategy mICDRegistrationStrategy = ICDRegistrationStrategy::kIgnore;
     bool mCheckForMatchingFabric                     = false;
+    bool mUseJCM = true; // TODO: Set back to false
     Span<const app::AttributePathParams> mExtraReadPaths;
 };
 
@@ -838,7 +856,6 @@ public:
      * kSendAttestationRequest: AttestationResponse
      * kAttestationVerification: AttestationErrorInfo if there is an error
      * kAttestationRevocationCheck: AttestationErrorInfo if there is an error
-     * kSendOpCertSigningRequest: CSRResponse
      * kGenerateNOCChain: NocChain
      * kSendTrustedRootCert: None
      * kSendNOC: None
@@ -855,8 +872,13 @@ public:
      * kCleanup: None
      */
     struct CommissioningReport
-        : Variant<RequestedCertificate, AttestationResponse, CSRResponse, NocChain, OperationalNodeFoundData, ReadCommissioningInfo,
-                  AttestationErrorInfo, CommissioningErrorInfo, NetworkCommissioningStatusInfo, TimeZoneResponseInfo>
+        : Variant<
+            RequestedCertificate, AttestationResponse, CSRResponse, NocChain, OperationalNodeFoundData, ReadCommissioningInfo,
+            AttestationErrorInfo, CommissioningErrorInfo, NetworkCommissioningStatusInfo, TimeZoneResponseInfo
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+            ,JCMCommissionerError
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        >
     {
         CommissioningReport() : stageCompleted(CommissioningStage::kError) {}
         CommissioningStage stageCompleted;

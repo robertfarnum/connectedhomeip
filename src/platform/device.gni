@@ -260,6 +260,11 @@ declare_args() {
   chip_enable_segger_rtt = chip_device_platform != "qpg"
 }
 
+declare_args() {
+  # Enable the use of the joint fabric
+  chip_enable_joint_fabric = false
+}
+
 assert(
     (current_os != "freertos" && chip_device_platform == "none") ||
         chip_device_platform == "fake" ||

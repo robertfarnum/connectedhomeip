@@ -31,6 +31,9 @@ class DLL_EXPORT CommissioningModeProvider
 {
 public:
     virtual Dnssd::CommissioningMode GetCommissioningMode() const = 0;
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    virtual bool UseJCM() = 0;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     virtual ~CommissioningModeProvider() {}
 };

@@ -206,7 +206,13 @@ public:
     }
     CHIP_ERROR GetProductFinish(Clusters::BasicInformation::ProductFinishEnum * finish) override;
     CHIP_ERROR GetProductPrimaryColor(Clusters::BasicInformation::ColorEnum * primaryColor) override;
-
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    CHIP_ERROR GetJointFabricMode(uint8_t & jointFabricMode) override
+    {
+        jointFabricMode = 1;
+        return CHIP_NO_ERROR;
+    }
+#endif
 private:
     DeviceInstanceInfoProvider * mDefaultProvider;
 };

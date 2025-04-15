@@ -270,6 +270,20 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
         advertiseParameters.SetProductId(std::make_optional<uint16_t>(value));
     }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    uint8_t jointFabricMode;
+    if (mCommissioningModeProvider && mCommissioningModeProvider->UseJCM() &&
+        DeviceLayer::GetDeviceInstanceInfoProvider()->GetJointFabricMode(jointFabricMode) != CHIP_NO_ERROR)
+    {
+        ChipLogDetail(Discovery, "Joint Fabric Mode not enabled or not known");
+    }
+    else
+    {
+        advertiseParameters.SetJointFabricMode(std::make_optional<uint8_t>(jointFabricMode));
+    }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+
+
     if (DeviceLayer::ConfigurationMgr().IsCommissionableDeviceTypeEnabled() &&
         DeviceLayer::ConfigurationMgr().GetDeviceTypeId(val32) == CHIP_NO_ERROR)
     {
@@ -363,12 +377,21 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
 
     auto & mdnsAdvertiser = chip::Dnssd::ServiceAdvertiser::Instance();
 
-    ChipLogProgress(Discovery, "Advertise commission parameter vendorID=%u productID=%u discriminator=%04u/%02u cm=%u cp=%u",
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    ChipLogProgress(Discovery, "Advertise commission parameter vendorID=%u productID=%u discriminator=%04u/%02u cm=%u cp=%u jf=%u",
                     advertiseParameters.GetVendorId().value_or(0), advertiseParameters.GetProductId().value_or(0),
                     advertiseParameters.GetLongDiscriminator(), advertiseParameters.GetShortDiscriminator(),
                     to_underlying(advertiseParameters.GetCommissioningMode()),
-                    advertiseParameters.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0);
-    return mdnsAdvertiser.Advertise(advertiseParameters);
+                    advertiseParameters.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0,
+                    advertiseParameters.GetJointFabricMode().value_or(0));
+#else
+    ChipLogProgress(Discovery, "Advertise commission parameter vendorID=%u productID=%u discriminator=%04u/%02u cm=%u cp=%u",
+        advertiseParameters.GetVendorId().value_or(0), advertiseParameters.GetProductId().value_or(0),
+        advertiseParameters.GetLongDiscriminator(), advertiseParameters.GetShortDiscriminator(),
+        to_underlying(advertiseParameters.GetCommissioningMode()),
+        advertiseParameters.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0);
+#endif
+                    return mdnsAdvertiser.Advertise(advertiseParameters);
 }
 
 CHIP_ERROR DnssdServer::AdvertiseCommissioner()

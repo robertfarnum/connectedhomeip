@@ -76,6 +76,11 @@
 #endif
 #include <controller/DeviceDiscoveryDelegate.h>
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+#include <controller/JCMTrustCheckDelegate.h>
+#include <controller/JCMCommissioner.h>
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+
 namespace chip {
 
 namespace Controller {
@@ -796,6 +801,22 @@ public:
     void RegisterPairingDelegate(DevicePairingDelegate * pairingDelegate) { mPairingDelegate = pairingDelegate; }
     DevicePairingDelegate * GetPairingDelegate() const { return mPairingDelegate; }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    void RegisterJCMTrustCheckDelegate(JCMTrustCheckDelegate * jcmTrustCheckDelegate)
+    {
+        mJCMTrustCheckDelegate = jcmTrustCheckDelegate;
+    }
+    JCMTrustCheckDelegate * GetJCMTrustCheckDelegate() const { return mJCMTrustCheckDelegate; }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+
+    // This function is called when the device is discovered over BLE
+    void OnDeviceDiscoveredOverBle(BLE_CONNECTION_OBJECT connObj, const chip::Dnssd::DiscoveredNodeData & nodeData);
+
+    // This function is called when the device is discovered over WiFi PAF
+    void OnDeviceDiscoveredOverWiFiPAF(const chip::Dnssd::DiscoveredNodeData & nodeData);
+
+    // This function is called when the device is discovered over WiFi PAF
+    void OnDeviceDiscoveredOverWiFiPAF(BLE_CONNECTION_OBJECT connObj, const chip::Dnssd::DiscoveredNodeData & nodeData);
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
     // ClusterStateCache::Callback impl
     void OnDone(app::ReadClient *) override;
@@ -836,6 +857,9 @@ public:
 
 private:
     DevicePairingDelegate * mPairingDelegate = nullptr;
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    JCMTrustCheckDelegate * mJCMTrustCheckDelegate = nullptr;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     DeviceProxy * mDeviceBeingCommissioned               = nullptr;
     CommissioneeDeviceProxy * mDeviceInPASEEstablishment = nullptr;
@@ -881,7 +905,14 @@ private:
      */
     CHIP_ERROR SendAttestationRequestCommand(DeviceProxy * device, const ByteSpan & attestationNonce,
                                              Optional<System::Clock::Timeout> timeout);
-    /* This function sends an CSR request to the device.
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    /* This function start the JCM verification steps
+     */
+    CHIP_ERROR StartJCMTrustVerification();
+    /* Ths function is called by the JCM Commissioner upon completion of the JCM Trust Verification steps */
+    static void OnJCMTrustVerificationComplete(void * context, JCMCommissionerInfo *info);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    /* This function sends a CSR request to the device.
        The function does not hold a reference to the device object.
      */
     CHIP_ERROR SendOperationalCertificateSigningRequestCommand(DeviceProxy * device, const ByteSpan & csrNonce,
@@ -916,6 +947,9 @@ private:
     static void
     OnAttestationResponse(void * context,
                           const app::Clusters::OperationalCredentials::Commands::AttestationResponse::DecodableType & data);
+    #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    static void OnJCMTrustVerificationComplete(void * context, JCMCommissionerInfo * info, JCMCommissionerResult result);
+    #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     /**
      * @brief
@@ -1098,12 +1132,17 @@ private:
 
     chip::Callback::Callback<Credentials::DeviceAttestationVerifier::OnAttestationInformationVerification>
         mDeviceAttestationInformationVerificationCallback;
-
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    chip::Callback::Callback<JCMCommissionerCompleteCallback> mJCMCommissionerCompleteCallback;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     chip::Callback::Callback<OnNOCChainGeneration> mDeviceNOCChainCallback;
     SetUpCodePairer mSetUpCodePairer;
     AutoCommissioner mAutoCommissioner;
     CommissioningDelegate * mDefaultCommissioner =
         nullptr; // Commissioning delegate to call when PairDevice / Commission functions are used
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    JCMCommissioner mJCMCommissioner;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     CommissioningDelegate * mCommissioningDelegate =
         nullptr; // Commissioning delegate that issued the PerformCommissioningStep command
     CompletionStatus mCommissioningCompletionStatus;

@@ -141,6 +141,16 @@ CHIP_ERROR MakeServiceSubtype(char * buffer, size_t bufferLen, DiscoveryFilter s
     case DiscoveryFilterType::kInstanceName:
         requiredSize = snprintf(buffer, bufferLen, "%s", subtype.instanceName);
         break;
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    case DiscoveryFilterType::kJointFabricMode:
+        // 3-bit number
+        if (subtype.code >= 1 << 3)
+        {
+            return CHIP_ERROR_INVALID_ARGUMENT;
+        }
+        requiredSize = snprintf(buffer, bufferLen, "_J%u", static_cast<uint16_t>(subtype.code));
+        break;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     case DiscoveryFilterType::kNone:
         requiredSize = 0;
         buffer[0]    = '\0';

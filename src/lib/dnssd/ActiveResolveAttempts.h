@@ -174,7 +174,11 @@ public:
                                chip::Dnssd::Commission::kInstanceNameMaxLength + 1) == 0;
             case chip::Dnssd::DiscoveryFilterType::kCommissioner:
             case chip::Dnssd::DiscoveryFilterType::kCompressedFabricId:
-            default:
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+            case chip::Dnssd::DiscoveryFilterType::kJointFabricMode:
+                return browse.filter.code == nodeData.jointFabricMode;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+                default:
                 // These are for other discovery types.
                 return false;
             }

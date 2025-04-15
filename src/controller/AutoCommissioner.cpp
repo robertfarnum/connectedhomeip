@@ -16,6 +16,7 @@
  *    limitations under the License.
  */
 
+#include "CommissioningDelegate.h"
 #include <controller/AutoCommissioner.h>
 
 #include <app/InteractionModelTimeout.h>
@@ -386,6 +387,13 @@ CommissioningStage AutoCommissioner::GetNextCommissioningStageInternal(Commissio
     case CommissioningStage::kAttestationVerification:
         return CommissioningStage::kAttestationRevocationCheck;
     case CommissioningStage::kAttestationRevocationCheck:
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        if (mParams.UseJCM()) {
+            return CommissioningStage::kJCMTrustVerification;
+        }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        return CommissioningStage::kSendOpCertSigningRequest;
+    case CommissioningStage::kJCMTrustVerification:
         return CommissioningStage::kSendOpCertSigningRequest;
     case CommissioningStage::kSendOpCertSigningRequest:
         return CommissioningStage::kValidateCSR;

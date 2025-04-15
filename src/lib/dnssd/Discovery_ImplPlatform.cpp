@@ -294,6 +294,10 @@ CHIP_ERROR CopyTxtRecord(TxtFieldKey key, char * buffer, size_t bufferLen, const
     case TxtFieldKey::kCommissionerPasscode:
         return CopyTextRecordValue(buffer, bufferLen,
                                    static_cast<uint16_t>(params.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0));
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        case TxtFieldKey::kJointFabricMode:
+        return CopyTextRecordValue(buffer, bufferLen, params.GetJointFabricMode().value_or(0));
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     default:
         return CopyTxtRecord(key, buffer, bufferLen, static_cast<BaseAdvertisingParams<CommissionAdvertisingParameters>>(params));
     }

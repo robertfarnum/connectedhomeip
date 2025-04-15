@@ -88,6 +88,12 @@ public:
                                                Crypto::Spake2pVerifier & verifier, uint32_t iterations, chip::ByteSpan salt,
                                                FabricIndex fabricIndex, VendorId vendorId);
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    CHIP_ERROR OpenJointCommissioningWindow(System::Clock::Seconds32 commissioningTimeout, uint16_t discriminator,
+                                                Crypto::Spake2pVerifier & verifier, uint32_t iterations, chip::ByteSpan salt,
+                                                FabricIndex fabricIndex, VendorId vendorId);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+
     void CloseCommissioningWindow();
 
     app::Clusters::AdministratorCommissioning::CommissioningWindowStatusEnum CommissioningWindowStatusForCluster() const;
@@ -103,6 +109,10 @@ public:
     // CommissioningModeProvider implementation.
     Dnssd::CommissioningMode GetCommissioningMode() const override;
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    bool UseJCM() override { return mUseJCM; }
+    void SetUseJCM(bool useJCM) { mUseJCM = useJCM; }
+#endif
     //// UnsolicitedMessageHandler Implementation ////
     CHIP_ERROR OnUnsolicitedMessageReceived(const PayloadHeader & payloadHeader,
                                             Messaging::ExchangeDelegate *& newDelegate) override;
@@ -190,6 +200,9 @@ private:
         app::Clusters::AdministratorCommissioning::CommissioningWindowStatusEnum::kWindowNotOpen;
 
     bool mIsBLE = true;
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    bool mUseJCM = false;
+#endif
 
     PASESession mPairingSession;
 

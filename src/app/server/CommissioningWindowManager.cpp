@@ -119,6 +119,9 @@ void CommissioningWindowManager::Shutdown()
 void CommissioningWindowManager::ResetState()
 {
     mUseECM = false;
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    mUseJCM = false;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     mECMDiscriminator = 0;
     mECMIterations    = 0;
@@ -389,6 +392,16 @@ CHIP_ERROR CommissioningWindowManager::OpenEnhancedCommissioningWindow(Seconds32
 
     return err;
 }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+CHIP_ERROR CommissioningWindowManager::OpenJointCommissioningWindow(Seconds32 commissioningTimeout, uint16_t discriminator,
+    Spake2pVerifier & verifier, uint32_t iterations, ByteSpan salt,
+    FabricIndex fabricIndex, VendorId vendorId)
+{
+    SetUseJCM(true);
+    return OpenEnhancedCommissioningWindow(commissioningTimeout, discriminator, verifier, iterations, salt, fabricIndex, vendorId);
+}
+#endif
 
 void CommissioningWindowManager::CloseCommissioningWindow()
 {

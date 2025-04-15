@@ -194,6 +194,20 @@ public:
     {
         return CHIP_ERROR_NOT_IMPLEMENTED;
     }
+ 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+    /**
+     * @brief Obtain the Joint Fabric Mode from the device's factory data.
+     *
+     * If the Joint Fabric Mode is not available, this should return
+     * CHIP_ERROR_NOT_IMPLEMENTED, and the Basic Information JointFabricMode attribute should
+     * not be implemented for the device.
+     */
+    virtual CHIP_ERROR GetJointFabricMode(uint8_t & jointFabricMode)
+    {
+        return CHIP_ERROR_NOT_IMPLEMENTED;
+    }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 };
 
 /**
