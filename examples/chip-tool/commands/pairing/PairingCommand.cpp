@@ -371,9 +371,6 @@ CHIP_ERROR PairingCommand::PairWithMdns(NodeId remoteId)
         filter.code         = 0;
         filter.instanceName = mDiscoveryFilterInstanceName;
         break;
-    case chip::Dnssd::DiscoveryFilterType::kJointFabricMode:
-        filter.code = 1;
-        break;
     }
 
     CurrentCommissioner().RegisterDeviceDiscoveryDelegate(this);

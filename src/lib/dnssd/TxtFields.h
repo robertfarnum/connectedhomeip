@@ -76,9 +76,6 @@ enum class TxtFieldKey : uint8_t
     kSessionActiveThreshold,
     kTcpSupported,
     kLongIdleTimeICD,
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    kJointFabricMode,
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     kCount,
 };
 
@@ -107,9 +104,6 @@ constexpr const TxtFieldInfo txtFieldInfo[static_cast<size_t>(TxtFieldKey::kCoun
     { kKeySessionActiveThresholdMaxLength, TxtFieldKey::kSessionActiveThreshold, TxtKeyUse::kCommon, "SAT" },
     { kKeyTcpSupportedMaxLength, TxtFieldKey::kTcpSupported, TxtKeyUse::kCommon, "T" },
     { kKeyLongIdleTimeICDMaxLength, TxtFieldKey::kLongIdleTimeICD, TxtKeyUse::kCommon, "ICD" },
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC 
-    { kKeyJointFabricModeMaxLength, TxtFieldKey::kJointFabricMode, TxtKeyUse::kCommission, "JF" },
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 };
 #ifdef CHIP_CONFIG_TEST
 

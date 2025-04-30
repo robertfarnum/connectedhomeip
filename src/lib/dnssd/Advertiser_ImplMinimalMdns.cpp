@@ -756,25 +756,6 @@ CHIP_ERROR AdvertiserMinMdns::Advertise(const CommissionAdvertisingParameters & 
                 return CHIP_ERROR_NO_MEMORY;
             }
         }
-
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-        if (params.GetJointFabricMode().value_or(0) != 0)
-        {
-            MakeServiceSubtype(nameBuffer, sizeof(nameBuffer),
-                               DiscoveryFilter(DiscoveryFilterType::kJointFabricMode, params.GetJointFabricMode().value()));
-            FullQName longServiceName =
-                allocator->AllocateQName(nameBuffer, kSubtypeServiceNamePart, serviceType, kCommissionProtocol, kLocalDomain);
-            VerifyOrReturnError(longServiceName.nameCount != 0, CHIP_ERROR_NO_MEMORY);
-            if (!allocator->AddResponder<PtrResponder>(longServiceName, instanceName)
-                     .SetReportAdditional(instanceName)
-                     .SetReportInServiceListing(true)
-                     .IsValid())
-            {
-                ChipLogError(Discovery, "Failed to add joint fabric mode PTR record mDNS responder");
-                return CHIP_ERROR_NO_MEMORY;
-            }
-        }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     }
 
     TxtResourceRecord txtRecord(instanceName, GetCommissioningTxtEntries(params));

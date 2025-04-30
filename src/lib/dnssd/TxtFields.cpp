@@ -268,11 +268,6 @@ void FillNodeDataFromTxt(const ByteSpan & key, const ByteSpan & val, CommissionN
     case TxtFieldKey::kCommissionerPasscode:
         nodeData.supportsCommissionerGeneratedPasscode = Internal::GetCommissionerPasscode(val);
         break;
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    case TxtFieldKey::kJointFabricMode:
-        nodeData.jointFabricMode = Internal::GetJointFabricMode(val);
-        break;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     default:
         FillNodeDataFromTxt(key, val, static_cast<CommonResolutionData &>(nodeData));
         break;

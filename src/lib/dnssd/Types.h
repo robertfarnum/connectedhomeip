@@ -44,9 +44,6 @@ enum class DiscoveryFilterType : uint8_t
     kInstanceName,
     kCommissioner,
     kCompressedFabricId,
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    kJointFabricMode,
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 };
 
 struct DiscoveryFilter

@@ -182,8 +182,6 @@ public:
         case chip::Dnssd::DiscoveryFilterType::kCommissioningMode:
         case chip::Dnssd::DiscoveryFilterType::kCommissioner:
             break;
-        case chip::Dnssd::DiscoveryFilterType::kJointFabricMode:
-            break;
         case chip::Dnssd::DiscoveryFilterType::kDeviceType:
             AddArgument("device-type", 0, UINT16_MAX, &mDiscoveryFilterCode);
             break;
