@@ -16,7 +16,7 @@ namespace app {
 namespace Clusters {
 namespace BasicInformation {
 
-inline constexpr uint32_t kRevision = 3;
+inline constexpr uint32_t kRevision = 5;
 
 namespace Attributes {
 namespace DataModelRevision {
@@ -203,13 +203,21 @@ inline constexpr DataModel::AttributeEntry kMetadataEntry = {
     .writePrivilege = std::nullopt,
 };
 } // namespace MaxPathsPerInvoke
+namespace ConfigurationVersion {
+inline constexpr DataModel::AttributeEntry kMetadataEntry = {
+    .attributeId    = ConfigurationVersion::Id,
+    .flags          = BitFlags<DataModel::AttributeQualityFlags>{},
+    .readPrivilege  = Access::Privilege::kView,
+    .writePrivilege = std::nullopt,
+};
+} // namespace ConfigurationVersion
 
 } // namespace Attributes
 
 namespace Commands {
 namespace MfgSpecificPing {
 inline constexpr DataModel::AcceptedCommandEntry kMetadataEntry = {
-    .commandId       = BasicInformation::Commands::MfgSpecificPing::Id,
+    .commandId       = MfgSpecificPing::Id,
     .flags           = BitFlags<DataModel::CommandQualityFlags>{},
     .invokePrivilege = Access::Privilege::kOperate,
 };
