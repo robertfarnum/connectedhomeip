@@ -40,6 +40,7 @@ public:
                     &mIteration, "Number of PBKDF iterations to use to derive the verifier.  Ignored if 'option' is 0.");
         AddArgument("discriminator", 0, 4095, &mDiscriminator, "Discriminator to use for advertising.  Ignored if 'option' is 0.");
         AddArgument("timeout", 0, UINT16_MAX, &mTimeout, "Time, in seconds, before this command is considered to have timed out.");
+        AddArgument("use-jcm", 0, 1, &mUseJCM, "Use JCM for commissioning.");
     }
 
     /////////// CHIPCommand Interface /////////
@@ -54,6 +55,7 @@ private:
     uint16_t mCommissioningWindowTimeout;
     uint32_t mIteration;
     uint16_t mDiscriminator;
+    chip::Optional<bool> mUseJCM;
 
     chip::Optional<uint16_t> mTimeout;
 

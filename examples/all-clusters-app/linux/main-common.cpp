@@ -207,6 +207,7 @@ public:
     }
     CHIP_ERROR GetProductFinish(Clusters::BasicInformation::ProductFinishEnum * finish) override;
     CHIP_ERROR GetProductPrimaryColor(Clusters::BasicInformation::ColorEnum * primaryColor) override;
+
 private:
     DeviceInstanceInfoProvider * mDefaultProvider;
 };

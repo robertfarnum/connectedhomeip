@@ -796,14 +796,6 @@ public:
     void RegisterPairingDelegate(DevicePairingDelegate * pairingDelegate) { mPairingDelegate = pairingDelegate; }
     DevicePairingDelegate * GetPairingDelegate() const { return mPairingDelegate; }
 
-    // This function is called when the device is discovered over BLE
-    void OnDeviceDiscoveredOverBle(BLE_CONNECTION_OBJECT connObj, const chip::Dnssd::DiscoveredNodeData & nodeData);
-
-    // This function is called when the device is discovered over WiFi PAF
-    void OnDeviceDiscoveredOverWiFiPAF(const chip::Dnssd::DiscoveredNodeData & nodeData);
-
-    // This function is called when the device is discovered over WiFi PAF
-    void OnDeviceDiscoveredOverWiFiPAF(BLE_CONNECTION_OBJECT connObj, const chip::Dnssd::DiscoveredNodeData & nodeData);
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
     // ClusterStateCache::Callback impl
     void OnDone(app::ReadClient *) override;
@@ -853,6 +845,7 @@ protected:
     Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
     Platform::UniquePtr<app::ReadClient> mReadClient;
 #endif
+
     template <typename RequestObjectT>
     CHIP_ERROR SendCommissioningCommand(DeviceProxy * device, const RequestObjectT & request,
                                         CommandResponseSuccessCallback<typename RequestObjectT::ResponseType> successCb,
@@ -912,7 +905,7 @@ private:
      */
     CHIP_ERROR SendAttestationRequestCommand(DeviceProxy * device, const ByteSpan & attestationNonce,
                                              Optional<System::Clock::Timeout> timeout);
-    /* This function sends a CSR request to the device.
+    /* This function sends an CSR request to the device.
        The function does not hold a reference to the device object.
      */
     CHIP_ERROR SendOperationalCertificateSigningRequestCommand(DeviceProxy * device, const ByteSpan & csrNonce,
@@ -1117,6 +1110,7 @@ private:
 
     chip::Callback::Callback<Credentials::DeviceAttestationVerifier::OnAttestationInformationVerification>
         mDeviceAttestationInformationVerificationCallback;
+
     chip::Callback::Callback<OnNOCChainGeneration> mDeviceNOCChainCallback;
     SetUpCodePairer mSetUpCodePairer;
     AutoCommissioner mAutoCommissioner;

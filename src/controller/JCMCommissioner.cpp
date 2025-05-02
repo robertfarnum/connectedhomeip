@@ -71,7 +71,6 @@ void JCMCommissioner::DiscoverAdministratorEndpoint()
 {
     ChipLogProgress(Controller, "Discovering Joint Fabric Administrator endpoint");
 
-#if 1
     Optional<System::Clock::Timeout> mTimeout;
 
     // Create attribute path for ServerList on all endpoints
@@ -81,9 +80,6 @@ void JCMCommissioner::DiscoverAdministratorEndpoint()
     attributePath.mAttributeId = chip::app::Clusters::Descriptor::Attributes::DeviceTypeList::Id;
     
     SendCommissioningReadRequest(mDeviceProxy, mTimeout, &attributePath, 1);
-#else
-    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
-#endif
 }
 
 void JCMCommissioner::ReadAdministratorFabricIndex()
