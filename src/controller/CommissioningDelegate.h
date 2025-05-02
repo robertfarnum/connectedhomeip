@@ -557,6 +557,7 @@ public:
         return *this;
     }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     // Check for Joint Commissioning Method
     bool UseJCM() const { return mUseJCM; }
 
@@ -566,6 +567,7 @@ public:
         mUseJCM = useJCM;
         return *this;
     }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     ICDRegistrationStrategy GetICDRegistrationStrategy() const { return mICDRegistrationStrategy; }
     CommissioningParameters & SetICDRegistrationStrategy(ICDRegistrationStrategy icdRegistrationStrategy)
@@ -694,7 +696,9 @@ private:
     Optional<uint32_t> mICDStayActiveDurationMsec;
     ICDRegistrationStrategy mICDRegistrationStrategy = ICDRegistrationStrategy::kIgnore;
     bool mCheckForMatchingFabric                     = false;
+    #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     bool mUseJCM = true; // TODO: Set back to false
+    #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     Span<const app::AttributePathParams> mExtraReadPaths;
 };
 

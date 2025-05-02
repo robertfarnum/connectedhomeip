@@ -315,8 +315,9 @@ private:
     bool mPairingInstrHasValue = false;
 
     std::optional<bool> mCommissionerPasscodeSupported;
-
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     std::optional<uint16_t> mJointFabricMode;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 };
 
 /**
