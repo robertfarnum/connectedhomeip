@@ -28,7 +28,7 @@ CHIP_ERROR OpenCommissioningWindowCommand::RunCommand()
     if (mCommissioningWindowOption == Controller::CommissioningWindowOpener::CommissioningWindowOption::kOriginalSetupCode)
     {
         return mWindowOpener->OpenBasicCommissioningWindow(mNodeId, System::Clock::Seconds16(mCommissioningWindowTimeout),
-                                                           &mOnOpenBasicCommissioningWindowCallback, mJointFabric.ValueOr(false));
+                                                           &mOnOpenBasicCommissioningWindowCallback);
     }
 
     if (mCommissioningWindowOption == Controller::CommissioningWindowOpener::CommissioningWindowOption::kTokenWithRandomPIN)
@@ -41,7 +41,7 @@ CHIP_ERROR OpenCommissioningWindowCommand::RunCommand()
                                                           .SetDiscriminator(mDiscriminator)
                                                           .SetReadVIDPIDAttributes(true)
                                                           .SetCallback(&mOnOpenCommissioningWindowCallback),
-                                                      ignored, mJointFabric.ValueOr(false));
+                                                      ignored);
     }
 
     ChipLogError(chipTool, "Unknown commissioning window option: %d", to_underlying(mCommissioningWindowOption));

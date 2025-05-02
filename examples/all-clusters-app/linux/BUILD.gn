@@ -16,7 +16,6 @@ import("//build_overrides/build.gni")
 import("//build_overrides/chip.gni")
 import("${build_root}/config/compiler/compiler.gni")
 
-import("${chip_root}/src/app/common_flags.gni")
 import("${chip_root}/src/lib/lib.gni")
 import("${chip_root}/src/platform/device.gni")
 
@@ -115,7 +114,7 @@ source_set("chip-all-clusters-common") {
   ]
 
   if (chip_enable_pw_rpc) {
-    defines += rpc_defines
+    defines = rpc_defines
     sources += rpc_sources
     deps += rpc_deps
 
@@ -129,7 +128,7 @@ source_set("chip-all-clusters-common") {
   }
 
   if (chip_build_libshell) {
-    defines += [ "ENABLE_CHIP_SHELL" ]
+    defines = [ "ENABLE_CHIP_SHELL" ]
   }
 }
 

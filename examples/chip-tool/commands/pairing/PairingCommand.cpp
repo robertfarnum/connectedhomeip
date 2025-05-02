@@ -39,9 +39,6 @@ using namespace ::chip::Controller;
 CHIP_ERROR PairingCommand::RunCommand()
 {
     CurrentCommissioner().RegisterPairingDelegate(this);
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    CurrentCommissioner().RegisterJCMTrustCheckDelegate(this);
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     // Clear the CATs in OperationalCredentialsIssuer
     mCredIssuerCmds->SetCredentialIssuerCATValues(kUndefinedCATs);
 
@@ -620,10 +617,4 @@ CHIP_ERROR PairingCommand::MaybeDisplayTermsAndConditions(CommissioningParameter
     }
 
     return CHIP_NO_ERROR;
-}
-
-bool PairingCommand::OnAskUserForConsent(VendorId vendorId)
-{
-    ChipLogProgress(chipTool, "Consenting to Onboard JCM device with VendorID %u into the Joint Fabric.", vendorId);
-    return true;
 }

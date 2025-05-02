@@ -55,8 +55,7 @@ enum class PairingNetworkType
 class PairingCommand : public CHIPCommand,
                        public chip::Controller::DevicePairingDelegate,
                        public chip::Controller::DeviceDiscoveryDelegate,
-                       public chip::Credentials::DeviceAttestationDelegate,
-                       public chip::Controller::JCMTrustCheckDelegate
+                       public chip::Credentials::DeviceAttestationDelegate
 {
 public:
     PairingCommand(const char * commandName, PairingMode mode, PairingNetworkType networkType,
@@ -247,8 +246,6 @@ public:
     void OnDeviceAttestationCompleted(chip::Controller::DeviceCommissioner * deviceCommissioner, chip::DeviceProxy * device,
                                       const chip::Credentials::DeviceAttestationVerifier::AttestationDeviceInfo & info,
                                       chip::Credentials::AttestationVerificationResult attestationResult) override;
-    bool OnAskUserForConsent(chip::VendorId vendorId) override;
-
 
 private:
     CHIP_ERROR RunInternal(NodeId remoteId);
