@@ -19,6 +19,7 @@
 #include "CHIPCommand.h"
 
 #include <commands/icd/ICDCommand.h>
+#include <controller/JCMCommissioner.h>
 #include <controller/CHIPDeviceControllerFactory.h>
 #include <credentials/attestation_verifier/FileAttestationTrustStore.h>
 #include <credentials/attestation_verifier/TestDACRevocationDelegateImpl.h>
@@ -468,7 +469,7 @@ void CHIPCommand::ShutdownCommissioner(const CommissionerIdentity & key)
 
 CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, chip::FabricId fabricId)
 {
-    std::unique_ptr<ChipDeviceCommissioner> commissioner = std::make_unique<ChipDeviceCommissioner>();
+    std::unique_ptr<chip::Controller::JCMCommissioner> commissioner = std::make_unique<chip::Controller::JCMCommissioner>();
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
     VerifyOrReturnError(chip::CanCastTo<uint16_t>(CHIP_UDC_PORT + fabricId), CHIP_ERROR_INVALID_ARGUMENT);
     uint16_t udcListenPort = static_cast<uint16_t>(CHIP_UDC_PORT + fabricId);

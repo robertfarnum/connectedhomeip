@@ -18,7 +18,8 @@
 
  #pragma once
 
-#include <app/ClusterStateCache.h>
+#include <controller/CHIPDeviceController.h>
+#include <controller/JCMTrustVerification.h>
 #include <app/DeviceProxy.h>
 #include <app/ReadClient.h>
 #include <lib/core/CHIPCallback.h>
@@ -26,67 +27,32 @@
 #if CONFIG_DEVICE_LAYER
 #include <platform/CHIPDeviceLayer.h>
 #endif
+
 namespace chip {
 
 namespace Controller {
- 
-struct JCMCommissionerInfo {
-    EndpointId endPointId;
-};
 
-enum class JCMCommissionerResult : uint16_t
-{
-    kSuccess = 0,
-
-    kNotAnAdministrator  = 100,
-    // TODO: Add more JCM trust verification errors
-
-    kNoMemory = 700,
-
-    kInvalidArgument = 800,
-
-    kInternalError = 900,
-
-    kNotImplemented = 0xFFFFU,
-};
-
-struct JCMCommissionerError
-{
-    JCMCommissionerError(JCMCommissionerResult result) : mResult(result) {}
-    JCMCommissionerResult mResult;
-};
-
-enum JCMCommissionerStage : uint8_t
-{
-    kIdle,
-    kStarted,
-    kDiscoveringAdministratorEndpoint,
-    kReadingAdministratorFabricIndex,
-    kPerformingVendorIDVerificationProcedure,
-    kVerifyingNOCContainsAdministratorCAT,
-};
-
-typedef void (*JCMCommissionerCompleteCallback)(void * context, JCMCommissionerInfo * info, JCMCommissionerResult result);
-
-class JCMCommissioner : public app::ClusterStateCache::Callback
+class JCMCommissioner : public DeviceCommissioner
 {
 public:
     JCMCommissioner();
     ~JCMCommissioner(){};
-    CHIP_ERROR Start(
-        DeviceProxy * device,
-        chip::Callback::Callback<JCMCommissionerCompleteCallback> *callback);
+    CHIP_ERROR StartJCMTrustVerification(DeviceProxy * proxy) override;
+    void OnJCMTrustVerificationComplete(JCMTrustVerificationInfo *info, JCMTrustVerificationResult result);
+    void RegisterJCMTrustVerificationUserConsentDelegate(JCMTrustVerificationDelegate * jcmTrustVerificationDelegate)
+    {
+        mJCMTrustVerificationDelegate = jcmTrustVerificationDelegate;
+    }
 
-    // ClusterStateCache::Callback impl
     void OnDone(app::ReadClient *) override;
 
 private:
-    CHIP_ERROR SendCommissioningReadRequest(Optional<System::Clock::Timeout> timeout, app::AttributePathParams * readPaths, size_t readPathsSize);
+    //CHIP_ERROR SendCommissioningReadRequest(Optional<System::Clock::Timeout> timeout, app::AttributePathParams * readPaths, size_t readPathsSize);
     
     void FindAdministratorEndpoint();
 
     // Move to next JCM commissioning step
-    void AdvanceStage(JCMCommissionerResult result);
+    void AdvanceTrustVerificationStage(JCMTrustVerificationResult result);
 
     // JCM commissioning steps
     void DiscoverAdministratorEndpoint();
@@ -94,10 +60,8 @@ private:
     void PerformVendorIDVerificationProcedure();
     void VerifyNOCContainsAdministratorCAT();
 
-    chip::Callback::Callback<JCMCommissionerCompleteCallback> *mJCMCommissionerCompleteCallback;
-    Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
-    Platform::UniquePtr<app::ReadClient> mReadClient;
-    JCMCommissionerStage mNextStage = JCMCommissionerStage::kIdle;
+    JCMTrustVerificationStage mNextStage = JCMTrustVerificationStage::kIdle;
+    JCMTrustVerificationDelegate * mJCMTrustVerificationDelegate = nullptr;
     DeviceProxy * mDeviceProxy = nullptr;
 };
 

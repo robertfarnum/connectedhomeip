@@ -476,9 +476,6 @@ DeviceCommissioner::DeviceCommissioner() :
     mOnDeviceConnectionRetryCallback(OnDeviceConnectionRetryFn, this),
 #endif // CHIP_DEVICE_CONFIG_ENABLE_AUTOMATIC_CASE_RETRIES
     mDeviceAttestationInformationVerificationCallback(OnDeviceAttestationInformationVerification, this),
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    mJCMCommissionerCompleteCallback(OnJCMTrustVerificationComplete, this),
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     mDeviceNOCChainCallback(OnDeviceNOCChainGeneration, this), mSetUpCodePairer(this)
 {}
 
@@ -1364,36 +1361,6 @@ void DeviceCommissioner::OnDeviceAttestationInformationVerification(
         }
     }
 }
-
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-CHIP_ERROR DeviceCommissioner::StartJCMTrustVerification()
-{
-    ChipLogProgress(Controller, "Starting JCM Trust Verification");
-
-    ReturnErrorOnFailure(mJCMCommissioner.Start(mDeviceBeingCommissioned, &mJCMCommissionerCompleteCallback));
-    
-    return CHIP_NO_ERROR;
-}
-
-void DeviceCommissioner::OnJCMTrustVerificationComplete(void * context, JCMCommissionerInfo *info, JCMCommissionerResult result)
-{
-    ChipLogProgress(Controller, "Device passed JCM Trust Verification");
-
-    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
-    if (result == JCMCommissionerResult::kSuccess)
-    {
-        commissioner->CommissioningStageComplete(CHIP_NO_ERROR);
-    }
-    else
-    {
-        ChipLogError(Controller, "Failed in verifying 'JCM Trust Verification': err %hu",
-                     static_cast<uint16_t>(result));
-        CommissioningDelegate::CommissioningReport report;
-        report.Set<JCMCommissionerError>(result);
-        commissioner->CommissioningStageComplete(CHIP_ERROR_INTERNAL, report);
-    }
-}
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
 void DeviceCommissioner::OnArmFailSafeExtendedForDeviceAttestation(
     void * context, const GeneralCommissioning::Commands::ArmFailSafeResponse::DecodableType &)
@@ -3392,7 +3359,7 @@ void DeviceCommissioner::PerformCommissioningStep(DeviceProxy * proxy, Commissio
     break;
 #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     case CommissioningStage::kJCMTrustVerification: {
-        CHIP_ERROR err = StartJCMTrustVerification();
+        CHIP_ERROR err = StartJCMTrustVerification(proxy);
         if (err != CHIP_NO_ERROR)
         {
             ChipLogError(Controller, "Failed to start JCM Trust Verification: %" CHIP_ERROR_FORMAT, err.Format());

@@ -26,32 +26,45 @@
 using namespace ::chip;
 using namespace ::chip::app;
 using namespace chip::app::Clusters;
-using chip::app::ReadClient;
 
 namespace chip {
 namespace Controller {
 
 JCMCommissioner::JCMCommissioner()
 {
-    mJCMCommissionerCompleteCallback = nullptr;
-    mAttributeCache = nullptr;
 }
 
-CHIP_ERROR JCMCommissioner::Start(
-    DeviceProxy * proxy,
-    chip::Callback::Callback<JCMCommissionerCompleteCallback> *callback)
+CHIP_ERROR JCMCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
 {
-    VerifyOrReturnError(proxy != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(callback != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    ChipLogProgress(Controller, "Starting JCM Trust Verification");
 
-    mNextStage = JCMCommissionerStage::kStarted;
-    mJCMCommissionerCompleteCallback = callback;
+    VerifyOrReturnError(proxy != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
+    mNextStage = JCMTrustVerificationStage::kStarted;
     mDeviceProxy = proxy;
     mAttributeCache = Platform::MakeUnique<chip::app::ClusterStateCache>(*this);
 
-    AdvanceStage(JCMCommissionerResult::kSuccess);
+    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
     
     return CHIP_NO_ERROR;  
+}
+
+void JCMCommissioner::OnJCMTrustVerificationComplete(JCMTrustVerificationInfo *info, JCMTrustVerificationResult result)
+{
+    ChipLogProgress(Controller, "Administrator Device passed JCM Trust Verification");
+
+    if (result == JCMTrustVerificationResult::kSuccess)
+    {
+        CommissioningStageComplete(CHIP_NO_ERROR);
+    }
+    else
+    {
+        ChipLogError(Controller, "Failed in verifying 'JCM Trust Verification': err %hu",
+                     static_cast<uint16_t>(result));
+        CommissioningDelegate::CommissioningReport report;
+        report.Set<JCMTrustVerificationError>(result);
+        CommissioningStageComplete(CHIP_ERROR_INTERNAL, report);
+    }
 }
 
 void JCMCommissioner::DiscoverAdministratorEndpoint()
@@ -67,13 +80,9 @@ void JCMCommissioner::DiscoverAdministratorEndpoint()
     attributePath.mClusterId = chip::app::Clusters::Descriptor::Id;
     attributePath.mAttributeId = chip::app::Clusters::Descriptor::Attributes::DeviceTypeList::Id;
     
-    auto error = SendCommissioningReadRequest(mTimeout, &attributePath, 1);
-    if (error != CHIP_NO_ERROR)
-    {
-        AdvanceStage(JCMCommissionerResult::kInternalError);
-    }
+    SendCommissioningReadRequest(mDeviceProxy, mTimeout, &attributePath, 1);
 #else
-    AdvanceStage(JCMCommissionerResult::kSuccess);
+    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 #endif
 }
 
@@ -83,7 +92,7 @@ void JCMCommissioner::ReadAdministratorFabricIndex()
 
     // TODO: Implement the read request for Administrator Fabric Index
 
-    AdvanceStage(JCMCommissionerResult::kSuccess);
+    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
 void JCMCommissioner::PerformVendorIDVerificationProcedure()
@@ -92,7 +101,7 @@ void JCMCommissioner::PerformVendorIDVerificationProcedure()
 
     // TODO: Implement the Vendor ID verification procedure
 
-    AdvanceStage(JCMCommissionerResult::kSuccess);
+    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
 void JCMCommissioner::VerifyNOCContainsAdministratorCAT()
@@ -101,7 +110,7 @@ void JCMCommissioner::VerifyNOCContainsAdministratorCAT()
 
     // TODO: Implement the verification of NOC containing Administrator CAT
 
-    AdvanceStage(JCMCommissionerResult::kSuccess);
+    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
 void JCMCommissioner::FindAdministratorEndpoint() {
@@ -109,7 +118,7 @@ void JCMCommissioner::FindAdministratorEndpoint() {
 
     // TODO: Parse the mAttributeCache device-type-list here
    
-    AdvanceStage(JCMCommissionerResult::kSuccess);
+    AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
 void JCMCommissioner::OnDone(chip::app::ReadClient * readClient)
@@ -117,86 +126,57 @@ void JCMCommissioner::OnDone(chip::app::ReadClient * readClient)
     ChipLogProgress(Controller, "JCMCommissioner::OnDone called for read client");
     // Check if the read client is valid
     VerifyOrDie(readClient != nullptr && readClient == mReadClient.get());
-    mReadClient.reset();
 
     switch (mNextStage)
     {
-        case JCMCommissionerStage::kDiscoveringAdministratorEndpoint:
+        case JCMTrustVerificationStage::kDiscoveringAdministratorEndpoint:
+            mReadClient.reset();
             FindAdministratorEndpoint();
             break;
         default:
-            ChipLogError(Controller, "Invalid state in OnDone: %d", static_cast<int>(mNextStage));
-            mJCMCommissionerCompleteCallback->mCall(mJCMCommissionerCompleteCallback->mContext, nullptr,
-                                                         JCMCommissionerResult::kInternalError);
+            DeviceCommissioner::OnDone(readClient);
     }
-
 }
 
-CHIP_ERROR JCMCommissioner::SendCommissioningReadRequest(Optional<System::Clock::Timeout> timeout,
-    app::AttributePathParams * readPaths, size_t readPathsSize)
+void JCMCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult result)
 {
-    app::InteractionModelEngine * engine = app::InteractionModelEngine::GetInstance();
-    app::ReadPrepareParams readParams(mDeviceProxy->GetSecureSession().Value());
-    readParams.mIsFabricFiltered = true;
-    if (timeout.HasValue())
-    {
-        readParams.mTimeout = timeout.Value();
-    }
-    readParams.mpAttributePathParamsList    = readPaths;
-    readParams.mAttributePathParamsListSize = readPathsSize;
-    auto attributeCache = std::move(mAttributeCache);
-    auto readClient = chip::Platform::MakeUnique<app::ReadClient>(
-        engine, mDeviceProxy->GetExchangeManager(), attributeCache->GetBufferedCallback(), app::ReadClient::InteractionType::Read);
-    CHIP_ERROR err = readClient->SendRequest(readParams);
-    if (err != CHIP_NO_ERROR)
-    {
-        ChipLogError(Controller, "Failed to send read request: %" CHIP_ERROR_FORMAT, err.Format());
-        return err;
-    }
-    mAttributeCache = std::move(attributeCache);
-    mReadClient     = std::move(readClient);
-
-    return CHIP_NO_ERROR;
-}
-
-void JCMCommissioner::AdvanceStage(JCMCommissionerResult result)
-{
-    if (result != JCMCommissionerResult::kSuccess)
+    if (result != JCMTrustVerificationResult::kSuccess)
     {
         // Handle error
         ChipLogError(Controller, "Error in Joint Commissioning Trust Verification: %d", static_cast<int>(result));
-        mJCMCommissionerCompleteCallback->mCall(mJCMCommissionerCompleteCallback->mContext, nullptr, result);
+        OnJCMTrustVerificationComplete(nullptr, result);
         return;
     }
 
     switch (mNextStage)
     {
-        case chip::Controller::JCMCommissionerStage::kStarted:
-            mNextStage = JCMCommissionerStage::kDiscoveringAdministratorEndpoint;
+        case chip::Controller::JCMTrustVerificationStage::kStarted:
+            mNextStage = JCMTrustVerificationStage::kDiscoveringAdministratorEndpoint;
             DiscoverAdministratorEndpoint();
             break;
-        case JCMCommissionerStage::kDiscoveringAdministratorEndpoint:
-            mNextStage = JCMCommissionerStage::kReadingAdministratorFabricIndex;
+        case JCMTrustVerificationStage::kDiscoveringAdministratorEndpoint:
+            mNextStage = JCMTrustVerificationStage::kReadingAdministratorFabricIndex;
             ReadAdministratorFabricIndex();
             break;
-        case JCMCommissionerStage::kReadingAdministratorFabricIndex:
-            mNextStage = JCMCommissionerStage::kPerformingVendorIDVerificationProcedure;
+        case JCMTrustVerificationStage::kReadingAdministratorFabricIndex:
+            mNextStage = JCMTrustVerificationStage::kPerformingVendorIDVerificationProcedure;
             PerformVendorIDVerificationProcedure();
             break;
-        case JCMCommissionerStage::kPerformingVendorIDVerificationProcedure:
-            mNextStage = JCMCommissionerStage::kVerifyingNOCContainsAdministratorCAT;
+        case JCMTrustVerificationStage::kPerformingVendorIDVerificationProcedure:
+            mNextStage = JCMTrustVerificationStage::kVerifyingNOCContainsAdministratorCAT;
             VerifyNOCContainsAdministratorCAT();
             break;
-        case JCMCommissionerStage::kVerifyingNOCContainsAdministratorCAT:
+        case JCMTrustVerificationStage::kVerifyingNOCContainsAdministratorCAT:
             // Handle the response for verifying NOC contains administrator CAT
             ChipLogProgress(Controller, "Joint Commissioning Trust Verification completed successfully");
-            mNextStage = JCMCommissionerStage::kIdle;
-            JCMCommissionerInfo info;
-            mJCMCommissionerCompleteCallback->mCall(mJCMCommissionerCompleteCallback->mContext, &info, result);
+            mNextStage = JCMTrustVerificationStage::kIdle;
+            JCMTrustVerificationInfo info;
+            info.endPointId = 0xFFFFU; // TODO: Set the endpoint ID to the appropriate value
+            OnJCMTrustVerificationComplete(&info, result);
             break;
         default:
             ChipLogError(Controller, "Invalid state in OnDone: %d", static_cast<int>(mNextStage));
-            mJCMCommissionerCompleteCallback->mCall(mJCMCommissionerCompleteCallback->mContext, nullptr, JCMCommissionerResult::kInternalError);
+            OnJCMTrustVerificationComplete(nullptr, JCMTrustVerificationResult::kInternalError);
             break;
     }
 }

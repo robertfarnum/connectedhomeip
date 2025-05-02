@@ -22,6 +22,9 @@
 #include <app/ClusterStateCache.h>
 #include <app/OperationalSessionSetup.h>
 #include <controller/CommissioneeDeviceProxy.h>
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+#include <controller/JCMTrustVerification.h>
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 #include <credentials/attestation_verifier/DeviceAttestationDelegate.h>
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
 #include <crypto/CHIPCryptoPAL.h>
@@ -29,10 +32,6 @@
 #include <lib/support/Variant.h>
 #include <matter/tracing/build_config.h>
 #include <system/SystemClock.h>
-
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-#include <controller/JCMCommissioner.h>
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
 namespace chip {
 namespace Controller {
@@ -56,7 +55,7 @@ enum CommissioningStage : uint8_t
     kAttestationVerification,    ///< Verify AttestationResponse (0x3E:1) validity
     kAttestationRevocationCheck, ///< Verify Revocation Status of device's DAC chain
 #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    kJCMTrustVerification,       ///< Verify trust towards Ecosystem Administrator
+    kJCMTrustVerification,       ///< Perform JCM trust verification steops
 #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     kSendOpCertSigningRequest,   ///< Send CSRRequest (0x3E:4) command to the device
     kValidateCSR,                ///< Verify CSRResponse (0x3E:5) validity
@@ -876,7 +875,7 @@ public:
             RequestedCertificate, AttestationResponse, CSRResponse, NocChain, OperationalNodeFoundData, ReadCommissioningInfo,
             AttestationErrorInfo, CommissioningErrorInfo, NetworkCommissioningStatusInfo, TimeZoneResponseInfo
 #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-            ,JCMCommissionerError
+            ,JCMTrustVerificationError
 #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
         >
     {
