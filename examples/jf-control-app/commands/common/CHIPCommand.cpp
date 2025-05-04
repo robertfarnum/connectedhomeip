@@ -467,9 +467,26 @@ void CHIPCommand::ShutdownCommissioner(const CommissionerIdentity & key)
     mCommissioners[key].get()->Shutdown();
 }
 
+struct Delegate : public chip::Controller::JCMTrustVerificationDelegate {
+    void OnProgressUpdate(chip::Controller::JCMCommissioner * commissioner, chip::Controller::JCMTrustVerificationStage stage,
+                          chip::Controller::JCMTrustVerificationError error) override
+    {
+        ChipLogProgress(Controller, "JCM Trust Verification progress: %d", static_cast<int>(stage));
+    }
+
+    void OnAskUserForConsent(chip::Controller::JCMCommissioner * commissioner, chip::VendorId vendorId) override
+    {
+        ChipLogProgress(Controller, "Asking user for consent for vendor ID: %u", vendorId);
+        commissioner->ContinueAfterUserConsent(true);
+    }
+};
+
 CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, chip::FabricId fabricId)
 {
     std::unique_ptr<chip::Controller::JCMCommissioner> commissioner = std::make_unique<chip::Controller::JCMCommissioner>();
+    
+    commissioner->RegisterJCMTrustVerificationDelegate(new Delegate());
+
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
     VerifyOrReturnError(chip::CanCastTo<uint16_t>(CHIP_UDC_PORT + fabricId), CHIP_ERROR_INVALID_ARGUMENT);
     uint16_t udcListenPort = static_cast<uint16_t>(CHIP_UDC_PORT + fabricId);

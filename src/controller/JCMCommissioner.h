@@ -35,14 +35,15 @@ namespace Controller {
 class JCMCommissioner : public DeviceCommissioner
 {
 public:
-    JCMCommissioner();
+    JCMCommissioner(){};
     ~JCMCommissioner(){};
     CHIP_ERROR StartJCMTrustVerification(DeviceProxy * proxy) override;
     void OnJCMTrustVerificationComplete(JCMTrustVerificationInfo *info, JCMTrustVerificationResult result);
-    void RegisterJCMTrustVerificationUserConsentDelegate(JCMTrustVerificationDelegate * jcmTrustVerificationDelegate)
+    void RegisterJCMTrustVerificationDelegate(JCMTrustVerificationDelegate * jcmTrustVerificationDelegate)
     {
         mJCMTrustVerificationDelegate = jcmTrustVerificationDelegate;
     }
+    void ContinueAfterUserConsent(bool consent);
 
     void OnDone(app::ReadClient *) override;
 
@@ -59,6 +60,7 @@ private:
     void ReadAdministratorFabricIndex();
     void PerformVendorIDVerificationProcedure();
     void VerifyNOCContainsAdministratorCAT();
+    void AskUserForConsent();
 
     JCMTrustVerificationStage mNextStage = JCMTrustVerificationStage::kIdle;
     JCMTrustVerificationDelegate * mJCMTrustVerificationDelegate = nullptr;

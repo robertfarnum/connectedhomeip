@@ -16,6 +16,7 @@
  */
 
 #include "JCMCommissioner.h"
+#include "JCMTrustVerification.h"
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/InteractionModelEngine.h>
@@ -29,10 +30,6 @@ using namespace chip::app::Clusters;
 
 namespace chip {
 namespace Controller {
-
-JCMCommissioner::JCMCommissioner()
-{
-}
 
 CHIP_ERROR JCMCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
 {
@@ -117,6 +114,33 @@ void JCMCommissioner::FindAdministratorEndpoint() {
     AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
+void JCMCommissioner::AskUserForConsent()
+{
+    ChipLogProgress(Controller, "Asking user for consent");
+    if (mJCMTrustVerificationDelegate != nullptr)
+    {
+        VendorId vendorId = static_cast<VendorId>(0xFFFFU); // TODO: Set the vendor ID to the appropriate value
+        mJCMTrustVerificationDelegate->OnAskUserForConsent(this, vendorId);
+    } else {
+        ChipLogError(Controller, "JCMTrustVerificationDelegate is not set");
+        AdvanceTrustVerificationStage(JCMTrustVerificationResult::kTrustVerificationDelegateNotSet);
+    }
+}
+
+void JCMCommissioner::ContinueAfterUserConsent(bool consent)
+{
+    if (consent)
+    {
+        ChipLogProgress(Controller, "User consent granted");
+        AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
+    }
+    else
+    {
+        ChipLogError(Controller, "User denied consent");
+        AdvanceTrustVerificationStage(JCMTrustVerificationResult::KUserDeniedConsent);
+    }
+}
+
 void JCMCommissioner::OnDone(chip::app::ReadClient * readClient)
 {
     ChipLogProgress(Controller, "JCMCommissioner::OnDone called for read client");
@@ -136,6 +160,11 @@ void JCMCommissioner::OnDone(chip::app::ReadClient * readClient)
 
 void JCMCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult result)
 {
+    if (mJCMTrustVerificationDelegate != nullptr)
+    {
+        mJCMTrustVerificationDelegate->OnProgressUpdate(this, mNextStage, result);
+    }
+    
     if (result != JCMTrustVerificationResult::kSuccess)
     {
         // Handle error
@@ -163,7 +192,11 @@ void JCMCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult r
             VerifyNOCContainsAdministratorCAT();
             break;
         case JCMTrustVerificationStage::kVerifyingNOCContainsAdministratorCAT:
-            // Handle the response for verifying NOC contains administrator CAT
+            mNextStage = JCMTrustVerificationStage::kAskingUserForConsent;
+            AskUserForConsent();
+            break;
+        case JCMTrustVerificationStage::kAskingUserForConsent:
+            // Handle the response for user consent
             ChipLogProgress(Controller, "Joint Commissioning Trust Verification completed successfully");
             mNextStage = JCMTrustVerificationStage::kIdle;
             JCMTrustVerificationInfo info;
@@ -171,7 +204,7 @@ void JCMCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult r
             OnJCMTrustVerificationComplete(&info, result);
             break;
         default:
-            ChipLogError(Controller, "Invalid state in OnDone: %d", static_cast<int>(mNextStage));
+            ChipLogError(Controller, "Invalid stage: %d", static_cast<int>(mNextStage));
             OnJCMTrustVerificationComplete(nullptr, JCMTrustVerificationResult::kInternalError);
             break;
     }

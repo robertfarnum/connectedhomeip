@@ -32,7 +32,9 @@ enum class JCMTrustVerificationResult : uint16_t
 {
     kSuccess = 0,
 
-    kNotAnAdministrator  = 100,
+    kJoineeNotAnAdministrator  = 100,
+    kTrustVerificationDelegateNotSet = 101,
+    KUserDeniedConsent = 102,
     // TODO: Add more JCM trust verification errors
 
     kNoMemory = 700,
@@ -43,6 +45,8 @@ enum class JCMTrustVerificationResult : uint16_t
 
     kNotImplemented = 0xFFFFU,
 };
+
+class JCMCommissioner;
 
 struct JCMTrustVerificationError
 {
@@ -58,6 +62,7 @@ enum JCMTrustVerificationStage : uint8_t
     kReadingAdministratorFabricIndex,
     kPerformingVendorIDVerificationProcedure,
     kVerifyingNOCContainsAdministratorCAT,
+    kAskingUserForConsent,
 };
 
 typedef void (*JCMTrustVerificationCompleteCallback)(void * context, JCMTrustVerificationInfo * info, JCMTrustVerificationResult result);
@@ -68,13 +73,10 @@ typedef void (*JCMTrustVerificationCompleteCallback)(void * context, JCMTrustVer
 class DLL_EXPORT JCMTrustVerificationDelegate
 {
 public:
-    virtual ~JCMTrustVerificationDelegate() {}
+    virtual ~JCMTrustVerificationDelegate() = default;
 
-    virtual bool onProgressUpdate(JCMTrustVerificationStage stage, JCMTrustVerificationError error)
-    {
-        return false;
-    }
-    virtual bool OnAskUserForConsent(VendorId vendorId) { return false; }
+    virtual void OnProgressUpdate(JCMCommissioner *commissioner, JCMTrustVerificationStage stage, JCMTrustVerificationError error) = 0;
+    virtual void OnAskUserForConsent(JCMCommissioner *commissioner, VendorId vendorId) = 0;
 };
 
 } // namespace Controller
