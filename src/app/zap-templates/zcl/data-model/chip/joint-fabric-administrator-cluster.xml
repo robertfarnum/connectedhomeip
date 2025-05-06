@@ -14,8 +14,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<configurator xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../zcl.xsd">
+<configurator>
   <domain name="CHIP"/>
+
   <enum name="ICACResponseStatusEnum" type="enum8">
     <cluster code="0x0753"/>
     <item name="OK" value="0x00"/>
@@ -36,18 +37,17 @@ limitations under the License.
     <item name="TransferAnchorStatusNoUserConsent" value="0x02"/>
   </enum>
 
-  <cluster apiMaturity="provisional">
+  <cluster>
     <domain>General</domain>
     <name>Joint Fabric Administrator</name>
     <code>0x0753</code>
     <define>JOINT_FABRIC_ADMINISTRATOR_CLUSTER</define>
     <description>Joint Fabric Administrator Cluster.</description>
-    <client init="false" tick="false">true</client>
-    <server init="false" tick="false">true</server>
-    <globalAttribute code="0xFFFD" side="either" value="1"/>
+
     <attribute side="server" code="0x0000" name="AdministratorFabricIndex" define="ADMINISTRATOR_FABRIC_INDEX" type="fabric_idx" min="1" max="254" isNullable="true">
       <access op="read" privilege="administer"/>
     </attribute>
+
     <command source="client" code="0x00" name="ICACCSRRequest" response="ICACCSRResponse">
       <description>This command SHALL be generated during Joint Commissioning Method and subsequently be responded in the form of an ICACCSRResponse command.</description>
       <access op="invoke" privilege="administer"/>
@@ -99,6 +99,5 @@ limitations under the License.
       <arg id="0" name="EndpointID" type="endpoint_no"/>
       <access op="invoke" privilege="administer"/>
     </command>
-
   </cluster>
 </configurator>

@@ -14,8 +14,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<configurator xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../zcl.xsd">
+<configurator>
   <domain name="CHIP"/>
+
   <enum name="DatastoreStateEnum" type="enum8">
     <cluster code="0x0752"/>
     <item name="Pending" value="0x00"/>
@@ -167,15 +168,12 @@ limitations under the License.
     <item fieldId="2" name="FailureCode" type="status" default="0"/>
   </struct>
 
-  <cluster apiMaturity="provisional">
+  <cluster>
     <domain>General</domain>
     <name>Joint Fabric Datastore</name>
     <code>0x0752</code>
     <define>JOINT_FABRIC_DATASTORE_CLUSTER</define>
     <description>Joint Fabric Datastore Cluster.</description>
-    <client init="false" tick="false">true</client>
-    <server init="false" tick="false">true</server>
-    <globalAttribute code="0xFFFD" side="either" value="1"/>
     <attribute side="server" code="0x0000" name="AnchorRootCA" define="ANCHOR_ROOT_CA" type="octet_string">
       <access op="read" privilege="administer"/>
     </attribute>
@@ -366,6 +364,5 @@ limitations under the License.
       <arg id="1" name="NodeID" type="node_id"/>
       <access op="invoke" privilege="administer"/>
     </command>
-
   </cluster>
 </configurator>

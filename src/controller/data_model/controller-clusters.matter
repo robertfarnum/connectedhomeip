@@ -10820,8 +10820,8 @@ cluster CommissionerControl = 1873 {
 }
 
 /** Joint Fabric Datastore Cluster. */
-provisional cluster JointFabricDatastore = 1874 {
-  revision 1;
+cluster JointFabricDatastore = 1874 {
+  revision 1; // NOTE: Default/not specifically set
 
   enum DatastoreAccessControlEntryAuthModeEnum : enum8 {
     kPASE = 1;
@@ -11136,8 +11136,8 @@ provisional cluster JointFabricDatastore = 1874 {
 }
 
 /** Joint Fabric Administrator Cluster. */
-provisional cluster JointFabricAdministrator = 1875 {
-  revision 1;
+cluster JointFabricAdministrator = 1875 {
+  revision 1; // NOTE: Default/not specifically set
 
   enum ICACResponseStatusEnum : enum8 {
     kOK = 0;
@@ -12031,4 +12031,3 @@ cluster SampleMei = 4294048800 {
   /** Command that takes two uint8 arguments and returns their sum. */
   command AddArguments(AddArgumentsRequest): AddArgumentsResponse = 2;
 }
-
