@@ -50,7 +50,7 @@ public:
 
 protected:
     // Override FinishReadingCommissioningInfo to parse JCM administrator info
-    CHIP_ERROR FinishReadingCommissioningInfo() override;
+    CHIP_ERROR FinishReadingCommissioningInfo(ReadCommissioningInfo & info) override;
 
 private:
     //CHIP_ERROR SendCommissioningReadRequest(Optional<System::Clock::Timeout> timeout, app::AttributePathParams * readPaths, size_t readPathsSize);
@@ -61,7 +61,7 @@ private:
     void AdvanceTrustVerificationStage(JCMTrustVerificationResult result);
 
     // Parse the JCM administrator info from the commissioning info
-    CHIP_ERROR ParseAdministratorInfo();
+    CHIP_ERROR ParseAdministratorInfo(ReadCommissioningInfo & info);
 
     // JCM commissioning steps
     void DiscoverAdministratorEndpoint();

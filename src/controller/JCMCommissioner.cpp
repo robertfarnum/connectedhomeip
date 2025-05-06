@@ -16,7 +16,6 @@
  */
 
 #include "JCMCommissioner.h"
-#include "CHIPDeviceController.h"
 #include "CommissioningDelegate.h"
 #include "JCMTrustVerification.h"
 #include <app-common/zap-generated/ids/Attributes.h>
@@ -67,16 +66,15 @@ void JCMCommissioner::OnJCMTrustVerificationComplete(const JCMTrustVerificationI
     }
 }
 
-CHIP_ERROR JCMCommissioner::ParseAdministratorInfo()
+CHIP_ERROR JCMCommissioner::ParseAdministratorInfo(ReadCommissioningInfo & info)
 {
-    //using namespace JointFabricAdministrator::Attributes;
     using namespace OperationalCredentials::Attributes;
     ByteSpan rootKeySpan;
 
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    // err = mAttributeCache->ForEachAttribute(JointFabricAdministrator::Id, [this, &info](const ConcreteAttributePath & path) {
-    //     using namespace chip::app::Clusters::JointFabricAdministrator::Attributes;
+    // err = mAttributeCache->ForEachAttribute(Clusters::JointFabricAdministrator::Id, [this, &info](const ConcreteAttributePath & path) {
+    //     using namespace Clusters::JointFabricAdministrator::Attributes;
     //     AdministratorFabricIndex::TypeInfo::DecodableType administratorFabricIndex;
 
     //     VerifyOrReturnError(path.mAttributeId == AdministratorFabricIndex::Id, CHIP_NO_ERROR);
@@ -305,12 +303,12 @@ void JCMCommissioner::ContinueAfterUserConsent(bool consent)
     }
 }
 
-CHIP_ERROR JCMCommissioner::FinishReadingCommissioningInfo()
+CHIP_ERROR JCMCommissioner::FinishReadingCommissioningInfo(ReadCommissioningInfo & info)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    AccumulateErrors(err, ParseAdministratorInfo());
-    return DeviceCommissioner::FinishReadingCommissioningInfo();
+    AccumulateErrors(err, ParseAdministratorInfo(info));
+    return DeviceCommissioner::FinishReadingCommissioningInfo(info);
 }
 
 void JCMCommissioner::OnDone(chip::app::ReadClient * readClient)

@@ -2279,11 +2279,15 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
     {
         ReadCommissioningInfo info;
         info.attributes = mAttributeCache.get();
-        CHIP_ERROR err = FinishReadingCommissioningInfo();
+
+        CHIP_ERROR err = FinishReadingCommissioningInfo(info);
 
         CommissioningDelegate::CommissioningReport report;
         report.Set<ReadCommissioningInfo>(info);
         CommissioningStageComplete(err, report);
+
+        // Only release the attribute cache once `info` is no longer needed.
+        mAttributeCache.reset();
 
         return;
     }
@@ -2386,13 +2390,12 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
     SendCommissioningReadRequest(mDeviceBeingCommissioned, mCommissioningStepTimeout, builder.paths(), builder.size());
 }
 
-CHIP_ERROR DeviceCommissioner::FinishReadingCommissioningInfo()
+CHIP_ERROR DeviceCommissioner::FinishReadingCommissioningInfo(ReadCommissioningInfo & info)
 {
     // We want to parse as much information as possible, even if we eventually end
     // up returning an error (e.g. because some mandatory information was missing).
     CHIP_ERROR err = CHIP_NO_ERROR;
-    ReadCommissioningInfo info;
-    info.attributes = mAttributeCache.get();
+
     AccumulateErrors(err, ParseGeneralCommissioningInfo(info));
     AccumulateErrors(err, ParseBasicInformation(info));
     AccumulateErrors(err, ParseNetworkCommissioningInfo(info));
@@ -2404,9 +2407,6 @@ CHIP_ERROR DeviceCommissioner::FinishReadingCommissioningInfo()
     {
         mPairingDelegate->OnReadCommissioningInfo(info);
     }
-
-    // Only release the attribute cache once `info` is no longer needed.
-    mAttributeCache.reset();
 
     return err;
 }
