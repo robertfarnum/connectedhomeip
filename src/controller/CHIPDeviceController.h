@@ -82,6 +82,42 @@ namespace Controller {
 
 inline constexpr uint16_t kNumMaxActiveDevices = CHIP_CONFIG_CONTROLLER_MAX_ACTIVE_DEVICES;
 
+inline CHIP_ERROR SaveCertificate(ByteSpan inCertSpan, uint8_t **outCert, uint16_t *outCertSize)
+{
+    if ((inCertSpan.size() > Credentials::kMaxDERCertLength) || !(CanCastTo<uint16_t>(inCertSpan.size())))
+    {
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    if (*outCertSize > 0)
+    {
+        Platform::MemoryFree(*outCert);
+        *outCertSize = 0;
+    }
+
+    *outCert = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(inCertSpan.size()));
+    if (!(*outCert))
+    {
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    *outCertSize = static_cast<uint16_t>(inCertSpan.size());
+    memcpy(*outCert, inCertSpan.data(), inCertSpan.size());
+
+    return CHIP_NO_ERROR;
+}
+
+inline void ReleaseCertificate(uint8_t **cert, uint16_t *certSize)
+{
+    if (*cert != nullptr)
+    {
+        chip::Platform::MemoryFree(*cert);
+    }
+
+    *certSize = 0;
+    *cert = nullptr;
+}
+
 struct ControllerInitParams
 {
     DeviceControllerSystemState * systemState                       = nullptr;
@@ -844,7 +880,15 @@ protected:
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
     Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
     Platform::UniquePtr<app::ReadClient> mReadClient;
-#endif
+    virtual CHIP_ERROR FinishReadingCommissioningInfo();
+    void AccumulateErrors(CHIP_ERROR & acc, CHIP_ERROR err)
+    {
+        if (acc == CHIP_NO_ERROR && err != CHIP_NO_ERROR)
+        {
+            acc = err;
+        }
+    }
+#endif // CHIP_CONFIG_ENABLE_READ_CLIENT
 
     template <typename RequestObjectT>
     CHIP_ERROR SendCommissioningCommand(DeviceProxy * device, const RequestObjectT & request,
@@ -1071,7 +1115,6 @@ private:
 
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
     void ContinueReadingCommissioningInfo(const CommissioningParameters & params);
-    void FinishReadingCommissioningInfo();
     CHIP_ERROR ParseGeneralCommissioningInfo(ReadCommissioningInfo & info);
     CHIP_ERROR ParseBasicInformation(ReadCommissioningInfo & info);
     CHIP_ERROR ParseNetworkCommissioningInfo(ReadCommissioningInfo & info);

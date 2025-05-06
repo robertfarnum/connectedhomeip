@@ -161,13 +161,6 @@ uint8_t GetCommissioningMode(const ByteSpan & value)
     return MakeU8FromAsciiDecimal(value);
 }
 
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-uint8_t GetJointFabricMode(const ByteSpan & value)
-{
-    return MakeU8FromAsciiDecimal(value);
-}
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-
 uint32_t GetDeviceType(const ByteSpan & value)
 {
     return MakeU32FromAsciiDecimal(value);

@@ -16,7 +16,6 @@
  *    limitations under the License.
  */
 
-#include "CommissioningDelegate.h"
 #include <controller/AutoCommissioner.h>
 
 #include <app/InteractionModelTimeout.h>
@@ -388,7 +387,7 @@ CommissioningStage AutoCommissioner::GetNextCommissioningStageInternal(Commissio
         return CommissioningStage::kAttestationRevocationCheck;
     case CommissioningStage::kAttestationRevocationCheck:
 #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-        if (mParams.UseJCM()) {
+        if (mParams.UseJCM().ValueOr(false)) {
             return CommissioningStage::kJCMTrustVerification;
         }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
@@ -943,42 +942,6 @@ CHIP_ERROR AutoCommissioner::PerformStep(CommissioningStage nextStage)
     mCommissioner->PerformCommissioningStep(proxy, nextStage, mParams, this, GetEndpoint(nextStage),
                                             GetCommandTimeout(proxy, nextStage));
     return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR AutoCommissioner::SaveCertificate(ByteSpan inCertSpan, uint8_t **outCert, uint16_t *outCertSize)
-{
-    if ((inCertSpan.size() > Credentials::kMaxDERCertLength) || !(CanCastTo<uint16_t>(inCertSpan.size())))
-    {
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    if (*outCertSize > 0)
-    {
-        Platform::MemoryFree(*outCert);
-        *outCertSize = 0;
-    }
-
-    *outCert = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(inCertSpan.size()));
-    if (!(*outCert))
-    {
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    *outCertSize = static_cast<uint16_t>(inCertSpan.size());
-    memcpy(*outCert, inCertSpan.data(), inCertSpan.size());
-
-    return CHIP_NO_ERROR;
-}
-
-void AutoCommissioner::ReleaseCertificate(uint8_t **cert, uint16_t *certSize)
-{
-    if (*cert != nullptr)
-    {
-        chip::Platform::MemoryFree(*cert);
-    }
-
-    *certSize = 0;
-    *cert = nullptr;
 }
 
 } // namespace Controller

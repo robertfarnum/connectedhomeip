@@ -17,15 +17,24 @@
 
 #pragma once
 
+#include <app-common/zap-generated/cluster-objects.h>
 #include <lib/core/CHIPError.h>
 #include <lib/core/CHIPVendorIdentifiers.hpp>
 #include <lib/support/DLLUtil.h>
 
 namespace chip {
 namespace Controller {
- 
+
 struct JCMTrustVerificationInfo {
-    EndpointId endPointId;
+    EndpointId adminEndpointId  = kInvalidEndpointId;;
+    FabricIndex adminFabricIndex  = kUndefinedFabricIndex;
+
+    VendorId adminVendorId;
+    FabricId adminFabricId;
+
+    ByteSpan adminNOC;
+    ByteSpan adminICAC;
+    ByteSpan adminRCAC;
 };
 
 enum class JCMTrustVerificationResult : uint16_t

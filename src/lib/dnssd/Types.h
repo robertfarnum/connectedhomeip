@@ -234,9 +234,6 @@ struct CommissionNodeData : public CommonResolutionData
     char instanceName[Commission::kInstanceNameMaxLength + 1] = {};
     char deviceName[kMaxDeviceNameLen + 1]                    = {};
     char pairingInstruction[kMaxPairingInstructionLen + 1]    = {};
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    uint8_t jointFabricMode                                   = 0;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     CommissionNodeData() {}
 
@@ -295,9 +292,6 @@ struct CommissionNodeData : public CommonResolutionData
         ChipLogDetail(Discovery, "\tCommissioning Mode: %u", commissioningMode);
         ChipLogDetail(Discovery, "\tSupports Commissioner Generated Passcode: %s",
                       supportsCommissionerGeneratedPasscode ? "true" : "false");
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC  
-        ChipLogDetail(Discovery, "\tJoint Fabric Mode: %u", jointFabricMode);
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     }
 };
 

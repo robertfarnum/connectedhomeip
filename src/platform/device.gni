@@ -262,7 +262,7 @@ declare_args() {
 
 declare_args() {
   # Enable the use of the joint fabric
-  chip_enable_joint_fabric = false
+  chip_device_config_enable_joint_fabric = false
 }
 
 assert(

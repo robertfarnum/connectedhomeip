@@ -18,6 +18,7 @@
 
  #pragma once
 
+#include "JCMTrustVerification.h"
 #include <controller/CHIPDeviceController.h>
 #include <controller/JCMTrustVerification.h>
 #include <app/DeviceProxy.h>
@@ -38,7 +39,7 @@ public:
     JCMCommissioner(){};
     ~JCMCommissioner(){};
     CHIP_ERROR StartJCMTrustVerification(DeviceProxy * proxy) override;
-    void OnJCMTrustVerificationComplete(JCMTrustVerificationInfo *info, JCMTrustVerificationResult result);
+    void OnJCMTrustVerificationComplete(const JCMTrustVerificationInfo  *info, JCMTrustVerificationResult result);
     void RegisterJCMTrustVerificationDelegate(JCMTrustVerificationDelegate * jcmTrustVerificationDelegate)
     {
         mJCMTrustVerificationDelegate = jcmTrustVerificationDelegate;
@@ -47,6 +48,10 @@ public:
 
     void OnDone(app::ReadClient *) override;
 
+protected:
+    // Override FinishReadingCommissioningInfo to parse JCM administrator info
+    CHIP_ERROR FinishReadingCommissioningInfo() override;
+
 private:
     //CHIP_ERROR SendCommissioningReadRequest(Optional<System::Clock::Timeout> timeout, app::AttributePathParams * readPaths, size_t readPathsSize);
     
@@ -54,6 +59,9 @@ private:
 
     // Move to next JCM commissioning step
     void AdvanceTrustVerificationStage(JCMTrustVerificationResult result);
+
+    // Parse the JCM administrator info from the commissioning info
+    CHIP_ERROR ParseAdministratorInfo();
 
     // JCM commissioning steps
     void DiscoverAdministratorEndpoint();
@@ -65,6 +73,8 @@ private:
     JCMTrustVerificationStage mNextStage = JCMTrustVerificationStage::kIdle;
     JCMTrustVerificationDelegate * mJCMTrustVerificationDelegate = nullptr;
     DeviceProxy * mDeviceProxy = nullptr;
+
+    JCMTrustVerificationInfo mInfo;
 };
 
 } // namespace Controller

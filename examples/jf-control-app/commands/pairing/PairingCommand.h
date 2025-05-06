@@ -107,6 +107,8 @@ public:
         case PairingMode::Code:
             AddArgument("anchor", 0, 1, &mAnchor,
                         "Commission as an anchor node. Defaults to 'false'.");
+            AddArgument("jcm", 0, 1, &mJCM,
+                        "Commission as a JCM node. Defaults to 'false'.");
             AddArgument("dcl-hostname", &mDCLHostName,
                         "Hostname of the DCL server to fetch information from. Defaults to 'on.dcl.csa-iot.org'.");
             AddArgument("dcl-port", 0, UINT16_MAX, &mDCLPort, "Port number for connecting to the DCL server. Defaults to '443'.");
@@ -120,6 +122,8 @@ public:
         case PairingMode::Ble:
             AddArgument("anchor", 0, 1, &mAnchor,
                 "Commission as an anchor node. Defaults to 'false'.");
+            AddArgument("jcm", 0, 1, &mJCM,
+                "Commission as a JCM node. Defaults to 'false'.");
             AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode.emplace());
             AddArgument("discriminator", 0, 4096, &mDiscriminator.emplace());
             break;
@@ -134,6 +138,8 @@ public:
         case PairingMode::SoftAP:
             AddArgument("anchor", 0, 1, &mAnchor,
                 "Commission as an anchor node. Defaults to 'false'.");
+            AddArgument("jcm", 0, 1, &mJCM,
+                 "Commission as a JCM node. Defaults to 'false'.");
             AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode.emplace());
             AddArgument("discriminator", 0, 4096, &mDiscriminator.emplace());
             AddArgument("device-remote-ip", &mRemoteAddr);
@@ -144,6 +150,8 @@ public:
         case PairingMode::WiFiPAF:
             AddArgument("anchor", 0, 1, &mAnchor,
                 "Commission as an anchor node. Defaults to 'false'.");
+            AddArgument("jcm", 0, 1, &mJCM,
+                "Commission as a JCM node. Defaults to 'false'.");
             AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode.emplace());
             AddArgument("discriminator", 0, 4096, &mDiscriminator.emplace());
             break;
@@ -159,6 +167,8 @@ public:
         case PairingMode::AlreadyDiscoveredByIndex:
             AddArgument("anchor", 0, 1, &mAnchor,
                 "Commission as an anchor node. Defaults to 'false'.");
+            AddArgument("jcm", 0, 1, &mJCM,
+                "Commission as a JCM node. Defaults to 'false'.");
             AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode.emplace());
             AddArgument("index", 0, UINT16_MAX, &mIndex);
             AddArgument("pase-only", 0, 1, &mPaseOnly);
@@ -166,6 +176,8 @@ public:
         case PairingMode::AlreadyDiscoveredByIndexWithCode:
             AddArgument("anchor", 0, 1, &mAnchor,
                 "Commission as an anchor node. Defaults to 'false'.");
+            AddArgument("jcm", 0, 1, &mJCM,
+                "Commission as a JCM node. Defaults to 'false'.");
             AddArgument("payload", &mOnboardingPayload);
             AddArgument("index", 0, UINT16_MAX, &mIndex);
             AddArgument("pase-only", 0, 1, &mPaseOnly);

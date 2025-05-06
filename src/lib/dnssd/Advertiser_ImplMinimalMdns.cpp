@@ -848,9 +848,6 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
     char txtRotatingDeviceId[chip::Dnssd::kKeyRotatingDeviceIdMaxLength + 4];
     char txtPairingHint[chip::Dnssd::kKeyPairingInstructionMaxLength + 4];
     char txtPairingInstr[chip::Dnssd::kKeyPairingInstructionMaxLength + 4];
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    char txtJointFabricMode[chip::Dnssd::kKeyJointFabricModeMaxLength + 4];
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 
     // the following sub types only apply to commissioner discovery advertisements
     char txtCommissionerPasscode[chip::Dnssd::kKeyCommissionerPasscodeMaxLength + 4];
@@ -881,14 +878,6 @@ FullQName AdvertiserMinMdns::GetCommissioningTxtEntries(const CommissionAdvertis
             snprintf(txtPairingInstr, sizeof(txtPairingInstr), "PI=%s", *pairingInstruction);
             txtFields[numTxtFields++] = txtPairingInstr;
         }
-
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-        if (const auto & jointFabricMode = params.GetJointFabricMode(); jointFabricMode.has_value())
-        {
-            snprintf(txtJointFabricMode, sizeof(txtJointFabricMode), "JF=%d", *jointFabricMode);
-            txtFields[numTxtFields++] = txtJointFabricMode;
-        }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     }
     else
     {

@@ -16,6 +16,8 @@
  */
 
 #include "JCMCommissioner.h"
+#include "CHIPDeviceController.h"
+#include "CommissioningDelegate.h"
 #include "JCMTrustVerification.h"
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app-common/zap-generated/ids/Clusters.h>
@@ -23,6 +25,7 @@
 #include <lib/core/CHIPCore.h>
 #include <lib/core/CHIPError.h>
 #include <controller/JCMCommissioner.h>
+#include <credentials/CHIPCert.h>
 
 using namespace ::chip;
 using namespace ::chip::app;
@@ -46,7 +49,7 @@ CHIP_ERROR JCMCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
     return CHIP_NO_ERROR;  
 }
 
-void JCMCommissioner::OnJCMTrustVerificationComplete(JCMTrustVerificationInfo *info, JCMTrustVerificationResult result)
+void JCMCommissioner::OnJCMTrustVerificationComplete(const JCMTrustVerificationInfo  *info, JCMTrustVerificationResult result)
 {
     ChipLogProgress(Controller, "Administrator Device passed JCM Trust Verification");
 
@@ -62,6 +65,167 @@ void JCMCommissioner::OnJCMTrustVerificationComplete(JCMTrustVerificationInfo *i
         report.Set<JCMTrustVerificationError>(result);
         CommissioningStageComplete(CHIP_ERROR_INTERNAL, report);
     }
+}
+
+CHIP_ERROR JCMCommissioner::ParseAdministratorInfo()
+{
+    //using namespace JointFabricAdministrator::Attributes;
+    using namespace OperationalCredentials::Attributes;
+    ByteSpan rootKeySpan;
+
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    // err = mAttributeCache->ForEachAttribute(JointFabricAdministrator::Id, [this, &info](const ConcreteAttributePath & path) {
+    //     using namespace chip::app::Clusters::JointFabricAdministrator::Attributes;
+    //     AdministratorFabricIndex::TypeInfo::DecodableType administratorFabricIndex;
+
+    //     VerifyOrReturnError(path.mAttributeId == AdministratorFabricIndex::Id, CHIP_NO_ERROR);
+    //     ReturnErrorOnFailure(this->mAttributeCache->Get<AdministratorFabricIndex::TypeInfo>(path, administratorFabricIndex));
+
+    //     if (!administratorFabricIndex.IsNull())
+    //     {
+    //         ChipLogProgress(Controller, "JCM: AdministratorFabricIndex: %d", administratorFabricIndex.Value());
+    //         mInfo.adminFabricIndex = administratorFabricIndex.Value();
+    //         mInfo.adminEndpointId = path.mEndpointId;
+    //     }
+    //     else
+    //     {
+    //         ChipLogError(Controller, "JCM: AdministratorFabricIndex attribute@JF Administrator Cluster not found!");
+    //         return CHIP_ERROR_NOT_FOUND;
+    //     }
+    //     return CHIP_NO_ERROR;
+    // });
+
+    if (err != CHIP_NO_ERROR)
+    {
+        return err;
+    }
+
+    err = mAttributeCache->ForEachAttribute(OperationalCredentials::Id, [this, &rootKeySpan](const ConcreteAttributePath & path) {
+        using namespace chip::app::Clusters::OperationalCredentials::Attributes;
+
+        switch (path.mAttributeId)
+        {
+            case Fabrics::Id: {
+                Fabrics::TypeInfo::DecodableType fabrics;
+                ReturnErrorOnFailure(this->mAttributeCache->Get<Fabrics::TypeInfo>(path, fabrics));
+
+                auto iter = fabrics.begin();
+                while (iter.Next())
+                {
+                    auto & fabricDescriptor = iter.GetValue();
+                    if (fabricDescriptor.fabricIndex == mInfo.adminFabricIndex)
+                    {
+                        if (fabricDescriptor.rootPublicKey.size() != Crypto::kP256_PublicKey_Length)
+                        {
+                            ChipLogError(Controller, "JCM: DeviceCommissioner::ParseJFAdministratorInfo - fabric root key size mismatch");
+                            return CHIP_ERROR_KEY_NOT_FOUND;
+                        }
+                        rootKeySpan = fabricDescriptor.rootPublicKey;
+                        mInfo.adminVendorId = fabricDescriptor.vendorID;
+                        mInfo.adminFabricId = fabricDescriptor.fabricID;
+
+                        if (fabricDescriptor.VIDVerificationStatement.HasValue())
+                        {
+                            ChipLogError(Controller, "JCM: Per-home RCAC are not supported by JF for now!");
+                            return CHIP_ERROR_CANCELLED;
+                        }
+                        ChipLogProgress(Controller, "JCM: Successfully parsed the Administrator Fabric Table");
+                        break;
+                    }
+                }
+                return CHIP_NO_ERROR;
+            }
+            case NOCs::Id: {
+                NOCs::TypeInfo::DecodableType nocs;
+                ReturnErrorOnFailure(this->mAttributeCache->Get<NOCs::TypeInfo>(path, nocs));
+
+                auto iter = nocs.begin();
+                while (iter.Next())
+                {
+                    auto & nocStruct = iter.GetValue();
+
+                    if (nocStruct.fabricIndex == mInfo.adminFabricIndex)
+                    {
+                        mInfo.adminNOC = nocStruct.noc;
+
+                        if (!nocStruct.icac.IsNull())
+                        {
+                            mInfo.adminICAC = nocStruct.icac.Value();
+                        }
+                        else
+                        {
+                            ChipLogError(Controller, "JCM: ICAC not present!");
+                            return CHIP_ERROR_CERT_NOT_FOUND;
+                        }
+                        ChipLogProgress(Controller, "JCM: Successfully parsed the Administrator NOC and ICAC");
+                        break;
+                    }
+                }
+                return CHIP_NO_ERROR;
+            }
+            default:
+                return CHIP_NO_ERROR;
+        }
+
+        return CHIP_NO_ERROR;
+    });
+
+    if (err != CHIP_NO_ERROR)
+    {
+        mInfo.adminFabricIndex = kUndefinedFabricIndex;
+        return err;
+    }
+
+    err = mAttributeCache->ForEachAttribute(OperationalCredentials::Id, [this, &rootKeySpan](const ConcreteAttributePath & path) {
+        using namespace chip::app::Clusters::OperationalCredentials::Attributes;
+        bool foundMatchingRcac = false;
+
+        switch (path.mAttributeId)
+        {
+            case TrustedRootCertificates::Id: {
+                TrustedRootCertificates::TypeInfo::DecodableType trustedCAs;
+                ReturnErrorOnFailure(this->mAttributeCache->Get<TrustedRootCertificates::TypeInfo>(path, trustedCAs));
+
+                   auto iter = trustedCAs.begin();
+                   while (iter.Next())
+                   {
+                       auto & trustedCA = iter.GetValue();
+                       Credentials::P256PublicKeySpan trustedCAPublicKeySpan;
+
+                       ReturnErrorOnFailure(Credentials::ExtractPublicKeyFromChipCert(trustedCA, trustedCAPublicKeySpan));
+                       Crypto::P256PublicKey trustedCAPublicKey{ trustedCAPublicKeySpan };
+
+                       Credentials::P256PublicKeySpan rootPubKeySpan(rootKeySpan.data());
+                       Crypto::P256PublicKey fabricTableRootPublicKey{ rootPubKeySpan };
+
+                       if (trustedCAPublicKey.Matches(fabricTableRootPublicKey))
+                       {
+                            mInfo.adminRCAC = trustedCA;
+                            ChipLogProgress(Controller, "JCM: Successfully parsed the Administrator RCAC");
+                            foundMatchingRcac = true;
+                            break;
+                       }
+                   }
+                   if (!foundMatchingRcac)
+                   {
+                       ChipLogError(Controller, "JCM: Cannot found a matching RCAC!");
+                       return CHIP_ERROR_CERT_NOT_FOUND;
+                   }
+                   return CHIP_NO_ERROR;
+               }
+               default:
+                   return CHIP_NO_ERROR;
+           }
+           return CHIP_NO_ERROR;
+    });
+
+    if (err != CHIP_NO_ERROR)
+    {
+        mInfo.adminFabricIndex = kUndefinedFabricIndex;
+    }
+
+    return err;
 }
 
 void JCMCommissioner::DiscoverAdministratorEndpoint()
@@ -141,6 +305,14 @@ void JCMCommissioner::ContinueAfterUserConsent(bool consent)
     }
 }
 
+CHIP_ERROR JCMCommissioner::FinishReadingCommissioningInfo()
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    AccumulateErrors(err, ParseAdministratorInfo());
+    return DeviceCommissioner::FinishReadingCommissioningInfo();
+}
+
 void JCMCommissioner::OnDone(chip::app::ReadClient * readClient)
 {
     ChipLogProgress(Controller, "JCMCommissioner::OnDone called for read client");
@@ -196,12 +368,8 @@ void JCMCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult r
             AskUserForConsent();
             break;
         case JCMTrustVerificationStage::kAskingUserForConsent:
-            // Handle the response for user consent
-            ChipLogProgress(Controller, "Joint Commissioning Trust Verification completed successfully");
             mNextStage = JCMTrustVerificationStage::kIdle;
-            JCMTrustVerificationInfo info;
-            info.endPointId = 0xFFFFU; // TODO: Set the endpoint ID to the appropriate value
-            OnJCMTrustVerificationComplete(&info, result);
+            OnJCMTrustVerificationComplete(&mInfo, result);
             break;
         default:
             ChipLogError(Controller, "Invalid stage: %d", static_cast<int>(mNextStage));

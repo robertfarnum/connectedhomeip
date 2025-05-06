@@ -286,15 +286,6 @@ public:
     }
     std::optional<bool> GetCommissionerPasscodeSupported() const { return mCommissionerPasscodeSupported; }
 
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    CommissionAdvertisingParameters & SetJointFabricMode(std::optional<uint16_t> jointFabricMode)
-    {
-        mJointFabricMode = jointFabricMode;
-        return *this;
-    }
-    std::optional<uint16_t> GetJointFabricMode() const { return mJointFabricMode; }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-
 private:
     uint8_t mShortDiscriminator          = 0;
     uint16_t mLongDiscriminator          = 0; // 12-bit according to spec
@@ -315,9 +306,6 @@ private:
     bool mPairingInstrHasValue = false;
 
     std::optional<bool> mCommissionerPasscodeSupported;
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    std::optional<uint16_t> mJointFabricMode;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
 };
 
 /**

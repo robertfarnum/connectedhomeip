@@ -26,6 +26,8 @@
  */
 
 // module header, comes first
+#include "CommissioningDelegate.h"
+#include <controller/CommissioningDelegate.h>
 #include <controller/CHIPDeviceController.h>
 
 #include <app-common/zap-generated/ids/Attributes.h>
@@ -2275,7 +2277,14 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
     static constexpr auto kReadProgressNoFurtherAttributes = std::numeric_limits<decltype(mReadCommissioningInfoProgress)>::max();
     if (mReadCommissioningInfoProgress == kReadProgressNoFurtherAttributes)
     {
-        FinishReadingCommissioningInfo();
+        ReadCommissioningInfo info;
+        info.attributes = mAttributeCache.get();
+        CHIP_ERROR err = FinishReadingCommissioningInfo();
+
+        CommissioningDelegate::CommissioningReport report;
+        report.Set<ReadCommissioningInfo>(info);
+        CommissioningStageComplete(err, report);
+
         return;
     }
 
@@ -2341,6 +2350,19 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
         VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::IcdManagement::Id,
                                                 Clusters::IcdManagement::Attributes::ActiveModeThreshold::Id));
 
+#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
+        // Joint Fabric Management: all attributes
+        if (params.UseJCM().ValueOr(false)) {
+            // VerifyOrReturn(builder.AddAttributePath(Clusters::JointFabricAdministrator::Id,
+            //                                         Clusters::JointFabricAdministrator::Attributes::AdministratorFabricIndex::Id));
+            VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::OperationalCredentials::Id,
+                                                    Clusters::OperationalCredentials::Attributes::Fabrics::Id));
+            VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::OperationalCredentials::Id,
+                                                    Clusters::OperationalCredentials::Attributes::NOCs::Id));
+            VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::OperationalCredentials::Id,
+                                                    Clusters::OperationalCredentials::Attributes::TrustedRootCertificates::Id));
+        }
+#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
         // Extra paths requested via CommissioningParameters
         for (auto const & path : params.GetExtraReadPaths())
         {
@@ -2364,17 +2386,7 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
     SendCommissioningReadRequest(mDeviceBeingCommissioned, mCommissioningStepTimeout, builder.paths(), builder.size());
 }
 
-namespace {
-void AccumulateErrors(CHIP_ERROR & acc, CHIP_ERROR err)
-{
-    if (acc == CHIP_NO_ERROR && err != CHIP_NO_ERROR)
-    {
-        acc = err;
-    }
-}
-} // namespace
-
-void DeviceCommissioner::FinishReadingCommissioningInfo()
+CHIP_ERROR DeviceCommissioner::FinishReadingCommissioningInfo()
 {
     // We want to parse as much information as possible, even if we eventually end
     // up returning an error (e.g. because some mandatory information was missing).
@@ -2393,12 +2405,10 @@ void DeviceCommissioner::FinishReadingCommissioningInfo()
         mPairingDelegate->OnReadCommissioningInfo(info);
     }
 
-    CommissioningDelegate::CommissioningReport report;
-    report.Set<ReadCommissioningInfo>(info);
-    CommissioningStageComplete(err, report);
-
     // Only release the attribute cache once `info` is no longer needed.
     mAttributeCache.reset();
+
+    return err;
 }
 
 CHIP_ERROR DeviceCommissioner::ParseGeneralCommissioningInfo(ReadCommissioningInfo & info)
