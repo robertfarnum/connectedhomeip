@@ -880,7 +880,7 @@ protected:
 #if CHIP_CONFIG_ENABLE_READ_CLIENT
     Platform::UniquePtr<app::ClusterStateCache> mAttributeCache;
     Platform::UniquePtr<app::ReadClient> mReadClient;
-    virtual CHIP_ERROR FinishReadingCommissioningInfo();
+    virtual CHIP_ERROR FinishReadingCommissioningInfo(ReadCommissioningInfo & info);
     void AccumulateErrors(CHIP_ERROR & acc, CHIP_ERROR err)
     {
         if (acc == CHIP_NO_ERROR && err != CHIP_NO_ERROR)

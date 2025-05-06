@@ -364,11 +364,11 @@ CHIP_ERROR DnssdServer::Advertise(bool commissionableNode, chip::Dnssd::Commissi
     auto & mdnsAdvertiser = chip::Dnssd::ServiceAdvertiser::Instance();
 
     ChipLogProgress(Discovery, "Advertise commission parameter vendorID=%u productID=%u discriminator=%04u/%02u cm=%u cp=%u",
-        advertiseParameters.GetVendorId().value_or(0), advertiseParameters.GetProductId().value_or(0),
-        advertiseParameters.GetLongDiscriminator(), advertiseParameters.GetShortDiscriminator(),
-        to_underlying(advertiseParameters.GetCommissioningMode()),
-        advertiseParameters.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0);
-                    return mdnsAdvertiser.Advertise(advertiseParameters);
+                    advertiseParameters.GetVendorId().value_or(0), advertiseParameters.GetProductId().value_or(0),
+                    advertiseParameters.GetLongDiscriminator(), advertiseParameters.GetShortDiscriminator(),
+                    to_underlying(advertiseParameters.GetCommissioningMode()),
+                    advertiseParameters.GetCommissionerPasscodeSupported().value_or(false) ? 1 : 0);
+    return mdnsAdvertiser.Advertise(advertiseParameters);
 }
 
 CHIP_ERROR DnssdServer::AdvertiseCommissioner()
