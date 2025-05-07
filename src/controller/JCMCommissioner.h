@@ -18,11 +18,12 @@
 
  #pragma once
 
-#include "JCMTrustVerification.h"
-#include <controller/CHIPDeviceController.h>
-#include <controller/JCMTrustVerification.h>
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
 #include <app/DeviceProxy.h>
 #include <app/ReadClient.h>
+#include <controller/CHIPDeviceController.h>
+#include <controller/JCMTrustVerification.h>
 #include <lib/core/CHIPCallback.h>
 #include <lib/core/CHIPError.h>
 #if CONFIG_DEVICE_LAYER
@@ -38,6 +39,9 @@ class JCMCommissioner : public DeviceCommissioner
 public:
     JCMCommissioner(){};
     ~JCMCommissioner(){};
+
+    CHIP_ERROR Commission(NodeId remoteDeviceId, CommissioningParameters & params);
+
     CHIP_ERROR StartJCMTrustVerification(DeviceProxy * proxy) override;
     void OnJCMTrustVerificationComplete(const JCMTrustVerificationInfo  *info, JCMTrustVerificationResult result);
     void RegisterJCMTrustVerificationDelegate(JCMTrustVerificationDelegate * jcmTrustVerificationDelegate)
@@ -75,6 +79,16 @@ private:
     DeviceProxy * mDeviceProxy = nullptr;
 
     JCMTrustVerificationInfo mInfo;
+
+    const std::vector<app::AttributePathParams> mExtraReadPaths =
+        {
+            app::AttributePathParams(app::Clusters::JointFabricAdministrator::Id, app::Clusters::JointFabricAdministrator::Attributes::AdministratorFabricIndex::Id),
+            app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::Fabrics::Id),
+            app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::NOCs::Id),
+            app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::TrustedRootCertificates::Id)
+        };
+    std::vector<app::AttributePathParams> mTempReadPaths;
+
 };
 
 } // namespace Controller

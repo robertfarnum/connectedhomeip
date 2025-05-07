@@ -2354,19 +2354,6 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
         VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::IcdManagement::Id,
                                                 Clusters::IcdManagement::Attributes::ActiveModeThreshold::Id));
 
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-        // Joint Fabric Management: all attributes
-        if (params.UseJCM().ValueOr(false)) {
-            // VerifyOrReturn(builder.AddAttributePath(Clusters::JointFabricAdministrator::Id,
-            //                                         Clusters::JointFabricAdministrator::Attributes::AdministratorFabricIndex::Id));
-            VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::OperationalCredentials::Id,
-                                                    Clusters::OperationalCredentials::Attributes::Fabrics::Id));
-            VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::OperationalCredentials::Id,
-                                                    Clusters::OperationalCredentials::Attributes::NOCs::Id));
-            VerifyOrReturn(builder.AddAttributePath(kRootEndpointId, Clusters::OperationalCredentials::Id,
-                                                    Clusters::OperationalCredentials::Attributes::TrustedRootCertificates::Id));
-        }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
         // Extra paths requested via CommissioningParameters
         for (auto const & path : params.GetExtraReadPaths())
         {

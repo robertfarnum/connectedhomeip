@@ -217,7 +217,7 @@ public:
     DeviceController();
     ~DeviceController() override {}
 
-    CHIP_ERROR Init(ControllerInitParams params);
+    virtual CHIP_ERROR Init(ControllerInitParams params);
 
     /**
      * @brief
@@ -638,7 +638,7 @@ public:
      * @param[in] remoteDeviceId        The remote device Id.
      * @param[in] params                The commissioning parameters
      */
-    CHIP_ERROR Commission(NodeId remoteDeviceId, CommissioningParameters & params);
+    virtual CHIP_ERROR Commission(NodeId remoteDeviceId, CommissioningParameters & params);
     CHIP_ERROR Commission(NodeId remoteDeviceId);
 
     /**

@@ -35,6 +35,8 @@ struct JCMTrustVerificationInfo {
     ByteSpan adminNOC;
     ByteSpan adminICAC;
     ByteSpan adminRCAC;
+
+    ByteSpan rootKeySpan;
 };
 
 enum class JCMTrustVerificationResult : uint16_t
