@@ -4297,8 +4297,8 @@ char const * AttributeIdToText(chip::ClusterId cluster, chip::AttributeId id)
             return "MaxEncodedPixelRate";
         case chip::app::Clusters::CameraAvStreamManagement::Attributes::VideoSensorParams::Id:
             return "VideoSensorParams";
-        case chip::app::Clusters::CameraAvStreamManagement::Attributes::NightVisionCapable::Id:
-            return "NightVisionCapable";
+        case chip::app::Clusters::CameraAvStreamManagement::Attributes::NightVisionUsesInfrared::Id:
+            return "NightVisionUsesInfrared";
         case chip::app::Clusters::CameraAvStreamManagement::Attributes::MinViewport::Id:
             return "MinViewport";
         case chip::app::Clusters::CameraAvStreamManagement::Attributes::RateDistortionTradeOffPoints::Id:
@@ -4463,10 +4463,8 @@ char const * AttributeIdToText(chip::ClusterId cluster, chip::AttributeId id)
     case chip::app::Clusters::PushAvStreamTransport::Id: {
         switch (id)
         {
-        case chip::app::Clusters::PushAvStreamTransport::Attributes::SupportedContainerFormats::Id:
-            return "SupportedContainerFormats";
-        case chip::app::Clusters::PushAvStreamTransport::Attributes::SupportedIngestMethods::Id:
-            return "SupportedIngestMethods";
+        case chip::app::Clusters::PushAvStreamTransport::Attributes::SupportedFormats::Id:
+            return "SupportedFormats";
         case chip::app::Clusters::PushAvStreamTransport::Attributes::CurrentConnections::Id:
             return "CurrentConnections";
         case chip::app::Clusters::PushAvStreamTransport::Attributes::GeneratedCommandList::Id:

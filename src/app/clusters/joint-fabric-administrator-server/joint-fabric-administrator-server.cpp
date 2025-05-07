@@ -14,24 +14,20 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
- 
 /****************************************************************************
  * @file
  * @brief Implementation for the Joint Fabric Administrator Cluster
  ***************************************************************************/
- 
+
+#include "joint-fabric-administrator-server.h"
+
 #include <access/AccessControl.h>
 #include <app-common/zap-generated/attributes/Accessors.h>
-#include <app-common/zap-generated/cluster-objects.h>
 #include <app-common/zap-generated/ids/Attributes.h>
 #include <app/AttributeAccessInterface.h>
 #include <app/AttributeAccessInterfaceRegistry.h>
-#include <app/CommandHandler.h>
 #include <app/ConcreteCommandPath.h>
-#include <app/EventLogging.h>
-#include <app/InteractionModelEngine.h>
 #include <app/reporting/reporting.h>
-#include <app/server/Dnssd.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
 #include <credentials/CHIPCert.h>
@@ -48,39 +44,133 @@
 #include <lib/support/TestGroupData.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/CommissionableDataProvider.h>
 #include <string.h>
 #include <tracing/macros.h>
- 
-#include "joint-fabric-administrator-server.h"
- 
+
 using namespace chip;
 using namespace chip::Transport;
 using namespace chip::app;
 using namespace chip::app::Clusters;
 using namespace chip::app::Clusters::JointFabricAdministrator;
-using namespace chip::Controller;
 using namespace chip::Credentials;
 using namespace chip::Crypto;
 using namespace chip::Protocols::InteractionModel;
- 
-void MatterJointFabricAdministratorPluginServerInitCallback() {}
- 
-bool emberAfJointFabricAdministratorClusterICACCSRRequestCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricAdministrator::Commands::ICACCSRRequest::DecodableType const& c)
+
+namespace JointFabricAdministratorCluster = chip::app::Clusters::JointFabricAdministrator;
+
+class JointFabricAdministratorAttrAccess : public AttributeAccessInterface
 {
-    return TRUE;
+public:
+    JointFabricAdministratorAttrAccess() :
+        AttributeAccessInterface(Optional<EndpointId>::Missing(), JointFabricAdministratorCluster::Id)
+    {}
+
+    CHIP_ERROR Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder) override;
+
+private:
+    CHIP_ERROR ReadAdministratorFabricIndex(AttributeValueEncoder & aEncoder);
+};
+
+JointFabricAdministratorAttrAccess gJointFabricAdministratorAttrAccess;
+
+CHIP_ERROR JointFabricAdministratorAttrAccess::Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder)
+{
+    VerifyOrDie(aPath.mClusterId == JointFabricAdministratorCluster::Id);
+
+    switch (aPath.mAttributeId)
+    {
+    case JointFabricAdministrator::Attributes::AdministratorFabricIndex::Id: {
+        return ReadAdministratorFabricIndex(aEncoder);
+    }
+    default:
+        break;
+    }
+
+    return CHIP_NO_ERROR;
 }
 
-bool emberAfJointFabricAdministratorClusterAddICACCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricAdministrator::Commands::AddICAC::DecodableType const& c)
+// TODO
+CHIP_ERROR JointFabricAdministratorAttrAccess::ReadAdministratorFabricIndex(AttributeValueEncoder & aEncoder)
 {
-    return TRUE;
+    return CHIP_ERROR_NOT_IMPLEMENTED;
 }
 
-bool emberAfJointFabricAdministratorClusterOpenJointCommissioningWindowCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricAdministrator::Commands::OpenJointCommissioningWindow::DecodableType const& c)
+void MatterJointFabricAdministratorPluginServerInitCallback()
 {
-    return TRUE;
+    ChipLogProgress(DataManagement, "JointFabricAdministrator: initializing");
+    AttributeAccessInterfaceRegistry::Instance().Register(&gJointFabricAdministratorAttrAccess);
 }
 
-bool emberAfJointFabricAdministratorClusterAnnounceJointFabricAdministratorCallback(chip::app::CommandHandler*, chip::app::ConcreteCommandPath const&, chip::app::Clusters::JointFabricAdministrator::Commands::AnnounceJointFabricAdministrator::DecodableType const&)
+// TODO
+bool emberAfJointFabricAdministratorClusterICACCSRRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::JointFabricAdministrator::Commands::ICACCSRRequest::DecodableType & commandData)
 {
-    return TRUE;
-} 
+    MATTER_TRACE_SCOPE("ICACCSRRequest", "JointFabricAdministrator");
+
+    ChipLogProgress(Zcl, "JointFabricAdministrator: Received a ICACCSRRequest command");
+
+    return true;
+}
+
+// TODO
+bool emberAfJointFabricAdministratorClusterAddICACCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::JointFabricAdministrator::Commands::AddICAC::DecodableType & commandData)
+{
+    MATTER_TRACE_SCOPE("AddICAC", "JointFabricAdministrator");
+
+    ChipLogProgress(Zcl, "JointFabricAdministrator: Received a AddICAC command");
+
+    return true;
+}
+
+// TODO
+bool emberAfJointFabricAdministratorClusterOpenJointCommissioningWindowCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::JointFabricAdministrator::Commands::OpenJointCommissioningWindow::DecodableType & commandData)
+{
+    MATTER_TRACE_SCOPE("OpenJointCommissioningWindow", "JointFabricAdministrator");
+
+    ChipLogProgress(Zcl, "Received command to open joint commissioning window");
+
+    return true;
+}
+
+// TODO
+bool emberAfJointFabricAdministratorClusterTransferAnchorRequestCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::JointFabricAdministrator::Commands::TransferAnchorRequest::DecodableType & commandData)
+{
+    MATTER_TRACE_SCOPE("TransferAnchorRequest", "JointFabricAdministrator");
+
+    return true;
+}
+
+// TODO
+bool emberAfJointFabricAdministratorClusterTransferAnchorCompleteCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::JointFabricAdministrator::Commands::TransferAnchorComplete::DecodableType & commandData)
+{
+    MATTER_TRACE_SCOPE("TransferAnchorComplete", "JointFabricAdministrator");
+
+    return true;
+}
+
+// TODO
+bool emberAfJointFabricAdministratorClusterAnnounceJointFabricAdministratorCallback(
+    chip::app::CommandHandler * commandObj, const chip::app::ConcreteCommandPath & commandPath,
+    const chip::app::Clusters::JointFabricAdministrator::Commands::AnnounceJointFabricAdministrator::DecodableType & commandData)
+{
+    MATTER_TRACE_SCOPE("AnnounceJointFabricAdministrator", "JointFabricAdministrator");
+
+    return true;
+}
+
+JointFabricAdministratorServer JointFabricAdministratorServer::sJointFabricAdministratorServerInstance;
+
+JointFabricAdministratorServer & JointFabricAdministratorServer::GetInstance()
+{
+    return sJointFabricAdministratorServerInstance;
+}

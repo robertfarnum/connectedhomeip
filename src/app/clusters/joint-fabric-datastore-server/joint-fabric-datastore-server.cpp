@@ -14,19 +14,15 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
- 
 /****************************************************************************
  * @file
  * @brief Implementation for the Joint Fabric Datastore Cluster
  ***************************************************************************/
- 
+
 #include <app-common/zap-generated/cluster-objects.h>
 #include <app/AttributeAccessInterface.h>
 #include <app/AttributeAccessInterfaceRegistry.h>
-#include <app/CommandHandler.h>
 #include <app/ConcreteCommandPath.h>
-#include <app/EventLogging.h>
-#include <app/data-model/Encode.h>
 #include <app/reporting/reporting.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -36,118 +32,246 @@ using namespace chip::app;
 using namespace chip::app::Clusters;
 using chip::Protocols::InteractionModel::Status;
 
-bool emberAfJointFabricAdministratorClusterTransferAnchorRequestCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricAdministrator::Commands::TransferAnchorRequest::DecodableType const& c)
+namespace JointFabricDatastoreCluster = chip::app::Clusters::JointFabricDatastore;
+
+class JointFabricDatastoreAttrAccess : public AttributeAccessInterface
+{
+public:
+    JointFabricDatastoreAttrAccess() : AttributeAccessInterface(Optional<EndpointId>::Missing(), JointFabricDatastoreCluster::Id) {}
+
+    CHIP_ERROR Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder) override;
+
+private:
+    CHIP_ERROR ReadAnchorNodeId(AttributeValueEncoder & aEncoder);
+    CHIP_ERROR ReadAnchorVendorId(AttributeValueEncoder & aEncoder);
+    CHIP_ERROR ReadGroupKeySetList(AttributeValueEncoder & aEncoder);
+    CHIP_ERROR ReadAdminList(AttributeValueEncoder & aEncoder);
+    CHIP_ERROR ReadNodeList(AttributeValueEncoder & aEncoder);
+};
+
+JointFabricDatastoreAttrAccess gJointFabricDatastoreAttrAccess;
+
+CHIP_ERROR JointFabricDatastoreAttrAccess::Read(const ConcreteReadAttributePath & aPath, AttributeValueEncoder & aEncoder)
+{
+    VerifyOrDie(aPath.mClusterId == JointFabricDatastoreCluster::Id);
+
+    switch (aPath.mAttributeId)
+    {
+    case JointFabricDatastoreCluster::Attributes::AnchorNodeID::Id: {
+        return ReadAnchorNodeId(aEncoder);
+    }
+    case JointFabricDatastoreCluster::Attributes::AnchorVendorID::Id: {
+        return ReadAnchorVendorId(aEncoder);
+    }
+    case JointFabricDatastoreCluster::Attributes::GroupKeySetList::Id: {
+        return ReadGroupKeySetList(aEncoder);
+    }
+    case JointFabricDatastoreCluster::Attributes::AdminList::Id: {
+        return ReadAdminList(aEncoder);
+    }
+    case JointFabricDatastoreCluster::Attributes::NodeList::Id: {
+        return ReadNodeList(aEncoder);
+    }
+    // TODO: Others
+    default:
+        break;
+    }
+
+    return CHIP_NO_ERROR;
+}
+
+// TODO
+CHIP_ERROR JointFabricDatastoreAttrAccess::ReadAnchorNodeId(AttributeValueEncoder & aEncoder)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+
+// TODO
+CHIP_ERROR JointFabricDatastoreAttrAccess::ReadAnchorVendorId(AttributeValueEncoder & aEncoder)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+
+// TODO
+CHIP_ERROR JointFabricDatastoreAttrAccess::ReadGroupKeySetList(AttributeValueEncoder & aEncoder)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+
+// TODO
+CHIP_ERROR JointFabricDatastoreAttrAccess::ReadAdminList(AttributeValueEncoder & aEncoder)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+
+// TODO
+CHIP_ERROR JointFabricDatastoreAttrAccess::ReadNodeList(AttributeValueEncoder & aEncoder)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+
+// TODO
+bool emberAfJointFabricDatastoreClusterAddAdminCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddAdmin::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricAdministratorClusterTransferAnchorCompleteCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricAdministrator::Commands::TransferAnchorComplete::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterAddGroupCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddGroup::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterAddKeySetCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddKeySet::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterAddKeySetCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddKeySet::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterUpdateKeySetCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::UpdateKeySet::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRemoveKeySetCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveKeySet::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterUpdateNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::UpdateNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterAddGroupCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddGroup::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRefreshNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RefreshNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterUpdateGroupCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::UpdateGroup::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveAdminCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveAdmin::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRemoveGroupCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveGroup::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveGroupCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveGroup::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterAddAdminCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddAdmin::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterUpdateAdminCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::UpdateAdmin::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterUpdateAdminCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::UpdateAdmin::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterUpdateGroupCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::UpdateGroup::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRemoveAdminCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveAdmin::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterAddACLToNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddACLToNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterAddPendingNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddPendingNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveKeySetCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveKeySet::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRefreshNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RefreshNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterUpdateKeySetCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::UpdateKeySet::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterUpdateNodeCallback(chip::app::CommandHandler*, chip::app::ConcreteCommandPath const&, chip::app::Clusters::JointFabricDatastore::Commands::UpdateNode::DecodableType const&)
+// TODO
+bool emberAfJointFabricDatastoreClusterAddPendingNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddPendingNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRemoveNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveACLFromNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveACLFromNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterUpdateEndpointForNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::UpdateEndpointForNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterUpdateEndpointForNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::UpdateEndpointForNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterAddGroupIDToEndpointForNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddGroupIDToEndpointForNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterAddBindingToEndpointForNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddBindingToEndpointForNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRemoveGroupIDFromEndpointForNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveGroupIDFromEndpointForNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterAddGroupIDToEndpointForNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::AddGroupIDToEndpointForNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterAddBindingToEndpointForNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddBindingToEndpointForNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveBindingFromEndpointForNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveBindingFromEndpointForNode::DecodableType & commandData)
 {
     return true;
 }
 
-bool emberAfJointFabricDatastoreClusterRemoveBindingFromEndpointForNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveBindingFromEndpointForNode::DecodableType const& c)
+// TODO
+bool emberAfJointFabricDatastoreClusterRemoveGroupIDFromEndpointForNodeCallback(
+    CommandHandler * commandObj, const ConcreteCommandPath & commandPath,
+    const JointFabricDatastoreCluster::Commands::RemoveGroupIDFromEndpointForNode::DecodableType & commandData)
 {
     return true;
 }
 
-
-bool emberAfJointFabricDatastoreClusterAddACLToNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::AddACLToNode::DecodableType const& c)
-{
-    return true;
-}
-
-bool emberAfJointFabricDatastoreClusterRemoveACLFromNodeCallback(chip::app::CommandHandler* a, chip::app::ConcreteCommandPath const& b, chip::app::Clusters::JointFabricDatastore::Commands::RemoveACLFromNode::DecodableType const& c)
-{
-    return true;
-}
- 
 void MatterJointFabricDatastorePluginServerInitCallback()
 {
     ChipLogProgress(Zcl, "Initiating Joint Fabric Datastore cluster.");
+    AttributeAccessInterfaceRegistry::Instance().Register(&gJointFabricDatastoreAttrAccess);
 }

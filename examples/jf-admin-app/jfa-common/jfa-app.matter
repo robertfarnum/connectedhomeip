@@ -2462,9 +2462,9 @@ cluster ColorControl = 768 {
   command StepColorTemperature(StepColorTemperatureRequest): DefaultSuccess = 76;
 }
 
-/** Joint Fabric Datastore Cluster. */
-cluster JointFabricDatastore = 1874 {
-  revision 1; // NOTE: Default/not specifically set
+/** The Joint Fabric Datastore Cluster is a cluster that provides a mechanism for the Joint Fabric Administrators to manage the set of Nodes, Groups, and Group membership among Nodes in the Joint Fabric. */
+provisional cluster JointFabricDatastore = 1874 {
+  revision 1;
 
   enum DatastoreAccessControlEntryAuthModeEnum : enum8 {
     kPASE = 1;
@@ -2778,9 +2778,9 @@ cluster JointFabricDatastore = 1874 {
   fabric command access(invoke: administer) RemoveACLFromNode(RemoveACLFromNodeRequest): DefaultSuccess = 19;
 }
 
-/** Joint Fabric Administrator Cluster. */
-cluster JointFabricAdministrator = 1875 {
-  revision 1; // NOTE: Default/not specifically set
+/** An instance of the Joint Fabric Administrator Cluster only applies to Joint Fabric Administrator nodes fulfilling the role of Anchor CA. */
+provisional cluster JointFabricAdministrator = 1875 {
+  revision 1;
 
   enum ICACResponseStatusEnum : enum8 {
     kOK = 0;
@@ -3422,5 +3422,3 @@ endpoint 1 {
     handle command AnnounceJointFabricAdministrator;
   }
 }
-
-
