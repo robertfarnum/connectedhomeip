@@ -32,11 +32,20 @@ struct JCMTrustVerificationInfo {
     VendorId adminVendorId;
     FabricId adminFabricId;
 
-    ByteSpan adminNOC;
-    ByteSpan adminICAC;
-    ByteSpan adminRCAC;
-
     ByteSpan rootKeySpan;
+    Platform::ScopedMemoryBufferWithSize<uint8_t> adminRCAC;
+    Platform::ScopedMemoryBufferWithSize<uint8_t> adminICAC;
+    Platform::ScopedMemoryBufferWithSize<uint8_t> adminNOC;
+
+    void clear() {
+        adminEndpointId = kInvalidEndpointId;
+        adminFabricIndex = kUndefinedFabricIndex;
+        adminFabricId = 0;
+        rootKeySpan.empty();
+        adminNOC.Free();
+        adminICAC.Free();
+        adminRCAC.Free();
+    }
 };
 
 enum class JCMTrustVerificationResult : uint16_t
@@ -57,7 +66,7 @@ enum class JCMTrustVerificationResult : uint16_t
     kNotImplemented = 0xFFFFU,
 };
 
-class JCMCommissioner;
+class JCMDeviceCommissioner;
 
 struct JCMTrustVerificationError
 {
@@ -69,8 +78,7 @@ enum JCMTrustVerificationStage : uint8_t
 {
     kIdle,
     kStarted,
-    kDiscoveringAdministratorEndpoint,
-    kReadingAdministratorFabricIndex,
+    kVerifyingAdministratorEndpointAndFabricIndex,
     kPerformingVendorIDVerificationProcedure,
     kVerifyingNOCContainsAdministratorCAT,
     kAskingUserForConsent,
@@ -86,8 +94,8 @@ class DLL_EXPORT JCMTrustVerificationDelegate
 public:
     virtual ~JCMTrustVerificationDelegate() = default;
 
-    virtual void OnProgressUpdate(JCMCommissioner *commissioner, JCMTrustVerificationStage stage, JCMTrustVerificationError error) = 0;
-    virtual void OnAskUserForConsent(JCMCommissioner *commissioner, VendorId vendorId) = 0;
+    virtual void OnProgressUpdate(JCMDeviceCommissioner *commissioner, JCMTrustVerificationStage stage, JCMTrustVerificationError error) = 0;
+    virtual void OnAskUserForConsent(JCMDeviceCommissioner *commissioner, VendorId vendorId) = 0;
 };
 
 } // namespace Controller

@@ -45,18 +45,18 @@ CHIP_ERROR PairingCommand::RunCommand()
 
     if (mAnchorNodeId == chip::kUndefinedNodeId)
     {
-        // if (!mAnchor.ValueOr(false))
-        // {
-        //     ChipLogError(JointFabric, "Please first commission the Anchor Administrator: add `--anchor true` parameter");
-        //     return CHIP_ERROR_NOT_CONNECTED;
-        // }
-        // else
+        if (!mAnchor.ValueOr(false))
         {
-            // if (mJCM.ValueOr(false))
-            // {
-            //     ChipLogError(JointFabric, "--anchor and --jcm options are not allowed simultaneously!");
-            //     return CHIP_ERROR_BAD_REQUEST;
-            // }
+            ChipLogError(JointFabric, "Please first commission the Anchor Administrator: add `--anchor true` parameter");
+            return CHIP_ERROR_NOT_CONNECTED;
+        }
+        else
+        {
+            if (mJCM.ValueOr(false))
+            {
+                ChipLogError(JointFabric, "--anchor and --jcm options are not allowed simultaneously!");
+                return CHIP_ERROR_BAD_REQUEST;
+            }
 
             chip::CASEAuthTag anchorCAT = GetAnchorCATWithVersion(CHIP_CONFIG_ANCHOR_CAT_INITIAL_VERSION);
 
@@ -530,8 +530,19 @@ void PairingCommand::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
     {
         if (!mSkipCommissioningComplete.ValueOr(false))
         {
-            ChipLogProgress(JointFabric, "Anchor Administrator commissioned with sucess");
-            mAnchorNodeId = nodeId;
+            if (mAnchor.ValueOr(false))
+            {
+                ChipLogProgress(JointFabric, "Anchor Administrator (nodeId=%ld) commissioned with success", nodeId);
+                mAnchorNodeId = nodeId;
+            }
+            else if (mJCM.ValueOr(false))
+            {
+                ChipLogProgress(JointFabric, "Joint Commissioning Method (nodeId=%ld) commissioned with success", nodeId);
+            }
+            else
+            {
+                ChipLogProgress(JointFabric, "Device (%ld) commissioned with success", nodeId);
+            }
         }
         else
         {

@@ -49,6 +49,7 @@ public:
     ByteSpan GetAttestationNonce() const { return ByteSpan(mAttestationNonce); }
 
 protected:
+    void CommissioningStepCleanup() override;
     CommissioningStage GetNextCommissioningStage(CommissioningStage currentStage, CHIP_ERROR & lastErr);
     DeviceCommissioner * GetCommissioner() { return mCommissioner; }
     CHIP_ERROR PerformStep(CommissioningStage nextStage);
@@ -66,8 +67,8 @@ private:
     // Adjust the failsafe timer if CommissioningDelegate GetCASEFailsafeTimerSeconds is set
     void SetCASEFailsafeTimerIfNeeded();
 
-    ByteSpan GetDAC() const { return ByteSpan(mDAC, mDACLen); }
-    ByteSpan GetPAI() const { return ByteSpan(mPAI, mPAILen); }
+    ByteSpan GetDAC() const { return ByteSpan(mDAC.Get(), mDAC.AllocatedSize()); }
+    ByteSpan GetPAI() const { return ByteSpan(mPAI.Get(), mPAI.AllocatedSize()); }
 
     CHIP_ERROR NOCChainGenerated(ByteSpan noc, ByteSpan icac, ByteSpan rcac, Crypto::IdentityProtectionKeySpan ipk,
                                  NodeId adminSubject);
@@ -147,10 +148,8 @@ private:
 
     bool mNeedIcdRegistration = false;
     // TODO: Why were the nonces statically allocated, but the certs dynamically allocated?
-    uint8_t * mDAC   = nullptr;
-    uint16_t mDACLen = 0;
-    uint8_t * mPAI   = nullptr;
-    uint16_t mPAILen = 0;
+    Platform::ScopedMemoryBufferWithSize<uint8_t> mDAC;
+    Platform::ScopedMemoryBufferWithSize<uint8_t> mPAI;
     uint8_t mAttestationNonce[kAttestationNonceLength];
     uint8_t mCSRNonce[kCSRNonceLength];
     uint8_t mNOCertBuffer[Credentials::kMaxCHIPCertLength];

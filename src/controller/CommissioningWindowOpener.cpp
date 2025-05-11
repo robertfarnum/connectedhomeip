@@ -36,12 +36,10 @@ namespace chip {
 namespace Controller {
 
 CHIP_ERROR CommissioningWindowOpener::OpenBasicCommissioningWindow(NodeId deviceId, Seconds16 timeout,
-                                                                   Callback::Callback<OnOpenBasicCommissioningWindow> * callback, 
-                                                              bool useJCM)
+                                                                   Callback::Callback<OnOpenBasicCommissioningWindow> * callback)
 {
     VerifyOrReturnError(mNextStep == Step::kAcceptCommissioningStart, CHIP_ERROR_INCORRECT_STATE);
     mSetupPayload = SetupPayload();
-    mUseJCM = useJCM;
 
     // Basic commissioning does not use the setup payload.
 
@@ -60,8 +58,7 @@ CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(NodeId deviceId, S
                                                               uint16_t discriminator, Optional<uint32_t> setupPIN,
                                                               Optional<ByteSpan> salt,
                                                               Callback::Callback<OnOpenCommissioningWindow> * callback,
-                                                              SetupPayload & payload, bool readVIDPIDAttributes,
-                                                              bool useJCM)
+                                                              SetupPayload & payload, bool readVIDPIDAttributes)
 {
     return OpenCommissioningWindow(CommissioningWindowPasscodeParams()
                                        .SetNodeId(deviceId)
@@ -72,11 +69,11 @@ CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(NodeId deviceId, S
                                        .SetSalt(salt)
                                        .SetReadVIDPIDAttributes(readVIDPIDAttributes)
                                        .SetCallback(callback),
-                                   payload, useJCM);
+                                   payload);
 }
 
 CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(const CommissioningWindowPasscodeParams & params,
-                                                              SetupPayload & payload, bool useJCM)
+                                                              SetupPayload & payload)
 {
     VerifyOrReturnError(mNextStep == Step::kAcceptCommissioningStart, CHIP_ERROR_INCORRECT_STATE);
     VerifyOrReturnError(params.HasNodeId(), CHIP_ERROR_INVALID_ARGUMENT);
@@ -90,7 +87,6 @@ CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(const Commissionin
                         CHIP_ERROR_INVALID_ARGUMENT);
 
     mSetupPayload = SetupPayload();
-    mUseJCM = useJCM;
 
     if (params.HasSetupPIN())
     {
@@ -144,7 +140,7 @@ CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(const Commissionin
     return mController->GetConnectedDevice(mNodeId, &mDeviceConnected, &mDeviceConnectionFailure);
 }
 
-CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(const CommissioningWindowVerifierParams & params, bool useJCM)
+CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(const CommissioningWindowVerifierParams & params)
 {
     VerifyOrReturnError(mNextStep == Step::kAcceptCommissioningStart, CHIP_ERROR_INCORRECT_STATE);
     VerifyOrReturnError(params.HasNodeId(), CHIP_ERROR_INVALID_ARGUMENT);
@@ -168,7 +164,6 @@ CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindow(const Commissionin
     mCommissioningWindowOption           = CommissioningWindowOption::kTokenWithProvidedPIN;
     mDiscriminator.SetLongValue(params.GetDiscriminator());
     mTargetEndpointId = params.GetEndpointId();
-    mUseJCM  = useJCM;
 
     mNextStep = Step::kOpenCommissioningWindow;
 
@@ -188,32 +183,15 @@ CHIP_ERROR CommissioningWindowOpener::OpenCommissioningWindowInternal(Messaging:
         MutableByteSpan serializedVerifierSpan(serializedVerifier);
         ReturnErrorOnFailure(mVerifier.Serialize(serializedVerifierSpan));
 
-        if (mUseJCM == false)
-        {
-            AdministratorCommissioning::Commands::OpenCommissioningWindow::Type request;
-            request.commissioningTimeout = mCommissioningWindowTimeout.count();
-            request.PAKEPasscodeVerifier = serializedVerifierSpan;
-            request.discriminator        = mDiscriminator.GetLongValue();
-            request.iterations           = mPBKDFIterations;
-            request.salt                 = mPBKDFSalt;
+        AdministratorCommissioning::Commands::OpenCommissioningWindow::Type request;
+        request.commissioningTimeout = mCommissioningWindowTimeout.count();
+        request.PAKEPasscodeVerifier = serializedVerifierSpan;
+        request.discriminator        = mDiscriminator.GetLongValue();
+        request.iterations           = mPBKDFIterations;
+        request.salt                 = mPBKDFSalt;
 
-            ReturnErrorOnFailure(cluster.InvokeCommand(request, this, OnOpenCommissioningWindowSuccess,
-                                                       OnOpenCommissioningWindowFailure, MakeOptional(kTimedInvokeTimeoutMs)));
-        }
-        else
-        {
-            // TODO: Uncomment and remove following line
-            // JointFabricAdministrator::Commands::OpenJointCommissioningWindow::Type request;
-            AdministratorCommissioning::Commands::OpenCommissioningWindow::Type request;
-            request.commissioningTimeout = mCommissioningWindowTimeout.count();
-            request.PAKEPasscodeVerifier = serializedVerifierSpan;
-            request.discriminator        = mDiscriminator.GetLongValue();
-            request.iterations           = mPBKDFIterations;
-            request.salt                 = mPBKDFSalt;
-
-            ReturnErrorOnFailure(cluster.InvokeCommand(request, this, OnOpenCommissioningWindowSuccess,
-                                                       OnOpenCommissioningWindowFailure, MakeOptional(kTimedInvokeTimeoutMs)));
-        }
+        ReturnErrorOnFailure(cluster.InvokeCommand(request, this, OnOpenCommissioningWindowSuccess,
+                                                    OnOpenCommissioningWindowFailure, MakeOptional(kTimedInvokeTimeoutMs)));
     }
     else
     {

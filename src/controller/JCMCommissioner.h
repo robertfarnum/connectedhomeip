@@ -22,6 +22,7 @@
 #include <app-common/zap-generated/ids/Clusters.h>
 #include <app/DeviceProxy.h>
 #include <app/ReadClient.h>
+#include <controller/AutoCommissioner.h>
 #include <controller/CHIPDeviceController.h>
 #include <controller/JCMTrustVerification.h>
 #include <lib/core/CHIPCallback.h>
@@ -34,13 +35,37 @@ namespace chip {
 
 namespace Controller {
 
-class JCMCommissioner : public DeviceCommissioner
+class JCMAutoCommissioner : public AutoCommissioner
 {
 public:
-    JCMCommissioner(){};
-    ~JCMCommissioner(){};
+    JCMAutoCommissioner(){};
+    ~JCMAutoCommissioner(){};
 
-    CHIP_ERROR Commission(NodeId remoteDeviceId, CommissioningParameters & params);
+    CHIP_ERROR SetCommissioningParameters(const CommissioningParameters & params) override;
+    void CommissioningStepCleanup() override
+    {
+        AutoCommissioner::CommissioningStepCleanup();
+        mTempReadPaths.clear();
+    }
+
+private:
+
+     // Joint Fabric Management: all attributes
+     const std::vector<app::AttributePathParams> mExtraReadPaths =
+     {
+         app::AttributePathParams(app::Clusters::JointFabricAdministrator::Id, app::Clusters::JointFabricAdministrator::Attributes::AdministratorFabricIndex::Id),
+         app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::Fabrics::Id),
+         app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::NOCs::Id),
+         app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::TrustedRootCertificates::Id)
+     };
+    std::vector<app::AttributePathParams> mTempReadPaths;
+};
+
+class JCMDeviceCommissioner : public DeviceCommissioner
+{
+public:
+    JCMDeviceCommissioner(){};
+    ~JCMDeviceCommissioner(){};
 
     CHIP_ERROR StartJCMTrustVerification(DeviceProxy * proxy) override;
     void OnJCMTrustVerificationComplete(const JCMTrustVerificationInfo  *info, JCMTrustVerificationResult result);
@@ -50,45 +75,53 @@ public:
     }
     void ContinueAfterUserConsent(bool consent);
 
-    void OnDone(app::ReadClient *) override;
-
+    // Convert JCMTrustVerificationStage to string for logging
+    std::string JCMTrustVerificationStageToString(JCMTrustVerificationStage stage) {
+        switch (stage) {
+            case kIdle: return "IDLE";
+            case kStarted: return "STARTED";
+            case kVerifyingAdministratorEndpointAndFabricIndex: return "VERIFYING_ADMINISTRATOR_ENDPOINT_AND_FABRIC_INDEX";
+            case kPerformingVendorIDVerificationProcedure: return "PERFORMING_VENDOR_ID_VERIFICATION_PROCEDURE";
+            case kVerifyingNOCContainsAdministratorCAT: return "VERIFYING_NOC_CONTAINS_ADMINISTRATOR_CAT";
+            case kAskingUserForConsent: return "ASKING_USER_FOR_CONSENT";
+            default: return "UNKNOWN";
+        }
+    }
 protected:
     // Override FinishReadingCommissioningInfo to parse JCM administrator info
-    CHIP_ERROR FinishReadingCommissioningInfo(ReadCommissioningInfo & info) override;
+    void FinishReadingCommissioningInfo(CHIP_ERROR & err, ReadCommissioningInfo & info) override;
+    void CommissioningStepCleanup() override
+    {
+        DeviceCommissioner::CommissioningStepCleanup();
+        mNextStage = JCMTrustVerificationStage::kIdle;
+        mJCMTrustVerificationDelegate = nullptr;
+        mInfo.clear();
+    }
 
-private:
-    //CHIP_ERROR SendCommissioningReadRequest(Optional<System::Clock::Timeout> timeout, app::AttributePathParams * readPaths, size_t readPathsSize);
-    
-    void FindAdministratorEndpoint();
 
+private:    
     // Move to next JCM commissioning step
     void AdvanceTrustVerificationStage(JCMTrustVerificationResult result);
 
     // Parse the JCM administrator info from the commissioning info
     CHIP_ERROR ParseAdministratorInfo(ReadCommissioningInfo & info);
+    CHIP_ERROR FindAdminFabricIndexAndEndpointId();
+    CHIP_ERROR GetOperationalCredentials();
+    CHIP_ERROR GetTrustedRoot();
 
-    // JCM commissioning steps
-    void DiscoverAdministratorEndpoint();
-    void ReadAdministratorFabricIndex();
+    // JCM commissioning trust verification steps
+    void VerifyAdministratorEndpointAndFabricIndex();
     void PerformVendorIDVerificationProcedure();
     void VerifyNOCContainsAdministratorCAT();
     void AskUserForConsent();
 
+    // Initial stage
     JCMTrustVerificationStage mNextStage = JCMTrustVerificationStage::kIdle;
+
+    // Trust verification delegate for the commissioning client
     JCMTrustVerificationDelegate * mJCMTrustVerificationDelegate = nullptr;
     DeviceProxy * mDeviceProxy = nullptr;
-
     JCMTrustVerificationInfo mInfo;
-
-    const std::vector<app::AttributePathParams> mExtraReadPaths =
-        {
-            app::AttributePathParams(app::Clusters::JointFabricAdministrator::Id, app::Clusters::JointFabricAdministrator::Attributes::AdministratorFabricIndex::Id),
-            app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::Fabrics::Id),
-            app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::NOCs::Id),
-            app::AttributePathParams(kRootEndpointId, app::Clusters::OperationalCredentials::Id, app::Clusters::OperationalCredentials::Attributes::TrustedRootCertificates::Id)
-        };
-    std::vector<app::AttributePathParams> mTempReadPaths;
-
 };
 
 } // namespace Controller

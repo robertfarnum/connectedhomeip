@@ -63,8 +63,7 @@ public:
      *                     open or if an error occurs.
      */
     CHIP_ERROR OpenBasicCommissioningWindow(NodeId deviceId, System::Clock::Seconds16 timeout,
-                                            Callback::Callback<OnOpenBasicCommissioningWindow> * callback,
-                                            bool useJCM = false);
+                                            Callback::Callback<OnOpenBasicCommissioningWindow> * callback);
 
     /**
      * @brief
@@ -101,7 +100,7 @@ public:
     CHIP_ERROR OpenCommissioningWindow(NodeId deviceId, System::Clock::Seconds16 timeout, uint32_t iteration,
                                        uint16_t discriminator, Optional<uint32_t> setupPIN, Optional<ByteSpan> salt,
                                        Callback::Callback<OnOpenCommissioningWindow> * callback, SetupPayload & payload,
-                                       bool readVIDPIDAttributes = false, bool useJCM = false);
+                                       bool readVIDPIDAttributes = false);
 
     /**
      * @brief
@@ -120,7 +119,7 @@ public:
      *                          out parameter, will include the VID/PID bits if
      *                          readVIDPIDAttributes is true.
      */
-    CHIP_ERROR OpenCommissioningWindow(const CommissioningWindowPasscodeParams & params, SetupPayload & payload, bool useJCM = false);
+    CHIP_ERROR OpenCommissioningWindow(const CommissioningWindowPasscodeParams & params, SetupPayload & payload);
 
     /**
      * @brief
@@ -133,7 +132,7 @@ public:
      * @param[in] params    The parameters required to open an enhanced commissioning window
      *                      with the provided PAKE passcode verifier.
      */
-    CHIP_ERROR OpenCommissioningWindow(const CommissioningWindowVerifierParams & params, bool useJCM = false);
+    CHIP_ERROR OpenCommissioningWindow(const CommissioningWindowVerifierParams & params);
 
 private:
     enum class Step : uint8_t
@@ -175,7 +174,6 @@ private:
     uint32_t mPBKDFIterations = 0;
     uint8_t mPBKDFSaltBuffer[Crypto::kSpake2p_Max_PBKDF_Salt_Length];
     ByteSpan mPBKDFSalt;
-    bool mUseJCM = false;
 
     Callback::Callback<OnDeviceConnected> mDeviceConnected;
     Callback::Callback<OnDeviceConnectionFailure> mDeviceConnectionFailure;

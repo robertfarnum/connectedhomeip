@@ -16,6 +16,7 @@
  *    limitations under the License.
  */
 
+#include "AutoCommissioner.h"
 #include <controller/AutoCommissioner.h>
 
 #include <app/InteractionModelTimeout.h>
@@ -39,11 +40,7 @@ AutoCommissioner::AutoCommissioner()
     SetCommissioningParameters(CommissioningParameters());
 }
 
-AutoCommissioner::~AutoCommissioner()
-{
-    ReleaseCertificate(&mPAI, &mPAILen);
-    ReleaseCertificate(&mDAC, &mDACLen);
-}
+AutoCommissioner::~AutoCommissioner() {}
 
 void AutoCommissioner::SetOperationalCredentialsDelegate(OperationalCredentialsDelegate * operationalCredentialsDelegate)
 {
@@ -678,6 +675,19 @@ CHIP_ERROR AutoCommissioner::NOCChainGenerated(ByteSpan noc, ByteSpan icac, Byte
 
     return CHIP_NO_ERROR;
 }
+void AutoCommissioner::CommissioningStepCleanup()
+{
+    if (IsSecondaryNetworkSupported() && TryingSecondaryNetwork())
+    {
+        ResetTryingSecondaryNetwork();
+    }
+    mPAI.Free();
+    mDAC.Free();
+    mCommissioneeDeviceProxy = nullptr;
+    mOperationalDeviceProxy  = OperationalDeviceProxy();
+    mDeviceCommissioningInfo = ReadCommissioningInfo();
+    mNeedsDST                = false;
+}
 
 CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, CommissioningDelegate::CommissioningReport report)
 {
@@ -791,20 +801,32 @@ CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, Commissio
         case CommissioningStage::kConfigureTimeZone:
             mNeedsDST = report.Get<TimeZoneResponseInfo>().requiresDSTOffsets;
             break;
-        case CommissioningStage::kSendPAICertificateRequest:
-            SaveCertificate(report.Get<RequestedCertificate>().certificate, &mPAI, &mPAILen);
-            if (mPAI != nullptr)
+        case CommissioningStage::kSendPAICertificateRequest: {
+            auto reportPAISpan = report.Get<RequestedCertificate>().certificate;
+
+            if (!mPAI.Alloc(reportPAISpan.size()))
             {
-                mParams.SetPAI(ByteSpan(mPAI, mPAILen));
+                ChipLogError(Controller, "AutoCommissioner cannot allocate memory for mPAI");
+                return CHIP_ERROR_NO_MEMORY;
             }
+
+            memcpy(mPAI.Get(), reportPAISpan.data(), mPAI.AllocatedSize());
+            mParams.SetPAI(ByteSpan(mPAI.Get(), mPAI.AllocatedSize()));
             break;
-        case CommissioningStage::kSendDACCertificateRequest:
-            SaveCertificate(report.Get<RequestedCertificate>().certificate, &mDAC, &mDACLen);
-            if (mDAC != nullptr)
+        }
+        case CommissioningStage::kSendDACCertificateRequest: {
+            auto reportDACSpan = report.Get<RequestedCertificate>().certificate;
+
+            if (!mDAC.Alloc(reportDACSpan.size()))
             {
-                mParams.SetDAC(ByteSpan(mDAC, mDACLen));
+                ChipLogError(Controller, "AutoCommissioner cannot allocate memory for mDAC");
+                return CHIP_ERROR_NO_MEMORY;
             }
+
+            memcpy(mDAC.Get(), reportDACSpan.data(), mDAC.AllocatedSize());
+            mParams.SetDAC(ByteSpan(mDAC.Get(), mDAC.AllocatedSize()));
             break;
+        }
         case CommissioningStage::kSendAttestationRequest: {
             auto & elements  = report.Get<AttestationResponse>().attestationElements;
             auto & signature = report.Get<AttestationResponse>().signature;
@@ -866,16 +888,7 @@ CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, Commissio
             mOperationalDeviceProxy = report.Get<OperationalNodeFoundData>().operationalProxy;
             break;
         case CommissioningStage::kCleanup:
-            if (IsSecondaryNetworkSupported() && TryingSecondaryNetwork())
-            {
-                ResetTryingSecondaryNetwork();
-            }
-            ReleaseCertificate(&mPAI, &mPAILen);
-            ReleaseCertificate(&mDAC, &mDACLen);
-            mCommissioneeDeviceProxy = nullptr;
-            mOperationalDeviceProxy  = OperationalDeviceProxy();
-            mDeviceCommissioningInfo = ReadCommissioningInfo();
-            mNeedsDST                = false;
+            CommissioningStepCleanup();
             return CHIP_NO_ERROR;
         default:
             break;

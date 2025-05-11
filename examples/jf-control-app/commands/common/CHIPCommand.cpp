@@ -467,14 +467,14 @@ void CHIPCommand::ShutdownCommissioner(const CommissionerIdentity & key)
     mCommissioners[key].get()->Shutdown();
 }
 
-struct Delegate : public chip::Controller::JCMTrustVerificationDelegate {
-    void OnProgressUpdate(chip::Controller::JCMCommissioner * commissioner, chip::Controller::JCMTrustVerificationStage stage,
+struct TrustVerificationDelegate : public chip::Controller::JCMTrustVerificationDelegate {
+    void OnProgressUpdate(chip::Controller::JCMDeviceCommissioner * commissioner, chip::Controller::JCMTrustVerificationStage stage,
                           chip::Controller::JCMTrustVerificationError error) override
     {
-        ChipLogProgress(Controller, "JCM Trust Verification progress: %d", static_cast<int>(stage));
+        ChipLogProgress(Controller, "JCM: Trust Verification progress: %d", static_cast<int>(stage));
     }
 
-    void OnAskUserForConsent(chip::Controller::JCMCommissioner * commissioner, chip::VendorId vendorId) override
+    void OnAskUserForConsent(chip::Controller::JCMDeviceCommissioner * commissioner, chip::VendorId vendorId) override
     {
         ChipLogProgress(Controller, "Asking user for consent for vendor ID: %u", vendorId);
         commissioner->ContinueAfterUserConsent(true);
@@ -483,14 +483,15 @@ struct Delegate : public chip::Controller::JCMTrustVerificationDelegate {
 
 CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, chip::FabricId fabricId)
 {
-    std::unique_ptr<chip::Controller::JCMCommissioner> commissioner = std::make_unique<chip::Controller::JCMCommissioner>();
-    
-    commissioner->RegisterJCMTrustVerificationDelegate(new Delegate());
+    std::unique_ptr<chip::Controller::JCMDeviceCommissioner> deviceCommissioner = std::make_unique<chip::Controller::JCMDeviceCommissioner>();
+    std::unique_ptr<chip::Controller::JCMAutoCommissioner> autoCommissioner = std::make_unique<chip::Controller::JCMAutoCommissioner>();
+
+    deviceCommissioner->RegisterJCMTrustVerificationDelegate(new TrustVerificationDelegate());
 
 #if CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
     VerifyOrReturnError(chip::CanCastTo<uint16_t>(CHIP_UDC_PORT + fabricId), CHIP_ERROR_INVALID_ARGUMENT);
     uint16_t udcListenPort = static_cast<uint16_t>(CHIP_UDC_PORT + fabricId);
-    commissioner->SetUdcListenPort(udcListenPort);
+    deviceCommissioner->SetUdcListenPort(udcListenPort);
 #endif // CHIP_DEVICE_CONFIG_ENABLE_COMMISSIONER_DISCOVERY
     chip::Controller::SetupParams commissionerParams;
     chip::CASEAuthTag administratorCAT = chip::GetAdminCATWithVersion(CHIP_CONFIG_ADMINISTRATOR_CAT_INITIAL_VERSION);
@@ -542,16 +543,17 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, 
     // TODO: Initialize IPK epoch key in ExampleOperationalCredentials issuer rather than relying on DefaultIpkValue
     commissionerParams.operationalCredentialsDelegate = mCredIssuerCmds->GetCredentialIssuer();
     commissionerParams.controllerVendorId             = mCommissionerVendorId.ValueOr(chip::VendorId::TestVendor1);
+    commissionerParams.defaultCommissioner            = new chip::Controller::JCMAutoCommissioner();
 
-    ReturnLogErrorOnFailure(DeviceControllerFactory::GetInstance().SetupCommissioner(commissionerParams, *(commissioner.get())));
+    ReturnLogErrorOnFailure(DeviceControllerFactory::GetInstance().SetupCommissioner(commissionerParams, *(deviceCommissioner.get())));
 
     if (identity.mName != kIdentityNull)
     {
         // Initialize Group Data, including IPK
-        chip::FabricIndex fabricIndex = commissioner->GetFabricIndex();
+        chip::FabricIndex fabricIndex = deviceCommissioner->GetFabricIndex();
         uint8_t compressed_fabric_id[sizeof(uint64_t)];
         chip::MutableByteSpan compressed_fabric_id_span(compressed_fabric_id);
-        ReturnLogErrorOnFailure(commissioner->GetCompressedFabricIdBytes(compressed_fabric_id_span));
+        ReturnLogErrorOnFailure(deviceCommissioner->GetCompressedFabricIdBytes(compressed_fabric_id_span));
 
         ReturnLogErrorOnFailure(chip::GroupTesting::InitData(&sGroupDataProvider, fabricIndex, compressed_fabric_id_span));
 
@@ -562,9 +564,9 @@ CHIP_ERROR CHIPCommand::InitializeCommissioner(CommissionerIdentity & identity, 
             chip::Credentials::SetSingleIpkEpochKey(&sGroupDataProvider, fabricIndex, defaultIpk, compressed_fabric_id_span));
     }
 
-    CHIPCommand::sICDClientStorage.UpdateFabricList(commissioner->GetFabricIndex());
+    CHIPCommand::sICDClientStorage.UpdateFabricList(deviceCommissioner->GetFabricIndex());
 
-    mCommissioners[identity] = std::move(commissioner);
+    mCommissioners[identity] = std::move(deviceCommissioner);
 
     return CHIP_NO_ERROR;
 }

@@ -2279,8 +2279,14 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
     {
         ReadCommissioningInfo info;
         info.attributes = mAttributeCache.get();
+        CHIP_ERROR err = CHIP_NO_ERROR;
 
-        CHIP_ERROR err = FinishReadingCommissioningInfo(info);
+        FinishReadingCommissioningInfo(err, info);
+
+        if (mPairingDelegate != nullptr && err == CHIP_NO_ERROR)
+        {
+            mPairingDelegate->OnReadCommissioningInfo(info);
+        }
 
         CommissioningDelegate::CommissioningReport report;
         report.Set<ReadCommissioningInfo>(info);
@@ -2377,25 +2383,16 @@ void DeviceCommissioner::ContinueReadingCommissioningInfo(const CommissioningPar
     SendCommissioningReadRequest(mDeviceBeingCommissioned, mCommissioningStepTimeout, builder.paths(), builder.size());
 }
 
-CHIP_ERROR DeviceCommissioner::FinishReadingCommissioningInfo(ReadCommissioningInfo & info)
+void DeviceCommissioner::FinishReadingCommissioningInfo(CHIP_ERROR & err, ReadCommissioningInfo & info)
 {
     // We want to parse as much information as possible, even if we eventually end
     // up returning an error (e.g. because some mandatory information was missing).
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     AccumulateErrors(err, ParseGeneralCommissioningInfo(info));
     AccumulateErrors(err, ParseBasicInformation(info));
     AccumulateErrors(err, ParseNetworkCommissioningInfo(info));
     AccumulateErrors(err, ParseTimeSyncInfo(info));
     AccumulateErrors(err, ParseFabrics(info));
     AccumulateErrors(err, ParseICDInfo(info));
-
-    if (mPairingDelegate != nullptr && err == CHIP_NO_ERROR)
-    {
-        mPairingDelegate->OnReadCommissioningInfo(info);
-    }
-
-    return err;
 }
 
 CHIP_ERROR DeviceCommissioner::ParseGeneralCommissioningInfo(ReadCommissioningInfo & info)
