@@ -45,18 +45,18 @@ CHIP_ERROR PairingCommand::RunCommand()
 
     if (mAnchorNodeId == chip::kUndefinedNodeId)
     {
-        if (!mAnchor.ValueOr(false))
+        // if (!mAnchor.ValueOr(false))
+        // {
+        //     ChipLogError(JointFabric, "Please first commission the Anchor Administrator: add `--anchor true` parameter");
+        //     return CHIP_ERROR_NOT_CONNECTED;
+        // }
+        // else
         {
-            ChipLogError(JointFabric, "Please first commission the Anchor Administrator: add `--anchor true` parameter");
-            return CHIP_ERROR_NOT_CONNECTED;
-        }
-        else
-        {
-            if (mJCM.ValueOr(false))
-            {
-                ChipLogError(JointFabric, "--anchor and --jcm options are not allowed simultaneously!");
-                return CHIP_ERROR_BAD_REQUEST;
-            }
+            // if (mJCM.ValueOr(false))
+            // {
+            //     ChipLogError(JointFabric, "--anchor and --jcm options are not allowed simultaneously!");
+            //     return CHIP_ERROR_BAD_REQUEST;
+            // }
 
             chip::CASEAuthTag anchorCAT = GetAnchorCATWithVersion(CHIP_CONFIG_ANCHOR_CAT_INITIAL_VERSION);
 

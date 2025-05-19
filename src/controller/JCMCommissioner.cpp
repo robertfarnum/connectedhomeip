@@ -34,26 +34,11 @@ using namespace chip::app::Clusters;
 namespace chip {
 namespace Controller {
 
-CHIP_ERROR JCMAutoCommissioner::SetCommissioningParameters(const CommissioningParameters & params)
-{
-    ReturnErrorOnFailure(AutoCommissioner::SetCommissioningParameters(params));
+/*
+ * JCMCommissioner internal implementation
+ */
 
-    if (params.UseJCM().ValueOr(false)) {
-        auto extraReadPaths = params.GetExtraReadPaths();
-
-        mTempReadPaths.clear();
-        mTempReadPaths.reserve(extraReadPaths.size() + mExtraReadPaths.size());
-        mTempReadPaths.insert(mTempReadPaths.end(), extraReadPaths.begin(), extraReadPaths.end());
-        mTempReadPaths.insert(mTempReadPaths.end(), mExtraReadPaths.begin(), mExtraReadPaths.end());
-
-        // Set the extra read paths for JCM
-        mParams.SetExtraReadPaths(Span<app::AttributePathParams>(mTempReadPaths.data(), mTempReadPaths.size()));
-    }
-
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR JCMDeviceCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
+CHIP_ERROR JCMCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
 {
     ChipLogProgress(Controller, "JCM: Starting Trust Verification");
 
@@ -67,13 +52,13 @@ CHIP_ERROR JCMDeviceCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
     return CHIP_NO_ERROR;  
 }
 
-void JCMDeviceCommissioner::OnJCMTrustVerificationComplete(const JCMTrustVerificationInfo  *info, JCMTrustVerificationResult result)
+void JCMCommissioner::OnJCMTrustVerificationComplete(const JCMTrustVerificationInfo  *info, JCMTrustVerificationResult result)
 {
     if (result == JCMTrustVerificationResult::kSuccess)
     {
         ChipLogProgress(Controller, "JCM: Administrator Device passed JCM Trust Verification");
 
-        CommissioningStageComplete(CHIP_NO_ERROR);
+        mDeviceCommissioner.CommissioningStageComplete(CHIP_NO_ERROR);
     }
     else
     {
@@ -82,18 +67,41 @@ void JCMDeviceCommissioner::OnJCMTrustVerificationComplete(const JCMTrustVerific
 
         CommissioningDelegate::CommissioningReport report;
         report.Set<JCMTrustVerificationError>(result);
-        CommissioningStageComplete(CHIP_ERROR_INTERNAL, report);
+        mDeviceCommissioner.CommissioningStageComplete(CHIP_ERROR_INTERNAL, report);
     }
 }
 
-CHIP_ERROR JCMDeviceCommissioner::FindAdminFabricIndexAndEndpointId()
+void JCMCommissioner::Cleanup()
 {
-    CHIP_ERROR err = mAttributeCache->ForEachAttribute(Clusters::JointFabricAdministrator::Id, [this](const ConcreteAttributePath & path) {
+    mNextStage = JCMTrustVerificationStage::kIdle;
+    mTrustVerificationDelegate = nullptr;
+    mInfo.clear();
+}
+
+void JCMCommissioner::ContinueAfterUserConsent(bool consent)
+{
+    if (consent)
+    {
+        ChipLogProgress(Controller, "JCM: User consent granted");
+        AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
+    }
+    else
+    {
+        ChipLogError(Controller, "JCM: User denied consent");
+        AdvanceTrustVerificationStage(JCMTrustVerificationResult::KUserDeniedConsent);
+    }
+}
+
+CHIP_ERROR JCMCommissioner::ParseAdminFabricIndexAndEndpointId(ReadCommissioningInfo & info)
+{
+    auto attributeCache = info.attributes;
+    
+    CHIP_ERROR err = attributeCache->ForEachAttribute(Clusters::JointFabricAdministrator::Id, [this, &attributeCache](const ConcreteAttributePath & path) {
         using namespace Clusters::JointFabricAdministrator::Attributes;
         AdministratorFabricIndex::TypeInfo::DecodableType administratorFabricIndex;
 
         VerifyOrReturnError(path.mAttributeId == AdministratorFabricIndex::Id, CHIP_NO_ERROR);
-        ReturnErrorOnFailure(this->mAttributeCache->Get<AdministratorFabricIndex::TypeInfo>(path, administratorFabricIndex));
+        ReturnErrorOnFailure(attributeCache->Get<AdministratorFabricIndex::TypeInfo>(path, administratorFabricIndex));
 
         if (!administratorFabricIndex.IsNull() && administratorFabricIndex.Value() != kUndefinedFabricIndex)
         {
@@ -113,16 +121,18 @@ CHIP_ERROR JCMDeviceCommissioner::FindAdminFabricIndexAndEndpointId()
     return err;
 }
 
-CHIP_ERROR JCMDeviceCommissioner::GetOperationalCredentials()
+CHIP_ERROR JCMCommissioner::ParseOperationalCredentials(ReadCommissioningInfo & info)
 {
-    CHIP_ERROR err = mAttributeCache->ForEachAttribute(OperationalCredentials::Id, [this](const ConcreteAttributePath & path) {
+    auto attributeCache = info.attributes;
+
+    CHIP_ERROR err = attributeCache->ForEachAttribute(OperationalCredentials::Id, [this, &attributeCache](const ConcreteAttributePath & path) {
         using namespace chip::app::Clusters::OperationalCredentials::Attributes;
 
         switch (path.mAttributeId)
         {
             case Fabrics::Id: {
                 Fabrics::TypeInfo::DecodableType fabrics;
-                ReturnErrorOnFailure(this->mAttributeCache->Get<Fabrics::TypeInfo>(path, fabrics));
+                ReturnErrorOnFailure(attributeCache->Get<Fabrics::TypeInfo>(path, fabrics));
 
                 auto iter = fabrics.begin();
                 while (iter.Next())
@@ -153,7 +163,7 @@ CHIP_ERROR JCMDeviceCommissioner::GetOperationalCredentials()
             }
             case NOCs::Id: {
                 NOCs::TypeInfo::DecodableType nocs;
-                ReturnErrorOnFailure(this->mAttributeCache->Get<NOCs::TypeInfo>(path, nocs));
+                ReturnErrorOnFailure(attributeCache->Get<NOCs::TypeInfo>(path, nocs));
 
                 auto iter = nocs.begin();
                 while (iter.Next())
@@ -202,9 +212,11 @@ CHIP_ERROR JCMDeviceCommissioner::GetOperationalCredentials()
     return err;
 }
 
-CHIP_ERROR JCMDeviceCommissioner::GetTrustedRoot()
+CHIP_ERROR JCMCommissioner::ParseTrustedRoot(ReadCommissioningInfo & info)
 {
-    CHIP_ERROR err = mAttributeCache->ForEachAttribute(OperationalCredentials::Id, [this](const ConcreteAttributePath & path) {
+    auto attributeCache = info.attributes;
+
+    CHIP_ERROR err = attributeCache->ForEachAttribute(OperationalCredentials::Id, [this, &attributeCache](const ConcreteAttributePath & path) {
         using namespace chip::app::Clusters::OperationalCredentials::Attributes;
         bool foundMatchingRcac = false;
 
@@ -212,7 +224,7 @@ CHIP_ERROR JCMDeviceCommissioner::GetTrustedRoot()
         {
             case TrustedRootCertificates::Id: {
                 TrustedRootCertificates::TypeInfo::DecodableType trustedCAs;
-                ReturnErrorOnFailure(this->mAttributeCache->Get<TrustedRootCertificates::TypeInfo>(path, trustedCAs));
+                ReturnErrorOnFailure(attributeCache->Get<TrustedRootCertificates::TypeInfo>(path, trustedCAs));
 
                    auto iter = trustedCAs.begin();
                    while (iter.Next())
@@ -262,27 +274,27 @@ CHIP_ERROR JCMDeviceCommissioner::GetTrustedRoot()
     return err;
 }
 
-CHIP_ERROR JCMDeviceCommissioner::ParseAdministratorInfo(ReadCommissioningInfo & info)
+CHIP_ERROR JCMCommissioner::ParseAdministratorInfo(ReadCommissioningInfo & info)
 {
     using namespace OperationalCredentials::Attributes;
 
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    err = FindAdminFabricIndexAndEndpointId();
+    err = ParseAdminFabricIndexAndEndpointId(info);
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "JCM: Failed to find Administrator Fabric Index and Endpoint ID");
         return err;
     }
 
-    err = GetOperationalCredentials();
+    err = ParseOperationalCredentials(info);
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "JCM: Failed to find Fabric Descriptor Information");
         return err;
     }
 
-    err = GetTrustedRoot();
+    err = ParseTrustedRoot(info);
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "JCM: Failed to find Operational Credentials");
@@ -292,18 +304,7 @@ CHIP_ERROR JCMDeviceCommissioner::ParseAdministratorInfo(ReadCommissioningInfo &
     return err;
 }
 
-void JCMDeviceCommissioner::FinishReadingCommissioningInfo(CHIP_ERROR & err, ReadCommissioningInfo & info)
-{
-    auto params = GetCommissioningParameters().Value();
-
-    if (params.UseJCM().ValueOr(false)) {
-        AccumulateErrors(err, ParseAdministratorInfo(info));
-    }
-
-    return DeviceCommissioner::FinishReadingCommissioningInfo(err, info);
-}
-
-void JCMDeviceCommissioner::VerifyAdministratorEndpointAndFabricIndex()
+void JCMCommissioner::VerifyAdministratorEndpointAndFabricIndex()
 {
     ChipLogProgress(Controller, "JCM: Verify joint fabric administrator endpoint and fabric index");
 
@@ -328,7 +329,7 @@ void JCMDeviceCommissioner::VerifyAdministratorEndpointAndFabricIndex()
     AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
-void JCMDeviceCommissioner::PerformVendorIDVerificationProcedure()
+void JCMCommissioner::PerformVendorIDVerificationProcedure()
 {
     ChipLogProgress(Controller, "Performing Vendor ID Verification Procedure");
 
@@ -337,7 +338,7 @@ void JCMDeviceCommissioner::PerformVendorIDVerificationProcedure()
     AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
-void JCMDeviceCommissioner::VerifyNOCContainsAdministratorCAT()
+void JCMCommissioner::VerifyNOCContainsAdministratorCAT()
 {
     ChipLogProgress(Controller, "JCM: Verifying NOC contains Administrator CAT");
 
@@ -346,38 +347,24 @@ void JCMDeviceCommissioner::VerifyNOCContainsAdministratorCAT()
     AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
 }
 
-void JCMDeviceCommissioner::AskUserForConsent()
+void JCMCommissioner::AskUserForConsent()
 {
     ChipLogProgress(Controller, "JCM: Asking user for consent");
-    if (mJCMTrustVerificationDelegate != nullptr)
+    if (mTrustVerificationDelegate != nullptr)
     {
         VendorId vendorId = static_cast<VendorId>(mInfo.adminVendorId);
-        mJCMTrustVerificationDelegate->OnAskUserForConsent(this, vendorId);
+        mTrustVerificationDelegate->OnAskUserForConsent(mDeviceCommissioner, vendorId);
     } else {
         ChipLogError(Controller, "JCM: TrustVerificationDelegate is not set");
         AdvanceTrustVerificationStage(JCMTrustVerificationResult::kTrustVerificationDelegateNotSet);
     }
 }
 
-void JCMDeviceCommissioner::ContinueAfterUserConsent(bool consent)
+void JCMCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult result)
 {
-    if (consent)
+    if (mTrustVerificationDelegate != nullptr)
     {
-        ChipLogProgress(Controller, "JCM: User consent granted");
-        AdvanceTrustVerificationStage(JCMTrustVerificationResult::kSuccess);
-    }
-    else
-    {
-        ChipLogError(Controller, "JCM: User denied consent");
-        AdvanceTrustVerificationStage(JCMTrustVerificationResult::KUserDeniedConsent);
-    }
-}
-
-void JCMDeviceCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationResult result)
-{
-    if (mJCMTrustVerificationDelegate != nullptr)
-    {
-        mJCMTrustVerificationDelegate->OnProgressUpdate(this, mNextStage, result);
+        mTrustVerificationDelegate->OnProgressUpdate(mDeviceCommissioner, mNextStage, result);
     }
     
     if (result != JCMTrustVerificationResult::kSuccess)
@@ -415,6 +402,66 @@ void JCMDeviceCommissioner::AdvanceTrustVerificationStage(JCMTrustVerificationRe
             OnJCMTrustVerificationComplete(nullptr, JCMTrustVerificationResult::kInternalError);
             break;
     }
+}
+
+/*
+ * JCMAutoCommissioner override implementation
+*/
+CHIP_ERROR JCMAutoCommissioner::SetCommissioningParameters(const CommissioningParameters & params)
+{
+    ReturnErrorOnFailure(AutoCommissioner::SetCommissioningParameters(params));
+
+    if (params.UseJCM().ValueOr(false)) {
+        auto extraReadPaths = params.GetExtraReadPaths();
+
+        mTempReadPaths.clear();
+        mTempReadPaths.reserve(extraReadPaths.size() + mExtraReadPaths.size());
+        mTempReadPaths.insert(mTempReadPaths.end(), extraReadPaths.begin(), extraReadPaths.end());
+        mTempReadPaths.insert(mTempReadPaths.end(), mExtraReadPaths.begin(), mExtraReadPaths.end());
+
+        // Set the extra read paths for JCM
+        mParams.SetExtraReadPaths(Span<app::AttributePathParams>(mTempReadPaths.data(), mTempReadPaths.size()));
+    }
+
+    return CHIP_NO_ERROR;
+}
+
+void JCMAutoCommissioner::CleanupCommissioning()
+{
+    AutoCommissioner::CleanupCommissioning();
+    mTempReadPaths.clear();
+}
+
+/*
+ * JCMDeviceCommissioner public interface and override implementation    
+ */
+
+CHIP_ERROR JCMDeviceCommissioner::StartJCMTrustVerification(DeviceProxy * proxy)
+{
+    return mCommissioner.StartJCMTrustVerification(proxy);
+}
+
+void JCMDeviceCommissioner::ContinueAfterUserConsent(bool consent)
+{
+    return mCommissioner.ContinueAfterUserConsent(consent);
+}
+
+void JCMDeviceCommissioner::FinishReadingCommissioningInfo(CHIP_ERROR & err, ReadCommissioningInfo & info)
+
+{
+    auto params = GetCommissioningParameters().Value();
+
+    if (params.UseJCM().ValueOr(false)) {
+        AccumulateErrors(err, mCommissioner.ParseAdministratorInfo(info));
+    }
+
+    DeviceCommissioner::FinishReadingCommissioningInfo(err, info);
+}
+
+void JCMDeviceCommissioner::CleanupCommissioning(DeviceProxy * proxy, NodeId nodeId, const CompletionStatus & completionStatus)
+{
+    mCommissioner.Cleanup();
+    DeviceCommissioner::CleanupCommissioning(proxy, nodeId, completionStatus);
 }
 
 } // namespace Controller

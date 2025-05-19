@@ -84,7 +84,7 @@ enum JCMTrustVerificationStage : uint8_t
     kAskingUserForConsent,
 };
 
-typedef void (*JCMTrustVerificationCompleteCallback)(void * context, JCMTrustVerificationInfo * info, JCMTrustVerificationResult result);
+typedef void (*JCMTrustVerificationCompleteCallback)(void * context, JCMTrustVerificationInfo & info, JCMTrustVerificationResult result);
 
 /**
  * A delegate that can be notified of progress as the JCM Trust Verification check proceeds.
@@ -94,8 +94,8 @@ class DLL_EXPORT JCMTrustVerificationDelegate
 public:
     virtual ~JCMTrustVerificationDelegate() = default;
 
-    virtual void OnProgressUpdate(JCMDeviceCommissioner *commissioner, JCMTrustVerificationStage stage, JCMTrustVerificationError error) = 0;
-    virtual void OnAskUserForConsent(JCMDeviceCommissioner *commissioner, VendorId vendorId) = 0;
+    virtual void OnProgressUpdate(JCMDeviceCommissioner & commissioner, JCMTrustVerificationStage stage, JCMTrustVerificationError error) = 0;
+    virtual void OnAskUserForConsent(JCMDeviceCommissioner & commissioner, VendorId vendorId) = 0;
 };
 
 } // namespace Controller

@@ -49,7 +49,7 @@ public:
     ByteSpan GetAttestationNonce() const { return ByteSpan(mAttestationNonce); }
 
 protected:
-    void CommissioningStepCleanup() override;
+    void CleanupCommissioning() override;
     CommissioningStage GetNextCommissioningStage(CommissioningStage currentStage, CHIP_ERROR & lastErr);
     DeviceCommissioner * GetCommissioner() { return mCommissioner; }
     CHIP_ERROR PerformStep(CommissioningStage nextStage);

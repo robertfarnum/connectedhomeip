@@ -33,6 +33,7 @@ chip_test_suite("tests") {
       "TestEventCaching.cpp",
       "TestEventChunking.cpp",
       "TestEventNumberCaching.cpp",
+      "TestJCMCommissioner.cpp",
       "TestReadChunking.cpp",
       "TestServerCommandDispatch.cpp",
       "TestWriteChunking.cpp",

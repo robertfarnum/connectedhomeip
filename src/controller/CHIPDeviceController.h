@@ -375,7 +375,7 @@ public:
         return mSystemState->Fabrics();
     }
 
-    OperationalCredentialsDelegate * GetOperationalCredentialsDelegate() { return mOperationalCredentialsDelegate; }
+    OperationalCredentialsDelegate * ParseOperationalCredentialsDelegate() { return mOperationalCredentialsDelegate; }
 
     /**
      * @brief
@@ -865,8 +865,13 @@ protected:
     CHIP_ERROR SendCommissioningWriteRequest(DeviceProxy * device, EndpointId endpoint, ClusterId cluster, AttributeId attribute,
                                             const AttrType & requestData, WriteResponseSuccessCallback successCb,
                                             WriteResponseFailureCallback failureCb);
-    virtual void CommissioningStepCleanup() {}
-    
+    // Cleans up and resets failsafe as appropriate depending on the error and the failed stage.
+    // For success, sends completion report with the CommissioningDelegate and sends callbacks to the PairingDelegate
+    // For failures after AddNOC succeeds, sends completion report with the CommissioningDelegate and sends callbacks to the
+    // PairingDelegate. In this case, it does not disarm the failsafe or close the pase connection. For failures up through AddNOC,
+    // sends a command to immediately expire the failsafe, then sends completion report with the CommissioningDelegate and callbacks
+    // to the PairingDelegate upon arm failsafe command completion.
+    virtual void CleanupCommissioning(DeviceProxy * proxy, NodeId nodeId, const CompletionStatus & completionStatus);
 private:
     DevicePairingDelegate * mPairingDelegate = nullptr;
 
@@ -1094,14 +1099,6 @@ private:
     // Sends commissioning complete callbacks to the delegate depending on the status. Sends
     // OnCommissioningComplete and either OnCommissioningSuccess or OnCommissioningFailure depending on the given completion status.
     void SendCommissioningCompleteCallbacks(NodeId nodeId, const CompletionStatus & completionStatus);
-
-    // Cleans up and resets failsafe as appropriate depending on the error and the failed stage.
-    // For success, sends completion report with the CommissioningDelegate and sends callbacks to the PairingDelegate
-    // For failures after AddNOC succeeds, sends completion report with the CommissioningDelegate and sends callbacks to the
-    // PairingDelegate. In this case, it does not disarm the failsafe or close the pase connection. For failures up through AddNOC,
-    // sends a command to immediately expire the failsafe, then sends completion report with the CommissioningDelegate and callbacks
-    // to the PairingDelegate upon arm failsafe command completion.
-    void CleanupCommissioning(DeviceProxy * proxy, NodeId nodeId, const CompletionStatus & completionStatus);
 
     // Extend the fail-safe before trying to do network-enable (since after that
     // point, for non-concurrent-commissioning devices, we may not have a way to

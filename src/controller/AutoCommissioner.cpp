@@ -675,7 +675,7 @@ CHIP_ERROR AutoCommissioner::NOCChainGenerated(ByteSpan noc, ByteSpan icac, Byte
 
     return CHIP_NO_ERROR;
 }
-void AutoCommissioner::CommissioningStepCleanup()
+void AutoCommissioner::CleanupCommissioning()
 {
     if (IsSecondaryNetworkSupported() && TryingSecondaryNetwork())
     {
@@ -888,7 +888,7 @@ CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, Commissio
             mOperationalDeviceProxy = report.Get<OperationalNodeFoundData>().operationalProxy;
             break;
         case CommissioningStage::kCleanup:
-            CommissioningStepCleanup();
+            CleanupCommissioning();
             return CHIP_NO_ERROR;
         default:
             break;
