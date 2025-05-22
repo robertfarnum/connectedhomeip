@@ -16,6 +16,7 @@
  *    limitations under the License.
  */
 
+#include "AutoCommissioner.h"
 #include <controller/AutoCommissioner.h>
 
 #include <app/InteractionModelTimeout.h>
@@ -39,7 +40,11 @@ AutoCommissioner::AutoCommissioner()
     SetCommissioningParameters(CommissioningParameters());
 }
 
-AutoCommissioner::~AutoCommissioner() {}
+AutoCommissioner::~AutoCommissioner()
+{
+    mPAI.Free();
+    mDAC.Free();
+}
 
 void AutoCommissioner::SetOperationalCredentialsDelegate(OperationalCredentialsDelegate * operationalCredentialsDelegate)
 {
@@ -383,16 +388,13 @@ CommissioningStage AutoCommissioner::GetNextCommissioningStageInternal(Commissio
         return CommissioningStage::kAttestationRevocationCheck;
     case CommissioningStage::kAttestationRevocationCheck:
 #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-        if (mParams.GetExecuteJCM().ValueOr(false))
-        {
-            return CommissioningStage::kJFValidateNOC;
+        if (mParams.UseJCM().ValueOr(false)) {
+            return CommissioningStage::kJCMTrustVerification;
         }
 #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
         return CommissioningStage::kSendOpCertSigningRequest;
 #if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-    case CommissioningStage::kJFValidateNOC:
-        return CommissioningStage::kSendVIDVerificationRequest;
-    case CommissioningStage::kSendVIDVerificationRequest:
+    case CommissioningStage::kJCMTrustVerification:
         return CommissioningStage::kSendOpCertSigningRequest;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
     case CommissioningStage::kSendOpCertSigningRequest:
@@ -677,6 +679,19 @@ CHIP_ERROR AutoCommissioner::NOCChainGenerated(ByteSpan noc, ByteSpan icac, Byte
 
     return CHIP_NO_ERROR;
 }
+void AutoCommissioner::CleanupCommissioning()
+{
+    if (IsSecondaryNetworkSupported() && TryingSecondaryNetwork())
+    {
+        ResetTryingSecondaryNetwork();
+    }
+    mPAI.Free();
+    mDAC.Free();
+    mCommissioneeDeviceProxy = nullptr;
+    mOperationalDeviceProxy  = OperationalDeviceProxy();
+    mDeviceCommissioningInfo = ReadCommissioningInfo();
+    mNeedsDST                = false;
+}
 
 CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, CommissioningDelegate::CommissioningReport report)
 {
@@ -785,27 +800,6 @@ CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, Commissio
                     mParams.ClearICDStayActiveDurationMsec();
                 }
             }
-
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-            if (mParams.GetExecuteJCM().ValueOr(false) &&
-                (mDeviceCommissioningInfo.JFAdministratorFabricIndex != kUndefinedFabricIndex))
-            {
-                ReturnErrorOnFailure(AllocateMemoryAndCopySpan(mJFAdminRCAC, mDeviceCommissioningInfo.JFAdminRCAC));
-                mParams.SetJFAdminRCAC(mJFAdminRCAC.Span());
-
-                ReturnErrorOnFailure(AllocateMemoryAndCopySpan(mJFAdminICAC, mDeviceCommissioningInfo.JFAdminICAC));
-                mParams.SetJFAdminICAC(mJFAdminICAC.Span());
-
-                ReturnErrorOnFailure(AllocateMemoryAndCopySpan(mJFAdminNOC, mDeviceCommissioningInfo.JFAdminNOC));
-                mParams.SetJFAdminNOC(mJFAdminNOC.Span());
-
-                mParams.SetJFAdminEndpointId(mDeviceCommissioningInfo.JFAdminEndpointId)
-                    .SetJFAdministratorFabricIndex(mDeviceCommissioningInfo.JFAdministratorFabricIndex)
-                    .SetJFAdminFabricId(mDeviceCommissioningInfo.JFAdminFabricTable.fabricId)
-                    .SetJFAdminVendorId(mDeviceCommissioningInfo.JFAdminFabricTable.vendorId);
-            }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-
             break;
         }
         case CommissioningStage::kConfigureTimeZone:
@@ -814,15 +808,27 @@ CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, Commissio
         case CommissioningStage::kSendPAICertificateRequest: {
             auto reportPAISpan = report.Get<RequestedCertificate>().certificate;
 
-            ReturnErrorOnFailure(AllocateMemoryAndCopySpan(mPAI, reportPAISpan));
-            mParams.SetPAI(mPAI.Span());
+            if (!mPAI.Alloc(reportPAISpan.size()))
+            {
+                ChipLogError(Controller, "AutoCommissioner cannot allocate memory for mPAI");
+                return CHIP_ERROR_NO_MEMORY;
+            }
+
+            memcpy(mPAI.Get(), reportPAISpan.data(), mPAI.AllocatedSize());
+            mParams.SetPAI(ByteSpan(mPAI.Get(), mPAI.AllocatedSize()));
             break;
         }
         case CommissioningStage::kSendDACCertificateRequest: {
             auto reportDACSpan = report.Get<RequestedCertificate>().certificate;
 
-            ReturnErrorOnFailure(AllocateMemoryAndCopySpan(mDAC, reportDACSpan));
-            mParams.SetDAC(ByteSpan(mDAC.Span()));
+            if (!mDAC.Alloc(reportDACSpan.size()))
+            {
+                ChipLogError(Controller, "AutoCommissioner cannot allocate memory for mDAC");
+                return CHIP_ERROR_NO_MEMORY;
+            }
+
+            memcpy(mDAC.Get(), reportDACSpan.data(), mDAC.AllocatedSize());
+            mParams.SetDAC(ByteSpan(mDAC.Get(), mDAC.AllocatedSize()));
             break;
         }
         case CommissioningStage::kSendAttestationRequest: {
@@ -886,21 +892,7 @@ CHIP_ERROR AutoCommissioner::CommissioningStepFinished(CHIP_ERROR err, Commissio
             mOperationalDeviceProxy = report.Get<OperationalNodeFoundData>().operationalProxy;
             break;
         case CommissioningStage::kCleanup:
-            if (IsSecondaryNetworkSupported() && TryingSecondaryNetwork())
-            {
-                ResetTryingSecondaryNetwork();
-            }
-            mPAI.Free();
-            mDAC.Free();
-#if CHIP_DEVICE_CONFIG_ENABLE_JOINT_FABRIC
-            mJFAdminRCAC.Free();
-            mJFAdminICAC.Free();
-            mJFAdminNOC.Free();
-#endif
-            mCommissioneeDeviceProxy = nullptr;
-            mOperationalDeviceProxy  = OperationalDeviceProxy();
-            mDeviceCommissioningInfo = ReadCommissioningInfo();
-            mNeedsDST                = false;
+            CleanupCommissioning();
             return CHIP_NO_ERROR;
         default:
             break;

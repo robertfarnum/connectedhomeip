@@ -1,9 +1,12 @@
 # Joint Fabric Guide
 
--   [Joint Fabric Guide](#joint-fabric-guide)
-    -   [Joint Fabric Example Applications](#joint-fabric-example-applications)
-        -   [Bootstrap Joint Fabric Demo on Linux](#bootstrap-joint-fabric-demo-on-linux)
-        -   [Run Joint Fabric Demo](#run-joint-fabric-demo)
+- [Joint Fabric Guide](#joint-fabric-guide)
+  - [Joint Fabric Example Applications](#joint-fabric-example-applications)
+    - [Building the Example Application](#building-the-example-application)
+  - [Bootstrap Joint Fabric Demo on Linux](#bootstrap-joint-fabric-demo-on-linux)
+    - [Initialize Ecosystem A (Vendor ID = 0xFFF1)](#initialize-ecosystem-a-vendor-id--0xfff1)
+    - [Initialize Ecosystem B (Vendor ID = 0xFFF2)](#initialize-ecosystem-b-vendor-id--0xfff2)
+  - [Manually Test JCM](#manually-test-jcm)
 
 ## Joint Fabric Example Applications
 
@@ -250,4 +253,19 @@ jf-admin-app has been installed:
 A `Subjects` field equal to `18446744065119551489` (`FFFFFFFDFFFF0001` in hex)
 should be found.
 
-## Run Joint Fabric Demo
+## Manually Test JCM
+
+On A
+
+pairing onnetwork-long 1 110220033 3840 --anchor true jointfabricadministrator
+read administrator-fabric-index 1 1
+
+On B
+
+pairing onnetwork-long 11 110220055 3840 --anchor true jointfabricadministrator
+read administrator-fabric-index 11 1 pairing open-commissioning-window 11 1 400
+1000 1261 [Capture the pairing code]
+
+On A
+
+pairing code 10 [pairing code] --jcm true
