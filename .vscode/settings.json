@@ -7,12 +7,27 @@
         "${workspaceFolder}/build/default/src/lib/**",
         "${workspaceFolder}/config/standalone/",
         "${workspaceFolder}/config/standalone/**",
+        "${workspaceFolder}/darwin/Framework/CHIP/**",
         "${workspaceFolder}/examples/**",
         "${workspaceFolder}/src/**",
+        "${workspaceFolder}/src/app/**",
+        "${workspaceFolder}/src/ble/**",
+        "${workspaceFolder}/src/controller/**",
+        "${workspaceFolder}/src/credentials/**",
+        "${workspaceFolder}/src/crypto/**",
+        "${workspaceFolder}/src/darwin/**",
         "${workspaceFolder}/src/include/",
         "${workspaceFolder}/src/include/**",
+        "${workspaceFolder}/src/inet/**",
         "${workspaceFolder}/src/lib/**",
+        "${workspaceFolder}/src/lwip/**",
+        "${workspaceFolder}/src/messaging/**",
+        "${workspaceFolder}/src/platform/**",
+        "${workspaceFolder}/src/protocols/**",
+        "${workspaceFolder}/src/setup_payload/**",
         "${workspaceFolder}/src/system/**",
+        "${workspaceFolder}/src/tracing/**",
+        "${workspaceFolder}/src/transport/**",
         "${workspaceFolder}/third_party/nlassert/repo/include/**",
         "${workspaceFolder}/third_party/nlio/repo/include/**"
     ],
@@ -35,6 +50,8 @@
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
     "files.associations": {
+        ".gitmodules": "ini",
+        "*.mm": "cpp",
         "iostream": "cpp",
         "array": "cpp",
         "atomic": "cpp",
@@ -111,7 +128,26 @@
         "ratio": "cpp",
         "set": "cpp",
         "stack": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "condition_variable": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "thread": "cpp",
+        "variant": "cpp",
+        "any": "cpp",
+        "future": "cpp",
+        "list": "cpp",
+        "unordered_set": "cpp"
+    },
+    "[ini]": {
+        "editor.formatOnSave": false
+    },
+    // Configure paths or glob patterns to exclude from file watching.
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "out/": true,
+        "**/third_party/**": true
     },
     "files.eol": "\n",
     "editor.formatOnSave": true,
@@ -155,6 +191,12 @@
     ],
     "clang-format.fallbackStyle": "WebKit",
     "files.trimFinalNewlines": true,
-    "C_Cpp.default.cppStandard": "gnu++14",
-    "C_Cpp.default.cStandard": "gnu11"
+    "C_Cpp.default.cppStandard": "gnu++17",
+    "C_Cpp.default.cStandard": "gnu11",
+    "cmake.configureOnOpen": false,
+    "search.followSymlinks": false,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8"
+    },
+    "autopep8.args": ["--max-line-length", "132"]
 }

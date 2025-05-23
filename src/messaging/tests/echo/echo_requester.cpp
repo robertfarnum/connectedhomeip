@@ -29,14 +29,15 @@
 
 #include "common.h"
 
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/core/ErrorStr.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <protocols/echo/Echo.h>
-#include <support/ErrorStr.h>
+#include <protocols/secure_channel/PASESession.h>
 #include <system/SystemPacketBuffer.h>
-#include <transport/PASESession.h>
-#include <transport/SecureSessionMgr.h>
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
 #include <transport/raw/TCP.h>
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 #include <transport/raw/UDP.h>
 
 #include <inttypes.h>
@@ -50,25 +51,45 @@ namespace {
 // Max value for the number of EchoRequests sent.
 constexpr size_t kMaxEchoCount = 3;
 
-// The CHIP Echo interval time in milliseconds.
-constexpr int32_t gEchoInterval = 1000;
+// The CHIP Echo interval time.
+constexpr chip::System::Clock::Timeout gEchoInterval = chip::System::Clock::Seconds16(1);
 
-constexpr chip::Transport::AdminId gAdminId = 0;
+constexpr chip::FabricIndex gFabricIndex = 0;
 
 // The EchoClient object.
 chip::Protocols::Echo::EchoClient gEchoClient;
 
 chip::TransportMgr<chip::Transport::UDP> gUDPManager;
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+// Max value for the number of tcp connect attempts.
+constexpr size_t kMaxTCPConnectAttempts = 3;
+
 chip::TransportMgr<chip::Transport::TCP<kMaxTcpActiveConnectionCount, kMaxTcpPendingPackets>> gTCPManager;
-chip::SecureSessionMgr gSessionManager;
+
+chip::Transport::AppTCPConnectionCallbackCtxt gAppTCPConnCbCtxt;
+chip::Transport::ActiveTCPConnectionState * gActiveTCPConnState = nullptr;
+
+static void HandleConnectionAttemptComplete(chip::Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr);
+static void HandleConnectionClosed(chip::Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr);
+
+// True, if client is still connecting to the server, false otherwise.
+static bool gClientConInProgress = false;
+
+// True, once client connection to server is established.
+static bool gClientConEstablished = false;
+
+bool gUseTCP                  = false;
+uint64_t gTCPConnAttemptCount = 0;
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+
 chip::Inet::IPAddress gDestAddr;
+chip::SessionHolder gSession;
 
 // The last time a CHIP Echo was attempted to be sent.
-uint64_t gLastEchoTime = 0;
+chip::System::Clock::Timestamp gLastEchoTime = chip::System::Clock::kZero;
 
-// True, if the EchoClient is waiting for an EchoResponse
-// after sending an EchoRequest, false otherwise.
-bool gWaitingForEchoResp = false;
+// The handle to the TCP connection to the peer.
+// static chip::Transport::ActiveTCPConnectionState * gCon = nullptr;
 
 // Count of the number of EchoRequests sent.
 uint64_t gEchoCount = 0;
@@ -76,22 +97,48 @@ uint64_t gEchoCount = 0;
 // Count of the number of EchoResponses received.
 uint64_t gEchoRespCount = 0;
 
-bool gUseTCP = false;
+CHIP_ERROR SendEchoRequest();
+void EchoTimerHandler(chip::System::Layer * systemLayer, void * appState);
 
-bool EchoIntervalExpired(void)
+void Shutdown()
 {
-    uint64_t now = chip::System::Timer::GetCurrentEpoch();
-
-    return (now >= gLastEchoTime + gEchoInterval);
+    chip::DeviceLayer::SystemLayer().CancelTimer(EchoTimerHandler, nullptr);
+    gEchoClient.Shutdown();
+    ShutdownChip();
 }
 
-CHIP_ERROR SendEchoRequest(void)
+void EchoTimerHandler(chip::System::Layer * systemLayer, void * appState)
 {
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    const char kRequestFormat[] = "Echo Message %" PRIu64 "\n";
+    if (gEchoRespCount != gEchoCount)
+    {
+        printf("No response received\n");
+
+        // Set gEchoRespCount to gEchoCount to start next ping if there is any.
+        gEchoRespCount = gEchoCount;
+    }
+
+    if (gEchoCount < kMaxEchoCount)
+    {
+        CHIP_ERROR err = SendEchoRequest();
+        if (err != CHIP_NO_ERROR)
+        {
+            printf("Send request failed: %s\n", chip::ErrorStr(err));
+            chip::DeviceLayer::PlatformMgr().StopEventLoopTask();
+        }
+    }
+    else
+    {
+        chip::DeviceLayer::PlatformMgr().StopEventLoopTask();
+    }
+}
+
+CHIP_ERROR SendEchoRequest()
+{
+    CHIP_ERROR err                     = CHIP_NO_ERROR;
+    static const char kRequestFormat[] = "Echo Message %" PRIu64 "\n";
     char requestData[(sizeof kRequestFormat) + 20 /* uint64_t decimal digits */];
     snprintf(requestData, sizeof requestData, kRequestFormat, gEchoCount);
-    chip::System::PacketBufferHandle payloadBuf = chip::MessagePacketBuffer::NewWithData(requestData, strlen(requestData));
+    chip::System::PacketBufferHandle && payloadBuf = chip::MessagePacketBuffer::NewWithData(requestData, strlen(requestData));
 
     if (payloadBuf.IsNull())
     {
@@ -99,20 +146,27 @@ CHIP_ERROR SendEchoRequest(void)
         return CHIP_ERROR_NO_MEMORY;
     }
 
-    gLastEchoTime = chip::System::Timer::GetCurrentEpoch();
+    gLastEchoTime = chip::System::SystemClock().GetMonotonicTimestamp();
+
+    err = chip::DeviceLayer::SystemLayer().StartTimer(gEchoInterval, EchoTimerHandler, nullptr);
+    if (err != CHIP_NO_ERROR)
+    {
+        printf("Unable to schedule timer\n");
+        return CHIP_ERROR_INTERNAL;
+    }
 
     printf("\nSend echo request message to Node: %" PRIu64 "\n", chip::kTestDeviceNodeId);
 
-    err = gEchoClient.SendEchoRequest(std::move(payloadBuf), chip::Messaging::SendFlags(chip::Messaging::SendMessageFlags::kNone));
+    err = gEchoClient.SendEchoRequest(std::move(payloadBuf));
 
     if (err == CHIP_NO_ERROR)
     {
-        gWaitingForEchoResp = true;
         gEchoCount++;
     }
     else
     {
         printf("Send echo request failed, err: %s\n", chip::ErrorStr(err));
+        chip::DeviceLayer::SystemLayer().CancelTimer(EchoTimerHandler, nullptr);
     }
 
     return err;
@@ -120,79 +174,133 @@ CHIP_ERROR SendEchoRequest(void)
 
 CHIP_ERROR EstablishSecureSession()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    chip::Optional<chip::Transport::PeerAddress> peerAddr;
-    chip::SecurePairingUsingTestSecret * testSecurePairingSecret = chip::Platform::New<chip::SecurePairingUsingTestSecret>();
-    VerifyOrExit(testSecurePairingSecret != nullptr, err = CHIP_ERROR_NO_MEMORY);
-
+    char peerAddrBuf[chip::Transport::PeerAddress::kMaxToStringSize];
+    chip::Transport::PeerAddress peerAddr;
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if (gUseTCP)
     {
-        peerAddr = chip::Optional<chip::Transport::PeerAddress>::Value(chip::Transport::PeerAddress::TCP(gDestAddr, CHIP_PORT));
+        peerAddr = chip::Transport::PeerAddress::TCP(gDestAddr, CHIP_PORT);
     }
     else
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
     {
-        peerAddr = chip::Optional<chip::Transport::PeerAddress>::Value(
-            chip::Transport::PeerAddress::UDP(gDestAddr, CHIP_PORT, INET_NULL_INTERFACEID));
+        peerAddr = chip::Transport::PeerAddress::UDP(gDestAddr, CHIP_PORT, chip::Inet::InterfaceId::Null());
     }
 
-    // Attempt to connect to the peer.
-    err = gSessionManager.NewPairing(peerAddr, chip::kTestDeviceNodeId, testSecurePairingSecret,
-                                     chip::SecureSessionMgr::PairingDirection::kInitiator, gAdminId);
+    peerAddr.ToString(peerAddrBuf);
 
-exit:
+    // Establish secure session to the peer.
+    CHIP_ERROR err = gSessionManager.InjectPaseSessionWithTestKey(gSession, 1, chip::kTestDeviceNodeId, 1, gFabricIndex, peerAddr,
+                                                                  chip::CryptoContext::SessionRole::kInitiator);
     if (err != CHIP_NO_ERROR)
     {
         printf("Establish secure session failed, err: %s\n", chip::ErrorStr(err));
-        gLastEchoTime = chip::System::Timer::GetCurrentEpoch();
+        gLastEchoTime = chip::System::SystemClock().GetMonotonicTimestamp();
     }
     else
     {
-        printf("Establish secure session succeeded\n");
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+        if (gUseTCP)
+        {
+            printf("Associating secure session with connection %p\n", gActiveTCPConnState);
+            gSession.Get().Value()->AsSecureSession()->SetTCPConnection(gActiveTCPConnState);
+        }
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+
+        printf("Successfully established secure session with peer at %s\n", peerAddrBuf);
     }
 
     return err;
 }
 
-void HandleEchoResponseReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle payload)
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+void CloseConnection()
 {
-    uint32_t respTime    = chip::System::Timer::GetCurrentEpoch();
-    uint32_t transitTime = respTime - gLastEchoTime;
+    char peerAddrBuf[chip::Transport::PeerAddress::kMaxToStringSize];
+    chip::Transport::PeerAddress peerAddr = chip::Transport::PeerAddress::TCP(gDestAddr, CHIP_PORT);
 
-    gWaitingForEchoResp = false;
-    gEchoRespCount++;
+    gSessionManager.TCPDisconnect(peerAddr);
 
-    printf("Echo Response: %" PRIu64 "/%" PRIu64 "(%.2f%%) len=%u time=%.3fms\n", gEchoRespCount, gEchoCount,
-           static_cast<double>(gEchoRespCount) * 100 / gEchoCount, payload->DataLength(), static_cast<double>(transitTime) / 1000);
+    peerAddr.ToString(peerAddrBuf);
+    printf("Connection closed to peer at %s\n", peerAddrBuf);
+
+    gClientConEstablished = false;
+    gClientConInProgress  = false;
 }
 
-void RunPinging()
+void HandleConnectionAttemptComplete(chip::Transport::ActiveTCPConnectionState * conn, CHIP_ERROR err)
+{
+    chip::DeviceLayer::PlatformMgr().StopEventLoopTask();
+
+    if (err != CHIP_NO_ERROR || conn != gActiveTCPConnState)
+    {
+        printf("Connection FAILED with err: %s\n", chip::ErrorStr(err));
+
+        gLastEchoTime = chip::System::SystemClock().GetMonotonicTimestamp();
+        CloseConnection();
+        gTCPConnAttemptCount++;
+        return;
+    }
+
+    err = EstablishSecureSession();
+    if (err != CHIP_NO_ERROR)
+    {
+        printf("Secure session FAILED with err: %s\n", chip::ErrorStr(err));
+
+        gLastEchoTime = chip::System::SystemClock().GetMonotonicTimestamp();
+        CloseConnection();
+        return;
+    }
+
+    gClientConEstablished = true;
+    gClientConInProgress  = false;
+}
+
+void HandleConnectionClosed(chip::Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr)
+{
+    CloseConnection();
+}
+
+void EstablishTCPConnection()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-
-    // Connection has been established. Now send the EchoRequests.
-    for (unsigned int i = 0; i < kMaxEchoCount; i++)
+    // Previous connection attempt underway.
+    if (gClientConInProgress)
     {
-        err = SendEchoRequest();
-        if (err != CHIP_NO_ERROR)
-        {
-            printf("Send request failed: %s\n", chip::ErrorStr(err));
-            break;
-        }
-
-        // Wait for response until the Echo interval.
-        while (!EchoIntervalExpired())
-        {
-            sleep(1);
-        }
-
-        // Check if expected response was received.
-        if (gWaitingForEchoResp)
-        {
-            printf("No response received\n");
-            gWaitingForEchoResp = false;
-        }
+        return;
     }
+
+    gClientConEstablished = false;
+
+    chip::Transport::PeerAddress peerAddr = chip::Transport::PeerAddress::TCP(gDestAddr, CHIP_PORT);
+
+    // Connect to the peer
+    err = gSessionManager.TCPConnect(peerAddr, &gAppTCPConnCbCtxt, &gActiveTCPConnState);
+    if (err != CHIP_NO_ERROR)
+    {
+        printf("Connection FAILED with err: %s\n", chip::ErrorStr(err));
+
+        gLastEchoTime = chip::System::SystemClock().GetMonotonicTimestamp();
+        CloseConnection();
+        gTCPConnAttemptCount++;
+        return;
+    }
+
+    gClientConInProgress = true;
+}
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+
+void HandleEchoResponseReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle && payload)
+{
+    chip::System::Clock::Timestamp respTime  = chip::System::SystemClock().GetMonotonicTimestamp();
+    chip::System::Clock::Timeout transitTime = respTime - gLastEchoTime;
+
+    gEchoRespCount++;
+
+    printf("Echo Response: %" PRIu64 "/%" PRIu64 "(%.2f%%) len=%" PRIu32 "time=%.3fs\n", gEchoRespCount, gEchoCount,
+           static_cast<double>(gEchoRespCount) * 100 / static_cast<double>(gEchoCount),
+           static_cast<uint32_t>(payload->DataLength()),
+           static_cast<double>(chip::System::Clock::Milliseconds32(transitTime).count()) / 1000);
 }
 
 } // namespace
@@ -200,9 +308,6 @@ void RunPinging()
 int main(int argc, char * argv[])
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-
-    chip::Transport::AdminPairingTable admins;
-    chip::Transport::AdminPairingInfo * adminInfo = nullptr;
 
     if (argc <= 1)
     {
@@ -216,10 +321,12 @@ int main(int argc, char * argv[])
         ExitNow(err = CHIP_ERROR_INVALID_ARGUMENT);
     }
 
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if ((argc == 3) && (strcmp(argv[2], "--tcp") == 0))
     {
         gUseTCP = true;
     }
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
     if (!chip::Inet::IPAddress::FromString(argv[1], gDestAddr))
     {
@@ -227,56 +334,104 @@ int main(int argc, char * argv[])
         ExitNow(err = CHIP_ERROR_INVALID_ARGUMENT);
     }
 
+    if (gDestAddr.Type() != chip::Inet::IPAddressType::kIPv6)
+    {
+        printf("Echo Server IP address: %s is not of type IPv6\n", argv[1]);
+        ExitNow(err = CHIP_ERROR_INVALID_ARGUMENT);
+    }
+
     InitializeChip();
 
-    chip::DeviceLayer::PlatformMgr().StartEventLoopTask();
-
-    adminInfo = admins.AssignAdminId(gAdminId, chip::kTestControllerNodeId);
-    VerifyOrExit(adminInfo != nullptr, err = CHIP_ERROR_NO_MEMORY);
-
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if (gUseTCP)
     {
-        err = gTCPManager.Init(chip::Transport::TcpListenParameters(&chip::DeviceLayer::InetLayer)
-                                   .SetAddressType(chip::Inet::kIPAddressType_IPv4)
+        err = gTCPManager.Init(chip::Transport::TcpListenParameters(chip::DeviceLayer::TCPEndPointManager())
+                                   .SetAddressType(chip::Inet::IPAddressType::kIPv6)
                                    .SetListenPort(ECHO_CLIENT_PORT));
         SuccessOrExit(err);
 
-        err = gSessionManager.Init(chip::kTestControllerNodeId, &chip::DeviceLayer::SystemLayer, &gTCPManager, &admins);
+        err = gSessionManager.Init(&chip::DeviceLayer::SystemLayer(), &gTCPManager, &gMessageCounterManager, &gStorage,
+                                   &gFabricTable, gSessionKeystore);
         SuccessOrExit(err);
+
+        gAppTCPConnCbCtxt.appContext     = nullptr;
+        gAppTCPConnCbCtxt.connCompleteCb = HandleConnectionAttemptComplete;
+        gAppTCPConnCbCtxt.connClosedCb   = HandleConnectionClosed;
     }
     else
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
     {
-        err = gUDPManager.Init(chip::Transport::UdpListenParameters(&chip::DeviceLayer::InetLayer)
-                                   .SetAddressType(chip::Inet::kIPAddressType_IPv4)
+        err = gUDPManager.Init(chip::Transport::UdpListenParameters(chip::DeviceLayer::UDPEndPointManager())
+                                   .SetAddressType(chip::Inet::IPAddressType::kIPv6)
                                    .SetListenPort(ECHO_CLIENT_PORT));
         SuccessOrExit(err);
 
-        err = gSessionManager.Init(chip::kTestControllerNodeId, &chip::DeviceLayer::SystemLayer, &gUDPManager, &admins);
+        err = gSessionManager.Init(&chip::DeviceLayer::SystemLayer(), &gUDPManager, &gMessageCounterManager, &gStorage,
+                                   &gFabricTable, gSessionKeystore);
         SuccessOrExit(err);
     }
 
     err = gExchangeManager.Init(&gSessionManager);
     SuccessOrExit(err);
 
-    // Start the CHIP connection to the CHIP echo responder.
-    err = EstablishSecureSession();
+    err = gMessageCounterManager.Init(&gExchangeManager);
     SuccessOrExit(err);
 
-    // TODO: temprary create a SecureSessionHandle from node id to unblock end-to-end test. Complete solution is tracked in PR:4451
-    err = gEchoClient.Init(&gExchangeManager, { chip::kTestDeviceNodeId, 0, gAdminId });
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    if (gUseTCP)
+    {
+
+        while (!gClientConEstablished)
+        {
+            // For TCP transport, attempt to establish the connection to the CHIP echo responder.
+            // On Connection completion, call EstablishSecureSession();
+            EstablishTCPConnection();
+
+            chip::DeviceLayer::PlatformMgr().RunEventLoop();
+
+            if (gTCPConnAttemptCount > kMaxTCPConnectAttempts)
+            {
+                ExitNow();
+            }
+        }
+    }
+    else
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+    {
+        // Start the CHIP session to the CHIP echo responder.
+        err = EstablishSecureSession();
+        SuccessOrExit(err);
+    }
+
+    err = gEchoClient.Init(&gExchangeManager, gSession.Get().Value());
     SuccessOrExit(err);
 
     // Arrange to get a callback whenever an Echo Response is received.
     gEchoClient.SetEchoResponseReceived(HandleEchoResponseReceived);
 
-    RunPinging();
+    err = chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::kZero, EchoTimerHandler, nullptr);
+    SuccessOrExit(err);
 
-    gEchoClient.Shutdown();
+    chip::DeviceLayer::PlatformMgr().RunEventLoop();
 
-    ShutdownChip();
+    gUDPManager.Close();
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    if (gUseTCP)
+    {
+        gTCPManager.TCPDisconnect(chip::Transport::PeerAddress::TCP(gDestAddr));
+    }
+    gTCPManager.Close();
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+
+    Shutdown();
 
 exit:
-    if ((err != CHIP_NO_ERROR) || (gEchoRespCount != kMaxEchoCount))
+    if ((err != CHIP_NO_ERROR) || (gEchoRespCount != kMaxEchoCount)
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+        || (gTCPConnAttemptCount > kMaxTCPConnectAttempts)
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+    )
     {
         printf("ChipEchoClient failed: %s\n", chip::ErrorStr(err));
         exit(EXIT_FAILURE);

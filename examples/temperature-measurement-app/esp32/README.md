@@ -1,133 +1,81 @@
-# Temperature Sensor Example
+# Matter ESP32 Temperature Sensor Example
 
-## Building the Example Application
+This example is meant to represent a minimal-sized application.
 
-Building the example application requires the use of the Espressif ESP32 IoT
-Development Framework and the xtensa-esp32-elf toolchain.
+Please
+[setup ESP-IDF and CHIP Environment](../../../docs/platforms/esp32/setup_idf_chip.md)
+and refer
+[building and commissioning](../../../docs/platforms/esp32/build_app_and_commission.md)
+guides to get started.
 
-The VSCode devcontainer has these components pre-installed, so you can skip this
-step. To install these components manually, follow these steps:
+---
 
--   Clone the Espressif ESP-IDF and checkout release/v4.2 branch
+-   [Cluster control](#cluster-control)
+-   [Optimization](#optimization)
 
-          $ mkdir ${HOME}/tools
-          $ cd ${HOME}/tools
-          $ git clone https://github.com/espressif/esp-idf.git
-          $ cd esp-idf
-          $ git checkout release/v4.2
-          $ git submodule update --init
-          $ export IDF_PATH=${HOME}/tools/esp-idf
-          $ ./install.sh
+---
 
--   Install ninja-build
+### Cluster control
 
-          $ sudo apt-get install ninja-build
+#### temperaturemeasurement
 
-### To build the application, follow these steps:
+```bash
+Usage:
+  ./out/debug/chip-tool temperaturemeasurement read measured-value <NODE ID> 1
+```
 
-Currently building in VSCode _and_ deploying from native is not supported, so
-make sure the IDF_PATH has been exported(See the manual setup steps above).
+## Additional details
 
--   Setting up the environment
+This example demonstrates the utilization of the diagnostic logs cluster to send
+diagnostic logs to the client.
 
-To download and install packages.
+In this scenario, the [main/diagnostic_logs](main/diagnostic_logs) directory
+contains three files:
 
-        $ cd ${HOME}/tools/esp-idf
-        $ ./install.sh
-        $ . ./export.sh
-        $ cd {path-to-connectedhomeip}
-        $ source ./scripts/bootstrap.sh
-        $ source ./scripts/activate.sh
-        $ cd {path-to-connectedhomeip-examples}
+```
+main/diagnostic_logs
+├── end_user_support.log
+└── network_diag.log
+```
 
-If packages are already installed then simply activate it.
+These files contain dummy data.
 
-        $ cd ${HOME}/tools/esp-idf
-        $ ./install.sh
-        $ . ./export.sh
-        $ cd {path-to-connectedhomeip}
-        $ source ./scripts/activate.sh
-        $ cd {path-to-connectedhomeip-examples}
+#### To test the diagnostic logs cluster
 
--   Configuration Options
+```
+# Commission the app
+chip-tool pairing ble-wifi 1 SSID PASSPHRASE 20202021 3840
 
-        To choose from the different configuration options, run menuconfig
+# Read end user support logs using response payload protocol
+chip-tool diagnosticlogs retrieve-logs-request 0 0 1 0
 
-          $ idf.py menuconfig
+# Read network diagnostic using BDX protocol
+chip-tool interactive start
+> diagnosticlogs retrieve-logs-request 1 1 1 0 --TransferFileDesignator network-diag.log
+# Retrieve crash summary over BDX
+> diagnosticlogs retrieve-logs-request 2 1 1 0 --TransferFileDesignator crash-summary.bin
+```
 
-        Select ESP32 based `Device Type` through `Demo`->`Device Type`.
-        The device types that are currently supported include `ESP32-DevKitC` (default),
-        and `M5Stack`
+esp-idf supports storing and retrieving
+[core dump in flash](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/core_dump.html#core-dump-to-flash).
 
-        If you are using `standalone chip-tool` to communicate with the ESP32, bypass the
-        Rendezvous mode so that the device can communicate over an insecure channel.
-        This can be done through `Demo`->`Rendezvous Mode`->`Bypass`
+To support that, application needs to add core dump partition's entry in
+[partitons.csv](partitions.csv#7) and we need to enable few menuconfig options.
 
-        To connect the ESP32 to your network, configure the Wi-Fi SSID and Passphrase through
-        `Component config`->`CHIP Device Layer`->`WiFi Station Options`->`Default WiFi SSID` and
-        `Default WiFi Password` respectively.
+```
+CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH=y
+CONFIG_ESP32_COREDUMP_DATA_FORMAT_ELF=y
+```
 
--   To build the demo application.
+This example's partition table and sdkconfig.default are already modified
 
-          $ idf.py build
+-   Retrieve the core dump using diagnostic logs cluster
 
--   After building the application, to flash it outside of VSCode, connect your
-    device via USB. Then run the following command to flash the demo application
-    onto the device and then monitor its output. If necessary, replace
-    `/dev/tty.SLAB_USBtoUART`(MacOS) with the correct USB device name for your
-    system(like `/dev/ttyUSB0` on Linux). Note that sometimes you might have to
-    press and hold the `boot` button on the device while it's trying to connect
-    before flashing. For ESP32-DevKitC devices this is labeled in the
-    [functional description diagram](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/esp32/get-started-devkitc.html#functional-description).
-
-          $ idf.py flash monitor ESPPORT=/dev/ttyUSB0
-
-    Note: Some users might have to install the
-    [VCP driver](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers)
-    before the device shows up on `/dev/tty`.
-
--   Quit the monitor by hitting `Ctrl+]`.
-
-    Note: You can see a menu of various monitor commands by hitting
-    `Ctrl+t Ctrl+h` while the monitor is running.
-
--   If desired, the monitor can be run again like so:
-
-          $ idf.py monitor ESPPORT=/dev/ttyUSB0
-
-## Using the Echo Server
-
-### Connect the ESP32 to a 2.4GHz Network of your choice
-
-1.  If the `WiFi Station Options` mentioned above are populated through
-    menuconfig, then ESP32 connects to the AP with those credentials (STA mode).
-
-2.  Now flash the device with the same command as before. (Use the right `/dev`
-    device)
-
-          $ idf make flash monitor ESPPORT=/dev/ttyUSB0
-
-3.  The device should boot up and connect to your network. When that happens you
-    will see a log like this in the monitor.
-
-          I (5524) chip[DL]: SYSTEM_EVENT_STA_GOT_IP
-          I (5524) chip[DL]: IPv4 address changed on WiFi station interface: <IP_ADDRESS>...
-
-    Note: If you are using the M5Stack, the screen will display the server's IP
-    Address if it successfully connects to the configured 2.4GHz Network.
-
-4.  Use
-    [standalone chip-tool](https://github.com/project-chip/connectedhomeip/tree/master/examples/chip-tool)
-    or
-    [iOS chip-tool app](https://github.com/project-chip/connectedhomeip/tree/master/src/darwin)
-    to communicate with the device.
-
-Note: The ESP32 does not support 5GHz networks. Also, the Device will persist
-your network configuration. To erase it, simply run.
-
-    $ idf make erase_flash ESPPORT=/dev/ttyUSB0
-
-The demo application supports temperaturemeasurement and basic cluster.
+    ```
+    # Read crash summary over BDX
+    chip-tool interactive start
+    > diagnosticlogs retrieve-logs-request 2 1 1 0 --TransferFileDesignator crash-summary.bin
+    ```
 
 ## Optimization
 
@@ -135,5 +83,13 @@ Optimization related to WiFi, BLuetooth, Asserts etc are the part of this
 example by default. To enable this option set is_debug=false from command-line.
 
 ```
-idf make build flash monitor 'is_debug=false'
+# Reconfigure the project for additional optimizations
+rm -rf sdkconfig build/
+idf.py -Dis_debug=false reconfigure
+
+# Set additional configurations if required
+idf.py menuconfig
+
+# Build, flash, and monitor the device
+idf.py -p /dev/tty.SLAB_USBtoUART build flash monitor
 ```

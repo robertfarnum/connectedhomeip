@@ -23,23 +23,31 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
-#include <stdint.h>
 #include <string>
 #include <vector>
 
-#include <core/CHIPError.h>
+#include <lib/core/CHIPError.h>
+#include <lib/core/Optional.h>
+#include <lib/support/BitFlags.h>
+#include <lib/support/SetupDiscriminator.h>
 
 namespace chip {
 
-// TODO this should point to the spec
-const int kVersionFieldLengthInBits                   = 3;
-const int kVendorIDFieldLengthInBits                  = 16;
-const int kProductIDFieldLengthInBits                 = 16;
-const int kCustomFlowRequiredFieldLengthInBits        = 1;
-const int kRendezvousInfoFieldLengthInBits            = 8;
-const int kPayloadDiscriminatorFieldLengthInBits      = 12;
-const int kManualSetupDiscriminatorFieldLengthInBits  = 4;
+// See section 5.1.2. QR Code in the Matter specification
+const int kVersionFieldLengthInBits              = 3;
+const int kVendorIDFieldLengthInBits             = 16;
+const int kProductIDFieldLengthInBits            = 16;
+const int kCommissioningFlowFieldLengthInBits    = 2;
+const int kRendezvousInfoFieldLengthInBits       = 8;
+const int kPayloadDiscriminatorFieldLengthInBits = SetupDiscriminator::kLongBits;
+const int kSetupPINCodeFieldLengthInBits         = 27;
+const int kPaddingFieldLengthInBits              = 4;
+const int kRawVendorTagLengthInBits              = 7;
+
+// See section 5.1.3. Manual Pairing Code in the Matter specification
+const int kManualSetupDiscriminatorFieldLengthInBits  = SetupDiscriminator::kShortBits;
 const int kManualSetupChunk1DiscriminatorMsbitsPos    = 0;
 const int kManualSetupChunk1DiscriminatorMsbitsLength = 2;
 const int kManualSetupChunk1VidPidPresentBitPos =
@@ -50,10 +58,6 @@ const int kManualSetupChunk2DiscriminatorLsbitsPos = (kManualSetupChunk2PINCodeL
 const int kManualSetupChunk2DiscriminatorLsbitsLength = 2;
 const int kManualSetupChunk3PINCodeMsbitsPos          = 0;
 const int kManualSetupChunk3PINCodeMsbitsLength       = 13;
-const int kSetupPINCodeFieldLengthInBits              = 27;
-const int kPaddingFieldLengthInBits                   = 5;
-
-const int kRawVendorTagLengthInBits = 7;
 
 const int kManualSetupShortCodeCharLength  = 10;
 const int kManualSetupLongCodeCharLength   = 20;
@@ -63,17 +67,23 @@ const int kManualSetupCodeChunk3CharLength = 4;
 const int kManualSetupVendorIdCharLength   = 5;
 const int kManualSetupProductIdCharLength  = 5;
 
-const uint8_t kSerialNumberTag = 128;
+// Spec 5.1.4.2 CHIP-Common Reserved Tags
+inline constexpr uint8_t kSerialNumberTag         = 0x00;
+inline constexpr uint8_t kPBKDFIterationsTag      = 0x01;
+inline constexpr uint8_t kBPKFSaltTag             = 0x02;
+inline constexpr uint8_t kNumberOFDevicesTag      = 0x03;
+inline constexpr uint8_t kCommissioningTimeoutTag = 0x04;
 
-// The largest value of the 12-bit Payload discriminator
-const uint16_t kMaxDiscriminatorValue = 0xFFF;
+inline constexpr uint32_t kSetupPINCodeMaximumValue   = 99999998;
+inline constexpr uint32_t kSetupPINCodeUndefinedValue = 0;
+static_assert(kSetupPINCodeMaximumValue < (1 << kSetupPINCodeFieldLengthInBits));
 
 // clang-format off
 const int kTotalPayloadDataSizeInBits =
     kVersionFieldLengthInBits +
     kVendorIDFieldLengthInBits +
     kProductIDFieldLengthInBits +
-    kCustomFlowRequiredFieldLengthInBits +
+    kCommissioningFlowFieldLengthInBits +
     kRendezvousInfoFieldLengthInBits +
     kPayloadDiscriminatorFieldLengthInBits +
     kSetupPINCodeFieldLengthInBits +
@@ -82,18 +92,64 @@ const int kTotalPayloadDataSizeInBits =
 
 const int kTotalPayloadDataSizeInBytes = kTotalPayloadDataSizeInBits / 8;
 
-const char * const kQRCodePrefix = "CH:";
+const char * const kQRCodePrefix = "MT:";
 
 /// The rendezvous type this device supports.
-enum class RendezvousInformationFlags : uint16_t
+enum class RendezvousInformationFlag : uint8_t
 {
-    kNone     = 0,      ///< Device does not support any method for rendezvous
-    kWiFi     = 1 << 0, ///< Device supports Wi-Fi
-    kBLE      = 1 << 1, ///< Device supports BLE
-    kThread   = 1 << 2, ///< Device supports Thread
-    kEthernet = 1 << 3, ///< Device MAY be attached to a wired 802.3 connection
+    kNone      = 0,      ///< Device does not support any method for rendezvous
+    kSoftAP    = 1 << 0, ///< Device supports Wi-Fi softAP
+    kBLE       = 1 << 1, ///< Device supports BLE
+    kOnNetwork = 1 << 2, ///< Device supports Setup on network
+    kWiFiPAF   = 1 << 3, ///< Device supports Wi-Fi Public Action Frame for discovery
+};
+using RendezvousInformationFlags = chip::BitFlags<RendezvousInformationFlag, uint8_t>;
 
-    kAllMask = kWiFi | kBLE | kThread | kEthernet,
+enum class CommissioningFlow : uint8_t
+{
+    kStandard = 0,       ///< Device automatically enters pairing mode upon power-up
+    kUserActionRequired, ///< Device requires a user interaction to enter pairing mode
+    kCustom,             ///< Commissioning steps should be retrieved from the distributed compliance ledger
+};
+
+/**
+ * A parent struct to hold onboarding payload contents without optional info,
+ * for compatibility with devices that don't support std::string or STL.
+ */
+struct PayloadContents
+{
+    uint8_t version                     = 0;
+    uint16_t vendorID                   = 0;
+    uint16_t productID                  = 0;
+    CommissioningFlow commissioningFlow = CommissioningFlow::kStandard;
+    // rendezvousInformation is Optional, because a payload parsed from a manual
+    // numeric code would not have any rendezvousInformation available.  A
+    // payload parsed from a QR code would always have a value for
+    // rendezvousInformation.
+    Optional<RendezvousInformationFlags> rendezvousInformation;
+    SetupDiscriminator discriminator{};
+    uint32_t setUpPINCode = 0;
+
+    enum class ValidationMode : uint8_t
+    {
+        kProduce, ///< Only flags or values allowed by the current spec version are allowed.
+                  ///  Producers of a Setup Payload should use this mode to ensure the
+                  //   payload is valid according to the current spec version.
+        kConsume, ///< Flags or values that are reserved for future use, or were allowed in
+                  ///  a previous spec version may be present. Consumers of a Setup Payload
+                  ///  should use this mode to ensure they are forward and backwards
+                  ///  compatible with payloads from older or newer Matter devices.
+    };
+
+    bool isValidQRCodePayload(ValidationMode mode = ValidationMode::kProduce) const;
+    bool isValidManualCode(ValidationMode mode = ValidationMode::kProduce) const;
+
+    bool operator==(const PayloadContents & input) const;
+
+    static bool IsValidSetupPIN(uint32_t setupPIN);
+
+private:
+    bool CheckPayloadCommonConstraints() const;
 };
 
 enum optionalQRCodeInfoType
@@ -111,73 +167,60 @@ enum optionalQRCodeInfoType
  */
 struct OptionalQRCodeInfo
 {
-    OptionalQRCodeInfo() { int32 = 0; }
-
     /*@{*/
     uint8_t tag;                      /**< the tag number of the optional info */
     enum optionalQRCodeInfoType type; /**< the type (String or Int) of the optional info */
     std::string data;                 /**< the string value if type is optionalQRCodeInfoTypeString, otherwise should not be set */
-    int32_t int32;                    /**< the integer value if type is optionalQRCodeInfoTypeInt, otherwise should not be set */
+    int32_t int32 = 0;                /**< the integer value if type is optionalQRCodeInfoTypeInt32, otherwise should not be set */
     /*@}*/
 };
 
 struct OptionalQRCodeInfoExtension : OptionalQRCodeInfo
 {
-    OptionalQRCodeInfoExtension()
-    {
-        int32  = 0;
-        int64  = 0;
-        uint32 = 0;
-        uint64 = 0;
-    }
-
-    int64_t int64;
-    uint64_t uint32;
-    uint64_t uint64;
+    int64_t int64   = 0; /**< the integer value if type is optionalQRCodeInfoTypeInt64, otherwise should not be set */
+    uint64_t uint32 = 0; /**< the integer value if type is optionalQRCodeInfoTypeUInt32, otherwise should not be set */
+    uint64_t uint64 = 0; /**< the integer value if type is optionalQRCodeInfoTypeUInt64, otherwise should not be set */
 };
 
-bool IsCHIPTag(uint8_t tag);
-bool IsVendorTag(uint8_t tag);
-
-class SetupPayload
+class SetupPayload : public PayloadContents
 {
 
     friend class QRCodeSetupPayloadGenerator;
     friend class QRCodeSetupPayloadParser;
 
 public:
-    uint8_t version;
-    uint16_t vendorID;
-    uint16_t productID;
-    bool requiresCustomFlow;
-    RendezvousInformationFlags rendezvousInformation;
-    uint16_t discriminator;
-    uint32_t setUpPINCode;
-
     /** @brief A function to add an optional vendor data
-     * @param tag 7 bit [0-127] tag number
+     * @param tag tag number in the [0x80-0xFF] range
      * @param data String representation of data to add
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
     CHIP_ERROR addOptionalVendorData(uint8_t tag, std::string data);
 
     /** @brief A function to add an optional vendor data
-     * @param tag 7 bit [0-127] tag number
+     * @param tag tag number in the [0x80-0xFF] range
      * @param data Integer representation of data to add
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
     CHIP_ERROR addOptionalVendorData(uint8_t tag, int32_t data);
 
     /** @brief A function to remove an optional vendor data
-     * @param tag 7 bit [0-127] tag number
+     * @param tag tag number in the [0x80-0xFF] range
      * @return Returns a CHIP_ERROR_KEY_NOT_FOUND on error, CHIP_NO_ERROR otherwise
      **/
     CHIP_ERROR removeOptionalVendorData(uint8_t tag);
+
+    /** @brief A function to retrieve an optional QR Code info vendor object
+     * @param tag tag number in the [0x80-0xFF] range
+     * @param info retrieved OptionalQRCodeInfo object
+     * @return Returns a CHIP_ERROR_KEY_NOT_FOUND on error, CHIP_NO_ERROR otherwise
+     **/
+    CHIP_ERROR getOptionalVendorData(uint8_t tag, OptionalQRCodeInfo & info) const;
+
     /**
      * @brief A function to retrieve the vector of OptionalQRCodeInfo infos
      * @return Returns a vector of optionalQRCodeInfos
      **/
-    std::vector<OptionalQRCodeInfo> getAllOptionalVendorData();
+    std::vector<OptionalQRCodeInfo> getAllOptionalVendorData() const;
 
     /** @brief A function to add a string serial number
      * @param serialNumber string serial number
@@ -195,22 +238,37 @@ public:
      * @param outSerialNumber retrieved string serial number
      * @return Returns a CHIP_ERROR on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR getSerialNumber(std::string & outSerialNumber);
+    CHIP_ERROR getSerialNumber(std::string & outSerialNumber) const;
 
     /** @brief A function to remove the serial number from the payload
      * @return Returns a CHIP_ERROR_KEY_NOT_FOUND on error, CHIP_NO_ERROR otherwise
      **/
     CHIP_ERROR removeSerialNumber();
 
-    // Test that the Setup Payload is within expected value ranges
-    SetupPayload() :
-        version(0), vendorID(0), productID(0), requiresCustomFlow(0), rendezvousInformation(RendezvousInformationFlags::kNone),
-        discriminator(0), setUpPINCode(0)
-    {}
+    bool operator==(const SetupPayload & input) const;
 
-    bool isValidQRCodePayload();
-    bool isValidManualCode();
-    bool operator==(SetupPayload & input);
+    /** @brief Checks if the tag is CHIP Common type
+     * @param tag Tag to be checked
+     * @return Returns True if the tag is of Common type
+     **/
+    static bool IsCommonTag(uint8_t tag) { return tag < 0x80; }
+
+    /** @brief Checks if the tag is vendor-specific
+     * @param tag Tag to be checked
+     * @return Returns True if the tag is Vendor-specific
+     **/
+    static bool IsVendorTag(uint8_t tag) { return !IsCommonTag(tag); }
+
+    /** @brief Generate a Random Setup Pin Code (Passcode)
+     *
+     * This function generates a random passcode within the defined limits (00000001 to 99999998)
+     * It also checks that the generated passcode is not equal to any invalid passcode values as defined in 5.1.7.1.
+     *
+     * @param[out] setupPINCode The generated random setup PIN code.
+     * @return Returns a CHIP_ERROR_INTERNAL if unable to generate a valid passcode within a reasonable number of attempts,
+     * CHIP_NO_ERROR otherwise
+     **/
+    static CHIP_ERROR generateRandomSetupPin(uint32_t & setupPINCode);
 
 private:
     std::map<uint8_t, OptionalQRCodeInfo> optionalVendorData;
@@ -232,27 +290,20 @@ private:
      * @brief A function to retrieve the vector of CHIPQRCodeInfo infos
      * @return Returns a vector of CHIPQRCodeInfos
      **/
-    std::vector<OptionalQRCodeInfoExtension> getAllOptionalExtensionData();
-
-    /** @brief A function to retrieve an optional QR Code info vendor object
-     * @param tag 7 bit [0-127] tag number
-     * @param info retrieved OptionalQRCodeInfo object
-     * @return Returns a CHIP_ERROR_KEY_NOT_FOUND on error, CHIP_NO_ERROR otherwise
-     **/
-    CHIP_ERROR getOptionalVendorData(uint8_t tag, OptionalQRCodeInfo & info);
+    std::vector<OptionalQRCodeInfoExtension> getAllOptionalExtensionData() const;
 
     /** @brief A function to retrieve an optional QR Code info extended object
      * @param tag 8 bit [128-255] tag number
      * @param info retrieved OptionalQRCodeInfoExtension object
      * @return Returns a CHIP_ERROR_KEY_NOT_FOUND on error, CHIP_NO_ERROR otherwise
      **/
-    CHIP_ERROR getOptionalExtensionData(uint8_t tag, OptionalQRCodeInfoExtension & info);
+    CHIP_ERROR getOptionalExtensionData(uint8_t tag, OptionalQRCodeInfoExtension & info) const;
 
     /** @brief A function to retrieve the associated expected numeric value for a tag
      * @param tag 8 bit [0-255] tag number
      * @return Returns an optionalQRCodeInfoType value
      **/
-    optionalQRCodeInfoType getNumericTypeFor(uint8_t tag);
+    optionalQRCodeInfoType getNumericTypeFor(uint8_t tag) const;
 };
 
 } // namespace chip

@@ -23,10 +23,18 @@
 
 #pragma once
 
+#include <platform/CHIPDeviceConfig.h>
 #include <platform/internal/GenericPlatformManagerImpl.h>
 
+#if CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
 #include <sys/select.h>
-#include <zephyr.h>
+#endif
+
+#if CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+#include <inet/ZephyrSocket.h> // nogncheck
+#endif
+
+#include <zephyr/kernel.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -44,7 +52,7 @@ template <class ImplClass>
 class GenericPlatformManagerImpl_Zephyr : public GenericPlatformManagerImpl<ImplClass>
 {
 protected:
-    using ThreadStack = k_thread_stack_t[K_THREAD_STACK_LEN(CHIP_DEVICE_CONFIG_CHIP_TASK_STACK_SIZE)];
+    using ThreadStack = k_thread_stack_t *;
 
     // Members for select() loop
     int mMaxFd;
@@ -64,7 +72,7 @@ protected:
     // Although defining thread stack as a class member is feasible it's discouraged according to
     // the Zephyr documentation (see remarks on K_THREAD_STACK_MEMBER macro). Therefore, this class
     // requires the stack reference to be passed in the constructor.
-    ThreadStack & mChipThreadStack;
+    ThreadStack mChipThreadStack;
     k_thread mChipThread;
 
     // ===== Methods that implement the PlatformManager abstract interface.
@@ -73,14 +81,15 @@ protected:
     void _LockChipStack(void);
     bool _TryLockChipStack(void);
     void _UnlockChipStack(void);
-    void _PostEvent(const ChipDeviceEvent * event);
+    CHIP_ERROR _PostEvent(const ChipDeviceEvent * event);
     void _RunEventLoop(void);
     CHIP_ERROR _StartEventLoopTask(void);
-    CHIP_ERROR _StartChipTimer(uint32_t durationMS);
-    CHIP_ERROR _Shutdown(void);
+    CHIP_ERROR _StopEventLoopTask();
+    CHIP_ERROR _StartChipTimer(System::Clock::Timeout duration);
+    void _Shutdown(void);
 
     // ===== Methods available to the implementation subclass.
-    explicit GenericPlatformManagerImpl_Zephyr(ThreadStack & stack) : mChipThreadStack(stack) {}
+    explicit GenericPlatformManagerImpl_Zephyr(ThreadStack stack) : mChipThreadStack(stack) {}
 
 private:
     // ===== Private members for use by this class only.
@@ -88,6 +97,10 @@ private:
     void SysUpdate();
     void SysProcess();
     void ProcessDeviceEvents();
+
+    volatile bool mShouldRunEventLoop;
+
+    bool mInitialized = false;
 
     static void EventLoopTaskMain(void * thisPtr, void *, void *);
 };

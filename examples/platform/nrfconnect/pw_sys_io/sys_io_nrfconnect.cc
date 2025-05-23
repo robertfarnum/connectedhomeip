@@ -17,13 +17,13 @@
 
 #include <cinttypes>
 
-#include "console/console.h"
 #include "pw_sys_io/sys_io.h"
 #include <cassert>
-#include <zephyr.h>
+#include <zephyr/console/console.h>
+#include <zephyr/kernel.h>
 
 #ifdef CONFIG_USB
-#include <usb/usb_device.h>
+#include <zephyr/usb/usb_device.h>
 #endif
 
 extern "C" void pw_sys_io_Init()
@@ -32,7 +32,7 @@ extern "C" void pw_sys_io_Init()
 
 #ifdef CONFIG_USB
     err = usb_enable(nullptr);
-    assert(err == 0);
+    assert(err == 0 || err == (-EALREADY));
 #endif
 
     err = console_init();
@@ -58,10 +58,10 @@ Status WriteByte(std::byte b)
 }
 
 // Writes a string using pw::sys_io, and add newline characters at the end.
-StatusWithSize WriteLine(const std::string_view & s)
+StatusWithSize WriteLine(std::string_view s)
 {
     size_t chars_written  = 0;
-    StatusWithSize result = WriteBytes(std::as_bytes(std::span(s)));
+    StatusWithSize result = WriteBytes(pw::as_bytes(pw::span(s)));
     if (!result.ok())
     {
         return result;
@@ -69,7 +69,7 @@ StatusWithSize WriteLine(const std::string_view & s)
     chars_written += result.size();
 
     // Write trailing newline.
-    result = WriteBytes(std::as_bytes(std::span("\r\n", 2)));
+    result = WriteBytes(pw::as_bytes(pw::span("\r\n", 2)));
     chars_written += result.size();
 
     return StatusWithSize(result.status(), chars_written);

@@ -25,36 +25,35 @@
  *
  */
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-#include <stdint.h>
-#include <string.h>
+#define _CHIP_BLE_BLE_H
+#include "BLEEndPoint.h"
 
-#include <ble/BleConfig.h>
+#include <cstdint>
+#include <cstring>
+#include <utility>
 
-#if CONFIG_NETWORK_LAYER_BLE
-#include <core/CHIPConfig.h>
+#include <lib/support/BitFlags.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/logging/CHIPLogging.h>
+#include <system/SystemClock.h>
+#include <system/SystemLayer.h>
+#include <system/SystemPacketBuffer.h>
 
-#include <support/BitFlags.h>
-#include <support/CHIPFaultInjection.h>
-#include <support/CodeUtils.h>
-#include <support/logging/CHIPLogging.h>
-
-#include <ble/BLEEndPoint.h>
-#include <ble/BleLayer.h>
-#include <ble/BtpEngine.h>
-#if CHIP_ENABLE_CHIPOBLE_TEST
-#include "BtpEngineTest.h"
-#endif
-
-// clang-format off
+#include "BleApplicationDelegate.h"
+#include "BleConfig.h"
+#include "BleError.h"
+#include "BleLayer.h"
+#include "BleLayerDelegate.h"
+#include "BlePlatformDelegate.h"
+#include "BleRole.h"
+#include "BleUUID.h"
+#include "BtpEngine.h"
 
 // Define below to enable extremely verbose, BLE end point-specific debug logging.
 #undef CHIP_BLE_END_POINT_DEBUG_LOGGING_ENABLED
 
 #ifdef CHIP_BLE_END_POINT_DEBUG_LOGGING_ENABLED
-#define ChipLogDebugBleEndPoint(MOD, MSG, ...) ChipLogError(MOD, MSG, ## __VA_ARGS__)
+#define ChipLogDebugBleEndPoint(MOD, MSG, ...) ChipLogDetail(MOD, MSG, ##__VA_ARGS__)
 #else
 #define ChipLogDebugBleEndPoint(MOD, MSG, ...)
 #endif
@@ -67,43 +66,35 @@
  *    packet to re-open its window instead of waiting for the send-ack timer to expire.
  *
  */
-#define BLE_CONFIG_IMMEDIATE_ACK_WINDOW_THRESHOLD                   1
-
-/**
- * @def BLE_CONNECT_TIMEOUT_MS
- *
- * @brief
- *   This is the amount of time, in milliseconds, after a BLE end point initiates a transport protocol connection
- *   or receives the initial portion of a connect request before the end point will automatically release its BLE
- *   connection and free itself if the transport connection has not been established.
- *
- */
-#define BLE_CONNECT_TIMEOUT_MS                                15000 // 15 seconds
+#define BLE_CONFIG_IMMEDIATE_ACK_WINDOW_THRESHOLD 1
 
 /**
  *  @def BLE_UNSUBSCRIBE_TIMEOUT_MS
  *
  *  @brief
  *    This is amount of time, in milliseconds, which a BLE end point will wait for an unsubscribe operation to complete
- *    before it automatically releases its BLE connection and frees itself. The default value of 5 seconds is arbitary.
+ *    before it automatically releases its BLE connection and frees itself. The default value of 5 seconds is arbitrary.
  *
  */
-#define BLE_UNSUBSCRIBE_TIMEOUT_MS                            5000 // 5 seconds
+#define BLE_UNSUBSCRIBE_TIMEOUT_MS 5000
 
-#define BTP_ACK_RECEIVED_TIMEOUT_MS                          15000 // 15 seconds
-#define BTP_ACK_SEND_TIMEOUT_MS                               2500 // 2.5 seconds
+#define BTP_ACK_SEND_TIMEOUT_MS 2500
 
-#define BTP_WINDOW_NO_ACK_SEND_THRESHOLD                         1 // Data fragments may only be sent without piggybacked
-                                                                   // acks if receiver's window size is above this threshold.
-
-// clang-format on
+/**
+ *  @def BTP_WINDOW_NO_ACK_SEND_THRESHOLD
+ *
+ *  @brief
+ *    Data fragments may only be sent without piggybacked acks if receiver's window size is above this threshold.
+ *
+ */
+#define BTP_WINDOW_NO_ACK_SEND_THRESHOLD 1
 
 namespace chip {
 namespace Ble {
 
-BLE_ERROR BLEEndPoint::StartConnect()
+CHIP_ERROR BLEEndPoint::StartConnect()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
     BleTransportCapabilitiesRequestMessage req;
     PacketBufferHandle buf;
     constexpr uint8_t numVersions =
@@ -111,12 +102,12 @@ BLE_ERROR BLEEndPoint::StartConnect()
     static_assert(numVersions <= NUM_SUPPORTED_PROTOCOL_VERSIONS, "Incompatibly protocol versions");
 
     // Ensure we're in the correct state.
-    VerifyOrExit(mState == kState_Ready, err = BLE_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mState == kState_Ready, err = CHIP_ERROR_INCORRECT_STATE);
     mState = kState_Connecting;
 
     // Build BLE transport protocol capabilities request.
     buf = System::PacketBufferHandle::New(System::PacketBuffer::kMaxSize);
-    VerifyOrExit(!buf.IsNull(), err = BLE_ERROR_NO_MEMORY);
+    VerifyOrExit(!buf.IsNull(), err = CHIP_ERROR_NO_MEMORY);
 
     // Zero-initialize BLE transport capabilities request.
     memset(&req, 0, sizeof(req));
@@ -142,11 +133,8 @@ BLE_ERROR BLEEndPoint::StartConnect()
     // Add reference to message fragment for duration of platform's GATT write attempt. CHIP retains partial
     // ownership of message fragment's packet buffer, since this is the same buffer as that of the whole message, just
     // with a fragmenter-modified payload offset and data length, by a Retain() on the handle when calling this function.
-    if (!SendWrite(buf.Retain()))
-    {
-        err = BLE_ERROR_GATT_WRITE_FAILED;
-        ExitNow();
-    }
+    err = SendWrite(buf.Retain());
+    SuccessOrExit(err);
 
     // Free request buffer on write confirmation. Stash a reference to it in mSendQueue, which we don't use anyway
     // until the connection has been set up.
@@ -154,7 +142,7 @@ BLE_ERROR BLEEndPoint::StartConnect()
 
 exit:
     // If we failed to initiate the connection, close the end point.
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
         StopConnectTimer();
         DoClose(kBleCloseFlag_AbortTransmission, err);
@@ -163,9 +151,9 @@ exit:
     return err;
 }
 
-BLE_ERROR BLEEndPoint::HandleConnectComplete()
+CHIP_ERROR BLEEndPoint::HandleConnectComplete()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     mState = kState_Connected;
 
@@ -173,10 +161,10 @@ BLE_ERROR BLEEndPoint::HandleConnectComplete()
     StopConnectTimer();
 
     // We've successfully completed the BLE transport protocol handshake, so let the application know we're open for business.
-    if (OnConnectComplete != nullptr)
+    if (mBleTransport != nullptr)
     {
         // Indicate connect complete to next-higher layer.
-        OnConnectComplete(this, BLE_NO_ERROR);
+        mBleTransport->OnEndPointConnectComplete(this, CHIP_NO_ERROR);
     }
     else
     {
@@ -187,9 +175,9 @@ BLE_ERROR BLEEndPoint::HandleConnectComplete()
     return err;
 }
 
-BLE_ERROR BLEEndPoint::HandleReceiveConnectionComplete()
+CHIP_ERROR BLEEndPoint::HandleReceiveConnectionComplete()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     ChipLogDebugBleEndPoint(Ble, "entered HandleReceiveConnectionComplete");
     mState = kState_Connected;
@@ -197,11 +185,11 @@ BLE_ERROR BLEEndPoint::HandleReceiveConnectionComplete()
     // Cancel receive connection timer.
     StopReceiveConnectionTimer();
 
-    // We've successfully completed the BLE transport protocol handshake, so let the application know we're open for business.
-    if (mBle->OnChipBleConnectReceived != nullptr)
+    // We've successfully completed the BLE transport protocol handshake, so let the transport know we're open for business.
+    if (mBleTransport != nullptr)
     {
         // Indicate BLE transport protocol connection received to next-higher layer.
-        mBle->OnChipBleConnectReceived(this);
+        err = mBleTransport->SetEndPoint(this);
     }
     else
     {
@@ -213,27 +201,22 @@ BLE_ERROR BLEEndPoint::HandleReceiveConnectionComplete()
 
 void BLEEndPoint::HandleSubscribeReceived()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
-    VerifyOrExit(mState == kState_Connecting || mState == kState_Aborting, err = BLE_ERROR_INCORRECT_STATE);
-    VerifyOrExit(!mSendQueue.IsNull(), err = BLE_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mState == kState_Connecting || mState == kState_Aborting, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(!mSendQueue.IsNull(), err = CHIP_ERROR_INCORRECT_STATE);
 
     // Send BTP capabilities response to peripheral via GATT indication.
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    VerifyOrExit(mBtpEngine.PopPacketTag(mSendQueue) == kType_Data, err = BLE_ERROR_INVALID_BTP_HEADER_FLAGS);
-#endif
     // Add reference to message fragment for duration of platform's GATT indication attempt. CHIP retains partial
     // ownership of message fragment's packet buffer, since this is the same buffer as that of the whole message, just
     // with a fragmenter-modified payload offset and data length.
-    if (!SendIndication(mSendQueue.Retain()))
+    err = SendIndication(mSendQueue.Retain());
+    if (err != CHIP_NO_ERROR)
     {
         // Ensure transmit queue is empty and set to NULL.
-        QueueTxLock();
         mSendQueue = nullptr;
-        QueueTxUnlock();
 
         ChipLogError(Ble, "cap resp ind failed");
-        err = BLE_ERROR_GATT_INDICATE_FAILED;
         ExitNow();
     }
 
@@ -263,7 +246,7 @@ void BLEEndPoint::HandleSubscribeReceived()
     } // Else State == kState_Aborting, so we'll close end point when indication confirmation received.
 
 exit:
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
         DoClose(kBleCloseFlag_SuppressCallback | kBleCloseFlag_AbortTransmission, err);
     }
@@ -274,11 +257,11 @@ void BLEEndPoint::HandleSubscribeComplete()
     ChipLogProgress(Ble, "subscribe complete, ep = %p", this);
     mConnStateFlags.Clear(ConnectionStateFlag::kGattOperationInFlight);
 
-    BLE_ERROR err = DriveSending();
+    CHIP_ERROR err = DriveSending();
 
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
-        DoClose(kBleCloseFlag_AbortTransmission, BLE_NO_ERROR);
+        DoClose(kBleCloseFlag_AbortTransmission, CHIP_NO_ERROR);
     }
 }
 
@@ -304,11 +287,8 @@ void BLEEndPoint::Abort()
     OnConnectComplete  = nullptr;
     OnConnectionClosed = nullptr;
     OnMessageReceived  = nullptr;
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    OnCommandReceived = NULL;
-#endif
 
-    DoClose(kBleCloseFlag_SuppressCallback | kBleCloseFlag_AbortTransmission, BLE_NO_ERROR);
+    DoClose(kBleCloseFlag_SuppressCallback | kBleCloseFlag_AbortTransmission, CHIP_NO_ERROR);
 }
 
 void BLEEndPoint::Close()
@@ -317,14 +297,11 @@ void BLEEndPoint::Close()
     OnConnectComplete  = nullptr;
     OnConnectionClosed = nullptr;
     OnMessageReceived  = nullptr;
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    OnCommandReceived = NULL;
-#endif
 
-    DoClose(kBleCloseFlag_SuppressCallback, BLE_NO_ERROR);
+    DoClose(kBleCloseFlag_SuppressCallback, CHIP_NO_ERROR);
 }
 
-void BLEEndPoint::DoClose(uint8_t flags, BLE_ERROR err)
+void BLEEndPoint::DoClose(uint8_t flags, CHIP_ERROR err)
 {
     uint8_t oldState = mState;
 
@@ -365,23 +342,31 @@ void BLEEndPoint::DoClose(uint8_t flags, BLE_ERROR err)
             {
                 DoCloseCallback(oldState, flags, err);
             }
+
+            if (mBleTransport != nullptr && (flags & kBleCloseFlag_SuppressCallback) != 0)
+            {
+                mBleTransport->OnEndPointConnectionClosed(this, err);
+            }
         }
     }
 }
 
-void BLEEndPoint::FinalizeClose(uint8_t oldState, uint8_t flags, BLE_ERROR err)
+void BLEEndPoint::FinalizeClose(uint8_t oldState, uint8_t flags, CHIP_ERROR err)
 {
     mState = kState_Closed;
 
     // Ensure transmit queue is empty and set to NULL.
-    QueueTxLock();
     mSendQueue = nullptr;
-    QueueTxUnlock();
 
     // Fire application's close callback if we haven't already, and it's not suppressed.
     if (oldState != kState_Closing && (flags & kBleCloseFlag_SuppressCallback) == 0)
     {
         DoCloseCallback(oldState, flags, err);
+    }
+
+    if (mBleTransport != nullptr && (flags & kBleCloseFlag_SuppressCallback) != 0)
+    {
+        mBleTransport->OnEndPointConnectionClosed(this, err);
     }
 
     // If underlying BLE connection has closed, connection object is invalid, so just free the end point and return.
@@ -401,9 +386,10 @@ void BLEEndPoint::FinalizeClose(uint8_t oldState, uint8_t flags, BLE_ERROR err)
             // Indicate close of chipConnection to peripheral via GATT unsubscribe. Keep end point allocated until
             // unsubscribe completes or times out, so platform doesn't close underlying BLE connection before
             // we're really sure the unsubscribe request has been sent.
-            if (!mBle->mPlatformDelegate->UnsubscribeCharacteristic(mConnObj, &CHIP_BLE_SVC_ID, &mBle->CHIP_BLE_CHAR_2_ID))
+            err = mBle->mPlatformDelegate->UnsubscribeCharacteristic(mConnObj, &CHIP_BLE_SVC_ID, &CHIP_BLE_CHAR_2_UUID);
+            if (err != CHIP_NO_ERROR)
             {
-                ChipLogError(Ble, "BtpEngine unsub failed");
+                ChipLogError(Ble, "BtpEngine unsubscribe failed %" CHIP_ERROR_FORMAT, err.Format());
 
                 // If unsubscribe fails, release BLE connection and free end point immediately.
                 Free();
@@ -414,7 +400,7 @@ void BLEEndPoint::FinalizeClose(uint8_t oldState, uint8_t flags, BLE_ERROR err)
                 // received in the downcall to UnsubscribeCharacteristic, so set timer for the unsubscribe to complete.
                 err = StartUnsubscribeTimer();
 
-                if (err != BLE_NO_ERROR)
+                if (err != CHIP_NO_ERROR)
                 {
                     Free();
                 }
@@ -430,20 +416,20 @@ void BLEEndPoint::FinalizeClose(uint8_t oldState, uint8_t flags, BLE_ERROR err)
     }
 }
 
-void BLEEndPoint::DoCloseCallback(uint8_t state, uint8_t flags, BLE_ERROR err)
+void BLEEndPoint::DoCloseCallback(uint8_t state, uint8_t flags, CHIP_ERROR err)
 {
     if (state == kState_Connecting)
     {
-        if (OnConnectComplete != nullptr)
+        if (mBleTransport != nullptr)
         {
-            OnConnectComplete(this, err);
+            mBleTransport->OnEndPointConnectComplete(this, err);
         }
     }
     else
     {
-        if (OnConnectionClosed != nullptr)
+        if (mBleTransport != nullptr)
         {
-            OnConnectionClosed(this, err);
+            mBleTransport->OnEndPointConnectionClosed(this, err);
         }
     }
 
@@ -491,11 +477,6 @@ void BLEEndPoint::Free()
     StopAckReceivedTimer();
     StopSendAckTimer();
     StopUnsubscribeTimer();
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    mBtpEngineTest.StopTestTimer();
-    // Clear callback
-    OnCommandReceived = NULL;
-#endif
 
     // Clear callbacks.
     OnConnectComplete  = nullptr;
@@ -518,46 +499,27 @@ void BLEEndPoint::FreeBtpEngine()
     mBtpEngine.ClearRxPacket();
 }
 
-BLE_ERROR BLEEndPoint::Init(BleLayer * bleLayer, BLE_CONNECTION_OBJECT connObj, BleRole role, bool autoClose)
+CHIP_ERROR BLEEndPoint::Init(BleLayer * bleLayer, BLE_CONNECTION_OBJECT connObj, BleRole role, bool autoClose)
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    bool expectInitialAck;
-
     // Fail if already initialized.
-    VerifyOrExit(mBle == nullptr, err = BLE_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mBle == nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     // Validate args.
-    VerifyOrExit(bleLayer != nullptr, err = BLE_ERROR_BAD_ARGS);
-    VerifyOrExit(connObj != BLE_CONNECTION_UNINITIALIZED, err = BLE_ERROR_BAD_ARGS);
-    VerifyOrExit((role == kBleRole_Central || role == kBleRole_Peripheral), err = BLE_ERROR_BAD_ARGS);
+    VerifyOrReturnError(bleLayer != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(connObj != BLE_CONNECTION_UNINITIALIZED, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError((role == kBleRole_Central || role == kBleRole_Peripheral), CHIP_ERROR_INVALID_ARGUMENT);
 
     // If end point plays peripheral role, expect ack for indication sent as last step of BTP handshake.
-    // If central, periperal's handshake indication 'ack's write sent by central to kick off the BTP handshake.
-    expectInitialAck = (role == kBleRole_Peripheral);
+    // If central, peripheral's handshake indication 'ack's write sent by central to kick off the BTP handshake.
+    bool expectInitialAck = (role == kBleRole_Peripheral);
 
-    err = mBtpEngine.Init(this, expectInitialAck);
-    if (err != BLE_NO_ERROR)
+    CHIP_ERROR err = mBtpEngine.Init(this, expectInitialAck);
+    if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Ble, "BtpEngine init failed");
-        ExitNow();
+        return err;
     }
 
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    err = (BLE_ERROR) mTxQueueMutex.Init(mTxQueueMutex);
-    if (err != BLE_NO_ERROR)
-    {
-        ChipLogError(Ble, "%s: Mutex init failed", __FUNCTION__);
-        ExitNow();
-    }
-    err = mBtpEngineTest.Init(this);
-    if (err != BLE_NO_ERROR)
-    {
-        ChipLogError(Ble, "BTP test init failed");
-        ExitNow();
-    }
-#endif
-
-    // BleLayerObject initialization:
     mBle      = bleLayer;
     mRefCount = 1;
 
@@ -577,41 +539,47 @@ BLE_ERROR BLEEndPoint::Init(BleLayer * bleLayer, BLE_CONNECTION_OBJECT connObj, 
     // End point is ready to connect or receive a connection.
     mState = kState_Ready;
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
-BLE_ERROR BLEEndPoint::SendCharacteristic(PacketBufferHandle && buf)
+void BLEEndPoint::AddRef()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
+    VerifyOrDie(mRefCount < UINT32_MAX);
+    mRefCount++;
+}
+
+void BLEEndPoint::Release()
+{
+    VerifyOrDie(mRefCount > 0u);
+    // Decrement the ref count.  When it reaches zero, NULL out the pointer to the chip::System::Layer
+    // object. This effectively declared the object free and ready for re-allocation.
+    mRefCount--;
+    if (mRefCount == 0)
+    {
+        mBle = nullptr;
+    }
+}
+
+CHIP_ERROR BLEEndPoint::SendCharacteristic(PacketBufferHandle && buf)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     if (mRole == kBleRole_Central)
     {
-        if (!SendWrite(std::move(buf)))
-        {
-            err = BLE_ERROR_GATT_WRITE_FAILED;
-        }
-        else
-        {
-            // Write succeeded, so shrink remote receive window counter by 1.
-            mRemoteReceiveWindowSize = static_cast<SequenceNumber_t>(mRemoteReceiveWindowSize - 1);
-            ChipLogDebugBleEndPoint(Ble, "decremented remote rx window, new size = %u", mRemoteReceiveWindowSize);
-        }
+        SuccessOrExit(err = SendWrite(std::move(buf)));
+        // Write succeeded, so shrink remote receive window counter by 1.
+        mRemoteReceiveWindowSize = static_cast<SequenceNumber_t>(mRemoteReceiveWindowSize - 1);
+        ChipLogDebugBleEndPoint(Ble, "decremented remote rx window, new size = %u", mRemoteReceiveWindowSize);
     }
     else // (mRole == kBleRole_Peripheral), verified on Init
     {
-        if (!SendIndication(std::move(buf)))
-        {
-            err = BLE_ERROR_GATT_INDICATE_FAILED;
-        }
-        else
-        {
-            // Indication succeeded, so shrink remote receive window counter by 1.
-            mRemoteReceiveWindowSize = static_cast<SequenceNumber_t>(mRemoteReceiveWindowSize - 1);
-            ChipLogDebugBleEndPoint(Ble, "decremented remote rx window, new size = %u", mRemoteReceiveWindowSize);
-        }
+        SuccessOrExit(err = SendIndication(std::move(buf)));
+        // Indication succeeded, so shrink remote receive window counter by 1.
+        mRemoteReceiveWindowSize = static_cast<SequenceNumber_t>(mRemoteReceiveWindowSize - 1);
+        ChipLogDebugBleEndPoint(Ble, "decremented remote rx window, new size = %u", mRemoteReceiveWindowSize);
     }
 
+exit:
     return err;
 }
 
@@ -622,13 +590,6 @@ BLE_ERROR BLEEndPoint::SendCharacteristic(PacketBufferHandle && buf)
  */
 void BLEEndPoint::QueueTx(PacketBufferHandle && data, PacketType_t type)
 {
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    ChipLogDebugBleEndPoint(Ble, "%s: data->%p, type %d, len %d", __FUNCTION__, data, type, data->DataLength());
-    mBtpEngine.PushPacketTag(data, type);
-#endif
-
-    QueueTxLock();
-
     if (mSendQueue.IsNull())
     {
         mSendQueue = std::move(data);
@@ -639,18 +600,16 @@ void BLEEndPoint::QueueTx(PacketBufferHandle && data, PacketType_t type)
         mSendQueue->AddToEnd(std::move(data));
         ChipLogDebugBleEndPoint(Ble, "%s: Append data to mSendQueue %p, type %d", __FUNCTION__, mSendQueue->Start(), type);
     }
-
-    QueueTxUnlock();
 }
 
-BLE_ERROR BLEEndPoint::Send(PacketBufferHandle data)
+CHIP_ERROR BLEEndPoint::Send(PacketBufferHandle && data)
 {
     ChipLogDebugBleEndPoint(Ble, "entered Send");
 
-    BLE_ERROR err = BLE_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
-    VerifyOrExit(!data.IsNull(), err = BLE_ERROR_BAD_ARGS);
-    VerifyOrExit(IsConnected(mState), err = BLE_ERROR_INCORRECT_STATE);
+    VerifyOrExit(!data.IsNull(), err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrExit(IsConnected(mState), err = CHIP_ERROR_INCORRECT_STATE);
 
     // Ensure outgoing message fits in a single contiguous packet buffer, as currently required by the
     // message fragmentation and reassembly engine.
@@ -660,7 +619,7 @@ BLE_ERROR BLEEndPoint::Send(PacketBufferHandle data)
 
         if (data->HasChainedBuffer())
         {
-            err = BLE_ERROR_OUTBOUND_MESSAGE_TOO_BIG;
+            err = CHIP_ERROR_OUTBOUND_MESSAGE_TOO_BIG;
             ExitNow();
         }
     }
@@ -674,7 +633,7 @@ BLE_ERROR BLEEndPoint::Send(PacketBufferHandle data)
 
 exit:
     ChipLogDebugBleEndPoint(Ble, "exiting Send");
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
         DoClose(kBleCloseFlag_AbortTransmission, err);
     }
@@ -703,35 +662,14 @@ bool BLEEndPoint::PrepareNextFragment(PacketBufferHandle && data, bool & sentAck
     return mBtpEngine.HandleCharacteristicSend(std::move(data), sentAck);
 }
 
-BLE_ERROR BLEEndPoint::SendNextMessage()
+CHIP_ERROR BLEEndPoint::SendNextMessage()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    bool sentAck;
-
     // Get the first queued packet to send
-    QueueTxLock();
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    // Return if tx queue is empty
-    // Note: PopHead() does not check an empty queue
-    if (mSendQueue.IsNull())
-    {
-        QueueTxUnlock();
-        return err;
-    }
-#endif
-
     PacketBufferHandle data = mSendQueue.PopHead();
-    QueueTxUnlock();
-
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    // Get and consume the packet tag in message buffer
-    PacketType_t type = mBtpEngine.PopPacketTag(data);
-    mBtpEngine.SetTxPacketType(type);
-    mBtpEngineTest.DoTxTiming(data, BTP_TX_START);
-#endif
 
     // Hand whole message payload to the fragmenter.
-    VerifyOrExit(PrepareNextFragment(std::move(data), sentAck), err = BLE_ERROR_CHIPOBLE_PROTOCOL_ABORT);
+    bool sentAck;
+    VerifyOrReturnError(PrepareNextFragment(std::move(data), sentAck), BLE_ERROR_CHIPOBLE_PROTOCOL_ABORT);
 
     /*
      // Todo: reenabled it after integrating fault injection
@@ -748,8 +686,7 @@ BLE_ERROR BLEEndPoint::SendNextMessage()
         ExitNow();
     });
      */
-    err = SendCharacteristic(mBtpEngine.BorrowTxPacket());
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(SendCharacteristic(mBtpEngine.BorrowTxPacket()));
 
     if (sentAck)
     {
@@ -758,16 +695,11 @@ BLE_ERROR BLEEndPoint::SendNextMessage()
     }
 
     // Start ack received timer, if it's not already running.
-    err = StartAckReceivedTimer();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return StartAckReceivedTimer();
 }
 
-BLE_ERROR BLEEndPoint::ContinueMessageSend()
+CHIP_ERROR BLEEndPoint::ContinueMessageSend()
 {
-    BLE_ERROR err;
     bool sentAck;
 
     if (!PrepareNextFragment(nullptr, sentAck))
@@ -776,12 +708,10 @@ BLE_ERROR BLEEndPoint::ContinueMessageSend()
         ChipLogError(Ble, "btp fragmenter error on send!");
         mBtpEngine.LogState();
 
-        err = BLE_ERROR_CHIPOBLE_PROTOCOL_ABORT;
-        ExitNow();
+        return BLE_ERROR_CHIPOBLE_PROTOCOL_ABORT;
     }
 
-    err = SendCharacteristic(mBtpEngine.BorrowTxPacket());
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(SendCharacteristic(mBtpEngine.BorrowTxPacket()));
 
     if (sentAck)
     {
@@ -790,31 +720,25 @@ BLE_ERROR BLEEndPoint::ContinueMessageSend()
     }
 
     // Start ack received timer, if it's not already running.
-    err = StartAckReceivedTimer();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return StartAckReceivedTimer();
 }
 
-BLE_ERROR BLEEndPoint::HandleHandshakeConfirmationReceived()
+CHIP_ERROR BLEEndPoint::HandleHandshakeConfirmationReceived()
 {
     ChipLogDebugBleEndPoint(Ble, "entered HandleHandshakeConfirmationReceived");
 
-    BLE_ERROR err      = BLE_NO_ERROR;
+    CHIP_ERROR err     = CHIP_NO_ERROR;
     uint8_t closeFlags = kBleCloseFlag_AbortTransmission;
 
     // Free capabilities request/response payload.
-    QueueTxLock();
     mSendQueue.FreeHead();
-    QueueTxUnlock();
 
     if (mRole == kBleRole_Central)
     {
         // Subscribe to characteristic which peripheral will use to send indications. Prompts peripheral to send
         // BLE transport capabilities indication.
-        VerifyOrExit(mBle->mPlatformDelegate->SubscribeCharacteristic(mConnObj, &CHIP_BLE_SVC_ID, &mBle->CHIP_BLE_CHAR_2_ID),
-                     err = BLE_ERROR_GATT_SUBSCRIBE_FAILED);
+        err = mBle->mPlatformDelegate->SubscribeCharacteristic(mConnObj, &CHIP_BLE_SVC_ID, &CHIP_BLE_CHAR_2_UUID);
+        SuccessOrExit(err);
 
         // We just sent a GATT subscribe request, so make sure to attempt unsubscribe on close.
         mConnStateFlags.Set(ConnectionStateFlag::kDidBeginSubscribe);
@@ -837,7 +761,7 @@ BLE_ERROR BLEEndPoint::HandleHandshakeConfirmationReceived()
             }
             else
             {
-                // Drive sending in case application callend Send() after we sent the handshake indication, but
+                // Drive sending in case application called Send() after we sent the handshake indication, but
                 // before the GATT confirmation for this indication was received.
                 err = DriveSending();
                 SuccessOrExit(err);
@@ -854,7 +778,7 @@ BLE_ERROR BLEEndPoint::HandleHandshakeConfirmationReceived()
 exit:
     ChipLogDebugBleEndPoint(Ble, "exiting HandleHandshakeConfirmationReceived");
 
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
         DoClose(closeFlags, err);
     }
@@ -862,9 +786,9 @@ exit:
     return err;
 }
 
-BLE_ERROR BLEEndPoint::HandleFragmentConfirmationReceived()
+CHIP_ERROR BLEEndPoint::HandleFragmentConfirmationReceived()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     ChipLogDebugBleEndPoint(Ble, "entered HandleFragmentConfirmationReceived");
 
@@ -876,10 +800,7 @@ BLE_ERROR BLEEndPoint::HandleFragmentConfirmationReceived()
     }
 
     // Ensure we're in correct state to receive confirmation of non-handshake GATT send.
-    VerifyOrExit(IsConnected(mState), err = BLE_ERROR_INCORRECT_STATE);
-
-    // TODO Packet buffer high water mark optimization: if ack pending, but fragmenter state == complete, free fragmenter's
-    // tx buf before sending ack.
+    VerifyOrExit(IsConnected(mState), err = CHIP_ERROR_INCORRECT_STATE);
 
     if (mConnStateFlags.Has(ConnectionStateFlag::kStandAloneAckInFlight))
     {
@@ -908,7 +829,7 @@ BLE_ERROR BLEEndPoint::HandleFragmentConfirmationReceived()
     }
 
 exit:
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
         DoClose(kBleCloseFlag_AbortTransmission, err);
     }
@@ -916,7 +837,7 @@ exit:
     return err;
 }
 
-BLE_ERROR BLEEndPoint::HandleGattSendConfirmationReceived()
+CHIP_ERROR BLEEndPoint::HandleGattSendConfirmationReceived()
 {
     ChipLogDebugBleEndPoint(Ble, "entered HandleGattSendConfirmationReceived");
 
@@ -934,10 +855,8 @@ BLE_ERROR BLEEndPoint::HandleGattSendConfirmationReceived()
     return HandleFragmentConfirmationReceived();
 }
 
-BLE_ERROR BLEEndPoint::DriveStandAloneAck()
+CHIP_ERROR BLEEndPoint::DriveStandAloneAck()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-
     // Stop send-ack timer if running.
     StopSendAckTimer();
 
@@ -945,25 +864,20 @@ BLE_ERROR BLEEndPoint::DriveStandAloneAck()
     if (mAckToSend.IsNull())
     {
         mAckToSend = System::PacketBufferHandle::New(kTransferProtocolStandaloneAckHeaderSize);
-        VerifyOrExit(!mAckToSend.IsNull(), err = BLE_ERROR_NO_MEMORY);
+        VerifyOrReturnError(!mAckToSend.IsNull(), CHIP_ERROR_NO_MEMORY);
     }
 
     // Attempt to send stand-alone ack.
-    err = DriveSending();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return DriveSending();
 }
 
-BLE_ERROR BLEEndPoint::DoSendStandAloneAck()
+CHIP_ERROR BLEEndPoint::DoSendStandAloneAck()
 {
     ChipLogDebugBleEndPoint(Ble, "entered DoSendStandAloneAck; sending stand-alone ack");
 
     // Encode and transmit stand-alone ack.
     mBtpEngine.EncodeStandAloneAck(mAckToSend);
-    BLE_ERROR err = SendCharacteristic(mAckToSend.Retain());
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(SendCharacteristic(mAckToSend.Retain()));
 
     // Reset local receive window counter.
     mLocalReceiveWindowSize = mReceiveWindowMaxSize;
@@ -972,17 +886,11 @@ BLE_ERROR BLEEndPoint::DoSendStandAloneAck()
     mConnStateFlags.Set(ConnectionStateFlag::kStandAloneAckInFlight);
 
     // Start ack received timer, if it's not already running.
-    err = StartAckReceivedTimer();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return StartAckReceivedTimer();
 }
 
-BLE_ERROR BLEEndPoint::DriveSending()
+CHIP_ERROR BLEEndPoint::DriveSending()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-
     ChipLogDebugBleEndPoint(Ble, "entered DriveSending");
 
     // If receiver's window is almost closed and we don't have an ack to send, OR we do have an ack to send but
@@ -1010,15 +918,14 @@ BLE_ERROR BLEEndPoint::DriveSending()
 #endif
 
         // Can't send anything.
-        ExitNow();
+        return CHIP_NO_ERROR;
     }
 
     // Otherwise, let's see what we can send.
 
     if (!mAckToSend.IsNull()) // If immediate, stand-alone ack is pending, send it.
     {
-        err = DoSendStandAloneAck();
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(DoSendStandAloneAck());
     }
     else if (mBtpEngine.TxState() == BtpEngine::kState_Idle) // Else send next message fragment, if any.
     {
@@ -1026,8 +933,7 @@ BLE_ERROR BLEEndPoint::DriveSending()
         if (!mSendQueue.IsNull())
         {
             // Transmit first fragment of next whole message in send queue.
-            err = SendNextMessage();
-            SuccessOrExit(err);
+            ReturnErrorOnFailure(SendNextMessage());
         }
         else
         {
@@ -1037,57 +943,49 @@ BLE_ERROR BLEEndPoint::DriveSending()
     else if (mBtpEngine.TxState() == BtpEngine::kState_InProgress)
     {
         // Send next fragment of message currently held by fragmenter.
-        err = ContinueMessageSend();
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(ContinueMessageSend());
     }
     else if (mBtpEngine.TxState() == BtpEngine::kState_Complete)
     {
         // Clear fragmenter's pointer to sent message buffer and reset its Tx state.
         // Buffer will be freed at scope exit.
         PacketBufferHandle sentBuf = mBtpEngine.TakeTxPacket();
-#if CHIP_ENABLE_CHIPOBLE_TEST
-        mBtpEngineTest.DoTxTiming(sentBuf, BTP_TX_DONE);
-#endif // CHIP_ENABLE_CHIPOBLE_TEST
 
         if (!mSendQueue.IsNull())
         {
             // Transmit first fragment of next whole message in send queue.
-            err = SendNextMessage();
-            SuccessOrExit(err);
+            ReturnErrorOnFailure(SendNextMessage());
         }
         else if (mState == kState_Closing && !mBtpEngine.ExpectingAck()) // and mSendQueue is NULL, per above...
         {
             // If end point closing, got last ack, and got out-of-order confirmation for last send, finalize close.
-            FinalizeClose(mState, kBleCloseFlag_SuppressCallback, BLE_NO_ERROR);
+            FinalizeClose(mState, kBleCloseFlag_SuppressCallback, CHIP_NO_ERROR);
         }
         else
         {
             // Nothing to send!
+            mBle->mApplicationDelegate->CheckNonConcurrentBleClosing();
         }
     }
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
-BLE_ERROR BLEEndPoint::HandleCapabilitiesRequestReceived(PacketBufferHandle data)
+CHIP_ERROR BLEEndPoint::HandleCapabilitiesRequestReceived(PacketBufferHandle && data)
 {
-    BLE_ERROR err = BLE_NO_ERROR;
     BleTransportCapabilitiesRequestMessage req;
     BleTransportCapabilitiesResponseMessage resp;
-    PacketBufferHandle responseBuf;
     uint16_t mtu;
 
-    VerifyOrExit(!data.IsNull(), err = BLE_ERROR_BAD_ARGS);
+    VerifyOrReturnError(!data.IsNull(), CHIP_ERROR_INVALID_ARGUMENT);
 
     mState = kState_Connecting;
 
     // Decode BTP capabilities request.
-    err = BleTransportCapabilitiesRequestMessage::Decode(data, req);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(BleTransportCapabilitiesRequestMessage::Decode(data, req));
 
-    responseBuf = System::PacketBufferHandle::New(kCapabilitiesResponseLength);
-    VerifyOrExit(!responseBuf.IsNull(), err = BLE_ERROR_NO_MEMORY);
+    PacketBufferHandle responseBuf = System::PacketBufferHandle::New(kCapabilitiesResponseLength);
+    VerifyOrReturnError(!responseBuf.IsNull(), CHIP_ERROR_NO_MEMORY);
 
     // Determine BLE connection's negotiated ATT MTU, if possible.
     if (req.mMtu > 0) // If MTU was observed and provided by central...
@@ -1103,7 +1001,7 @@ BLE_ERROR BLEEndPoint::HandleCapabilitiesRequestReceived(PacketBufferHandle data
     if (mtu > 0) // If one or both device knows connection's MTU...
     {
         resp.mFragmentSize =
-            chip::min(static_cast<uint16_t>(mtu - 3), BtpEngine::sMaxFragmentSize); // Reserve 3 bytes of MTU for ATT header.
+            std::min(static_cast<uint16_t>(mtu - 3), BtpEngine::sMaxFragmentSize); // Reserve 3 bytes of MTU for ATT header.
     }
     else // Else, if neither device knows MTU...
     {
@@ -1114,7 +1012,7 @@ BLE_ERROR BLEEndPoint::HandleCapabilitiesRequestReceived(PacketBufferHandle data
     // Select local and remote max receive window size based on local resources available for both incoming writes AND
     // GATT confirmations.
     mRemoteReceiveWindowSize = mLocalReceiveWindowSize = mReceiveWindowMaxSize =
-        chip::min(req.mWindowSize, static_cast<uint8_t>(BLE_MAX_RECEIVE_WINDOW_SIZE));
+        std::min(req.mWindowSize, static_cast<uint8_t>(BLE_MAX_RECEIVE_WINDOW_SIZE));
     resp.mWindowSize = mReceiveWindowMaxSize;
 
     ChipLogProgress(Ble, "local and remote recv window sizes = %u", resp.mWindowSize);
@@ -1131,46 +1029,34 @@ BLE_ERROR BLEEndPoint::HandleCapabilitiesRequestReceived(PacketBufferHandle data
                      CHIP_BLE_TRANSPORT_PROTOCOL_MIN_SUPPORTED_VERSION, CHIP_BLE_TRANSPORT_PROTOCOL_MAX_SUPPORTED_VERSION);
         mState = kState_Aborting;
     }
-    else if ((resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V1) ||
-             (resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V2))
+    else
     {
         // Set Rx and Tx fragment sizes to the same value
         mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
         mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
     }
-    else // resp.SelectedProtocolVersion >= kBleTransportProtocolVersion_V3
-    {
-        // This is the peripheral, so set Rx fragment size, and leave Tx at default
-        mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
-    }
+
     ChipLogProgress(Ble, "using BTP fragment sizes rx %d / tx %d.", mBtpEngine.GetRxFragmentSize(), mBtpEngine.GetTxFragmentSize());
 
-    err = resp.Encode(responseBuf);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(resp.Encode(responseBuf));
 
     // Stash capabilities response payload and wait for subscription from central.
     QueueTx(std::move(responseBuf), kType_Data);
 
     // Start receive timer. Canceled when end point freed or connection established.
-    err = StartReceiveConnectionTimer();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return StartReceiveConnectionTimer();
 }
 
-BLE_ERROR BLEEndPoint::HandleCapabilitiesResponseReceived(PacketBufferHandle data)
+CHIP_ERROR BLEEndPoint::HandleCapabilitiesResponseReceived(PacketBufferHandle && data)
 {
-    BLE_ERROR err = BLE_NO_ERROR;
     BleTransportCapabilitiesResponseMessage resp;
 
-    VerifyOrExit(!data.IsNull(), err = BLE_ERROR_BAD_ARGS);
+    VerifyOrReturnError(!data.IsNull(), CHIP_ERROR_INVALID_ARGUMENT);
 
     // Decode BTP capabilities response.
-    err = BleTransportCapabilitiesResponseMessage::Decode(data, resp);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(BleTransportCapabilitiesResponseMessage::Decode(data, resp));
 
-    VerifyOrExit(resp.mFragmentSize > 0, err = BLE_ERROR_INVALID_FRAGMENT_SIZE);
+    VerifyOrReturnError(resp.mFragmentSize > 0, BLE_ERROR_INVALID_FRAGMENT_SIZE);
 
     ChipLogProgress(Ble, "peripheral chose BTP version %d; central expected between %d and %d", resp.mSelectedProtocolVersion,
                     CHIP_BLE_TRANSPORT_PROTOCOL_MIN_SUPPORTED_VERSION, CHIP_BLE_TRANSPORT_PROTOCOL_MAX_SUPPORTED_VERSION);
@@ -1178,24 +1064,15 @@ BLE_ERROR BLEEndPoint::HandleCapabilitiesResponseReceived(PacketBufferHandle dat
     if ((resp.mSelectedProtocolVersion < CHIP_BLE_TRANSPORT_PROTOCOL_MIN_SUPPORTED_VERSION) ||
         (resp.mSelectedProtocolVersion > CHIP_BLE_TRANSPORT_PROTOCOL_MAX_SUPPORTED_VERSION))
     {
-        err = BLE_ERROR_INCOMPATIBLE_PROTOCOL_VERSIONS;
-        ExitNow();
+        return BLE_ERROR_INCOMPATIBLE_PROTOCOL_VERSIONS;
     }
 
     // Set fragment size as minimum of (reported ATT MTU, BTP characteristic size)
-    resp.mFragmentSize = chip::min(resp.mFragmentSize, BtpEngine::sMaxFragmentSize);
+    resp.mFragmentSize = std::min(resp.mFragmentSize, BtpEngine::sMaxFragmentSize);
 
-    if ((resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V1) ||
-        (resp.mSelectedProtocolVersion == kBleTransportProtocolVersion_V2))
-    {
-        mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
-        mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
-    }
-    else // resp.SelectedProtocolVersion >= kBleTransportProtocolVersion_V3
-    {
-        // This is the central, so set Tx fragement size, and leave Rx at default.
-        mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
-    }
+    mBtpEngine.SetRxFragmentSize(resp.mFragmentSize);
+    mBtpEngine.SetTxFragmentSize(resp.mFragmentSize);
+
     ChipLogProgress(Ble, "using BTP fragment sizes rx %d / tx %d.", mBtpEngine.GetRxFragmentSize(), mBtpEngine.GetTxFragmentSize());
 
     // Select local and remote max receive window size based on local resources available for both incoming indications
@@ -1211,16 +1088,11 @@ BLE_ERROR BLEEndPoint::HandleCapabilitiesResponseReceived(PacketBufferHandle dat
     // Send ack for connection handshake indication when timer expires. Sequence numbers always start at 0,
     // and the reassembler's "last received seq num" is initialized to 0 and updated when new fragments are
     // received from the peripheral, so we don't need to explicitly mark the ack num to send here.
-    err = StartSendAckTimer();
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(StartSendAckTimer());
 
     // We've sent a capabilities request write and received a compatible response, so the connect
     // operation has completed successfully.
-    err = HandleConnectComplete();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return HandleConnectComplete();
 }
 
 // Returns number of open slots in remote receive window given the input values.
@@ -1248,21 +1120,14 @@ SequenceNumber_t BLEEndPoint::AdjustRemoteReceiveWindow(SequenceNumber_t lastRec
     return static_cast<uint8_t>(newRemoteWindowBoundary - newestUnackedSentSeqNum);
 }
 
-BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
+CHIP_ERROR BLEEndPoint::Receive(PacketBufferHandle && data)
 {
     ChipLogDebugBleEndPoint(Ble, "+++++++++++++++++++++ entered receive");
-    BLE_ERROR err                = BLE_NO_ERROR;
+    CHIP_ERROR err               = CHIP_NO_ERROR;
     SequenceNumber_t receivedAck = 0;
     uint8_t closeFlags           = kBleCloseFlag_AbortTransmission;
     bool didReceiveAck           = false;
 
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    if (mBtpEngine.IsCommandPacket(data))
-    {
-        ChipLogDebugBleEndPoint(Ble, "%s: Received Control frame: Flags %x", __FUNCTION__, *(data->Start()));
-    }
-    else
-#endif
     { // This is a special handling on the first CHIPoBLE data packet, the CapabilitiesRequest.
         // Suppress error logging if peer's send overlaps with our unsubscribe on final close.
         if (IsUnsubscribePending())
@@ -1277,7 +1142,7 @@ BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
             if (mRole == kBleRole_Central) // If we're a central receiving a capabilities response indication...
             {
                 // Ensure end point's in the right state before continuing.
-                VerifyOrExit(mState == kState_Connecting, err = BLE_ERROR_INCORRECT_STATE);
+                VerifyOrExit(mState == kState_Connecting, err = CHIP_ERROR_INCORRECT_STATE);
                 mConnStateFlags.Set(ConnectionStateFlag::kCapabilitiesMsgReceived);
 
                 err = HandleCapabilitiesResponseReceived(std::move(data));
@@ -1286,12 +1151,12 @@ BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
             else // Or, a peripheral receiving a capabilities request write...
             {
                 // Ensure end point's in the right state before continuing.
-                VerifyOrExit(mState == kState_Ready, err = BLE_ERROR_INCORRECT_STATE);
+                VerifyOrExit(mState == kState_Ready, err = CHIP_ERROR_INCORRECT_STATE);
                 mConnStateFlags.Set(ConnectionStateFlag::kCapabilitiesMsgReceived);
 
                 err = HandleCapabilitiesRequestReceived(std::move(data));
 
-                if (err != BLE_NO_ERROR)
+                if (err != CHIP_NO_ERROR)
                 {
                     // If an error occurred decoding and handling the capabilities request, release the BLE connection.
                     // Central's connect attempt will time out if peripheral's application decides to keep the BLE
@@ -1313,7 +1178,7 @@ BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
     if (!IsConnected(mState))
     {
         ChipLogError(Ble, "ep rx'd packet in bad state");
-        err = BLE_ERROR_INCORRECT_STATE;
+        err = CHIP_ERROR_INCORRECT_STATE;
 
         ExitNow();
     }
@@ -1338,7 +1203,7 @@ BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
     {
         ChipLogDebugBleEndPoint(Ble, "got btp ack = %u", receivedAck);
 
-        // If ack was rx'd for neweset unacked sent fragment, stop ack received timer.
+        // If ack was rx'd for newest unacked sent fragment, stop ack received timer.
         if (!mBtpEngine.ExpectingAck())
         {
             ChipLogDebugBleEndPoint(Ble, "got ack for last outstanding fragment");
@@ -1347,7 +1212,7 @@ BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
             if (mState == kState_Closing && mSendQueue.IsNull() && mBtpEngine.TxState() == BtpEngine::kState_Idle)
             {
                 // If end point closing, got confirmation for last send, and waiting for last ack, finalize close.
-                FinalizeClose(mState, kBleCloseFlag_SuppressCallback, BLE_NO_ERROR);
+                FinalizeClose(mState, kBleCloseFlag_SuppressCallback, CHIP_NO_ERROR);
                 ExitNow();
             }
         }
@@ -1412,30 +1277,18 @@ BLE_ERROR BLEEndPoint::Receive(PacketBufferHandle data)
         // Take ownership of message buffer
         System::PacketBufferHandle full_packet = mBtpEngine.TakeRxPacket();
 
-        ChipLogDebugBleEndPoint(Ble, "reassembled whole msg, len = %d", full_packet->DataLength());
+        ChipLogDebugBleEndPoint(Ble, "reassembled whole msg, len = %u", static_cast<unsigned>(full_packet->DataLength()));
 
-#if CHIP_ENABLE_CHIPOBLE_TEST
-        // If we have a control message received callback, and end point is not closing...
-        if (mBtpEngine.RxPacketType() == kType_Control && OnCommandReceived && mState != kState_Closing)
-        {
-            ChipLogDebugBleEndPoint(Ble, "%s: calling OnCommandReceived, seq# %u, len = %u, type %u", __FUNCTION__, receivedAck,
-                                    full_packet->DataLength(), mBtpEngine.RxPacketType());
-            // Pass received control message up the stack.
-            mBtpEngine.SetRxPacketSeq(receivedAck);
-            OnCommandReceived(this, std::move(full_packet));
-        }
-        else
-#endif
-            // If we have a message received callback, and end point is not closing...
-            if (OnMessageReceived && mState != kState_Closing)
+        // If we have a message received callback, and end point is not closing...
+        if (mBleTransport != nullptr && mState != kState_Closing)
         {
             // Pass received message up the stack.
-            OnMessageReceived(this, std::move(full_packet));
+            mBleTransport->OnEndPointMessageReceived(this, std::move(full_packet));
         }
     }
 
 exit:
-    if (err != BLE_NO_ERROR)
+    if (err != CHIP_NO_ERROR)
     {
         DoClose(closeFlags, err);
     }
@@ -1443,109 +1296,95 @@ exit:
     return err;
 }
 
-bool BLEEndPoint::SendWrite(PacketBufferHandle && buf)
+CHIP_ERROR BLEEndPoint::SendWrite(PacketBufferHandle && buf)
 {
     mConnStateFlags.Set(ConnectionStateFlag::kGattOperationInFlight);
 
-    return mBle->mPlatformDelegate->SendWriteRequest(mConnObj, &CHIP_BLE_SVC_ID, &mBle->CHIP_BLE_CHAR_1_ID, std::move(buf));
+    auto err = mBle->mPlatformDelegate->SendWriteRequest(mConnObj, &CHIP_BLE_SVC_ID, &CHIP_BLE_CHAR_1_UUID, std::move(buf));
+    VerifyOrReturnError(err == CHIP_NO_ERROR, err,
+                        ChipLogError(Ble, "Send write request failed: %" CHIP_ERROR_FORMAT, err.Format()));
+
+    return err;
 }
 
-bool BLEEndPoint::SendIndication(PacketBufferHandle && buf)
+CHIP_ERROR BLEEndPoint::SendIndication(PacketBufferHandle && buf)
 {
     mConnStateFlags.Set(ConnectionStateFlag::kGattOperationInFlight);
 
-    return mBle->mPlatformDelegate->SendIndication(mConnObj, &CHIP_BLE_SVC_ID, &mBle->CHIP_BLE_CHAR_2_ID, std::move(buf));
+    auto err = mBle->mPlatformDelegate->SendIndication(mConnObj, &CHIP_BLE_SVC_ID, &CHIP_BLE_CHAR_2_UUID, std::move(buf));
+    VerifyOrReturnError(err == CHIP_NO_ERROR, err, ChipLogError(Ble, "Send indication failed: %" CHIP_ERROR_FORMAT, err.Format()));
+
+    return err;
 }
 
-BLE_ERROR BLEEndPoint::StartConnectTimer()
+CHIP_ERROR BLEEndPoint::StartConnectTimer()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    chip::System::Error timerErr;
-
-    timerErr = mBle->mSystemLayer->StartTimer(BLE_CONNECT_TIMEOUT_MS, HandleConnectTimeout, this);
-    VerifyOrExit(timerErr == CHIP_SYSTEM_NO_ERROR, err = BLE_ERROR_START_TIMER_FAILED);
+    const CHIP_ERROR timerErr =
+        mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BTP_CONN_RSP_TIMEOUT_MS), HandleConnectTimeout, this);
+    ReturnErrorOnFailure(timerErr);
     mTimerStateFlags.Set(TimerStateFlag::kConnectTimerRunning);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
-BLE_ERROR BLEEndPoint::StartReceiveConnectionTimer()
+CHIP_ERROR BLEEndPoint::StartReceiveConnectionTimer()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    chip::System::Error timerErr;
-
-    timerErr = mBle->mSystemLayer->StartTimer(BLE_CONNECT_TIMEOUT_MS, HandleReceiveConnectionTimeout, this);
-    VerifyOrExit(timerErr == CHIP_SYSTEM_NO_ERROR, err = BLE_ERROR_START_TIMER_FAILED);
+    const CHIP_ERROR timerErr = mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BTP_CONN_RSP_TIMEOUT_MS),
+                                                               HandleReceiveConnectionTimeout, this);
+    ReturnErrorOnFailure(timerErr);
     mTimerStateFlags.Set(TimerStateFlag::kReceiveConnectionTimerRunning);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
-BLE_ERROR BLEEndPoint::StartAckReceivedTimer()
+CHIP_ERROR BLEEndPoint::StartAckReceivedTimer()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    chip::System::Error timerErr;
-
     if (!mTimerStateFlags.Has(TimerStateFlag::kAckReceivedTimerRunning))
     {
-        timerErr = mBle->mSystemLayer->StartTimer(BTP_ACK_RECEIVED_TIMEOUT_MS, HandleAckReceivedTimeout, this);
-        VerifyOrExit(timerErr == CHIP_SYSTEM_NO_ERROR, err = BLE_ERROR_START_TIMER_FAILED);
+        const CHIP_ERROR timerErr =
+            mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BTP_ACK_TIMEOUT_MS), HandleAckReceivedTimeout, this);
+        ReturnErrorOnFailure(timerErr);
 
         mTimerStateFlags.Set(TimerStateFlag::kAckReceivedTimerRunning);
     }
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
-BLE_ERROR BLEEndPoint::RestartAckReceivedTimer()
+CHIP_ERROR BLEEndPoint::RestartAckReceivedTimer()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-
-    VerifyOrExit(mTimerStateFlags.Has(TimerStateFlag::kAckReceivedTimerRunning), err = BLE_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mTimerStateFlags.Has(TimerStateFlag::kAckReceivedTimerRunning), CHIP_ERROR_INCORRECT_STATE);
 
     StopAckReceivedTimer();
 
-    err = StartAckReceivedTimer();
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return StartAckReceivedTimer();
 }
 
-BLE_ERROR BLEEndPoint::StartSendAckTimer()
+CHIP_ERROR BLEEndPoint::StartSendAckTimer()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    chip::System::Error timerErr;
-
     ChipLogDebugBleEndPoint(Ble, "entered StartSendAckTimer");
 
     if (!mTimerStateFlags.Has(TimerStateFlag::kSendAckTimerRunning))
     {
         ChipLogDebugBleEndPoint(Ble, "starting new SendAckTimer");
-        timerErr = mBle->mSystemLayer->StartTimer(BTP_ACK_SEND_TIMEOUT_MS, HandleSendAckTimeout, this);
-        VerifyOrExit(timerErr == CHIP_SYSTEM_NO_ERROR, err = BLE_ERROR_START_TIMER_FAILED);
+        const CHIP_ERROR timerErr =
+            mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BTP_ACK_SEND_TIMEOUT_MS), HandleSendAckTimeout, this);
+        ReturnErrorOnFailure(timerErr);
 
         mTimerStateFlags.Set(TimerStateFlag::kSendAckTimerRunning);
     }
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
-BLE_ERROR BLEEndPoint::StartUnsubscribeTimer()
+CHIP_ERROR BLEEndPoint::StartUnsubscribeTimer()
 {
-    BLE_ERROR err = BLE_NO_ERROR;
-    chip::System::Error timerErr;
-
-    timerErr = mBle->mSystemLayer->StartTimer(BLE_UNSUBSCRIBE_TIMEOUT_MS, HandleUnsubscribeTimeout, this);
-    VerifyOrExit(timerErr == CHIP_SYSTEM_NO_ERROR, err = BLE_ERROR_START_TIMER_FAILED);
+    const CHIP_ERROR timerErr =
+        mBle->mSystemLayer->StartTimer(System::Clock::Milliseconds32(BLE_UNSUBSCRIBE_TIMEOUT_MS), HandleUnsubscribeTimeout, this);
+    ReturnErrorOnFailure(timerErr);
     mTimerStateFlags.Set(TimerStateFlag::kUnsubscribeTimerRunning);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 void BLEEndPoint::StopConnectTimer()
@@ -1583,7 +1422,7 @@ void BLEEndPoint::StopUnsubscribeTimer()
     mTimerStateFlags.Clear(TimerStateFlag::kUnsubscribeTimerRunning);
 }
 
-void BLEEndPoint::HandleConnectTimeout(chip::System::Layer * systemLayer, void * appState, chip::System::Error err)
+void BLEEndPoint::HandleConnectTimeout(chip::System::Layer * systemLayer, void * appState)
 {
     BLEEndPoint * ep = static_cast<BLEEndPoint *>(appState);
 
@@ -1596,7 +1435,7 @@ void BLEEndPoint::HandleConnectTimeout(chip::System::Layer * systemLayer, void *
     }
 }
 
-void BLEEndPoint::HandleReceiveConnectionTimeout(chip::System::Layer * systemLayer, void * appState, chip::System::Error err)
+void BLEEndPoint::HandleReceiveConnectionTimeout(chip::System::Layer * systemLayer, void * appState)
 {
     BLEEndPoint * ep = static_cast<BLEEndPoint *>(appState);
 
@@ -1609,7 +1448,7 @@ void BLEEndPoint::HandleReceiveConnectionTimeout(chip::System::Layer * systemLay
     }
 }
 
-void BLEEndPoint::HandleAckReceivedTimeout(chip::System::Layer * systemLayer, void * appState, chip::System::Error err)
+void BLEEndPoint::HandleAckReceivedTimeout(chip::System::Layer * systemLayer, void * appState)
 {
     BLEEndPoint * ep = static_cast<BLEEndPoint *>(appState);
 
@@ -1623,7 +1462,7 @@ void BLEEndPoint::HandleAckReceivedTimeout(chip::System::Layer * systemLayer, vo
     }
 }
 
-void BLEEndPoint::HandleSendAckTimeout(chip::System::Layer * systemLayer, void * appState, chip::System::Error err)
+void BLEEndPoint::HandleSendAckTimeout(chip::System::Layer * systemLayer, void * appState)
 {
     BLEEndPoint * ep = static_cast<BLEEndPoint *>(appState);
 
@@ -1635,9 +1474,9 @@ void BLEEndPoint::HandleSendAckTimeout(chip::System::Layer * systemLayer, void *
         // If previous stand-alone ack isn't still in flight...
         if (!ep->mConnStateFlags.Has(ConnectionStateFlag::kStandAloneAckInFlight))
         {
-            BLE_ERROR sendErr = ep->DriveStandAloneAck();
+            CHIP_ERROR sendErr = ep->DriveStandAloneAck();
 
-            if (sendErr != BLE_NO_ERROR)
+            if (sendErr != CHIP_NO_ERROR)
             {
                 ep->DoClose(kBleCloseFlag_AbortTransmission, sendErr);
             }
@@ -1645,7 +1484,7 @@ void BLEEndPoint::HandleSendAckTimeout(chip::System::Layer * systemLayer, void *
     }
 }
 
-void BLEEndPoint::HandleUnsubscribeTimeout(chip::System::Layer * systemLayer, void * appState, chip::System::Error err)
+void BLEEndPoint::HandleUnsubscribeTimeout(chip::System::Layer * systemLayer, void * appState)
 {
     BLEEndPoint * ep = static_cast<BLEEndPoint *>(appState);
 
@@ -1660,5 +1499,3 @@ void BLEEndPoint::HandleUnsubscribeTimeout(chip::System::Layer * systemLayer, vo
 
 } /* namespace Ble */
 } /* namespace chip */
-
-#endif /* CONFIG_NETWORK_LAYER_BLE */

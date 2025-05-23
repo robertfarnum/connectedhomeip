@@ -25,11 +25,11 @@
 
 #include <inet/InetConfig.h>
 
-#if INET_CONFIG_TEST && CHIP_WITH_NLFAULTINJECTION
+#if CHIP_WITH_NLFAULTINJECTION
 
 #include <nlfaultinjection.hpp>
 
-#include <support/DLLUtil.h>
+#include <lib/support/DLLUtil.h>
 
 #include <system/SystemFaultInjection.h>
 
@@ -67,8 +67,8 @@ DLL_EXPORT nl::FaultInjection::Manager & GetManager();
  */
 #define INET_FAULT_INJECT(aFaultID, aStatement) nlFAULT_INJECT(Inet::FaultInjection::GetManager(), aFaultID, aStatement)
 
-#else // INET_CONFIG_TEST
+#else // CHIP_WITH_NLFAULTINJECTION
 
 #define INET_FAULT_INJECT(aFaultID, aStatement)
 
-#endif // INET_CONFIG_TEST
+#endif // CHIP_WITH_NLFAULTINJECTION

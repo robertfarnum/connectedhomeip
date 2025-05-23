@@ -29,10 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <nlunit-test.h>
-#include <support/CHIPMem.h>
-#include <support/CodeUtils.h>
-#include <support/UnitTestRegistration.h>
+#include <pw_unit_test/framework.h>
+
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/CodeUtils.h>
 
 using namespace chip;
 using namespace chip::Logging;
@@ -42,7 +43,14 @@ using namespace chip::Platform;
 //      Unit tests
 // =================================
 
-static void TestMemAlloc_Malloc(nlTestSuite * inSuite, void * inContext)
+class TestCHIPMem : public ::testing::Test
+{
+public:
+    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
+
+TEST_F(TestCHIPMem, TestMemAlloc_Malloc)
 {
     char * p1 = nullptr;
     char * p2 = nullptr;
@@ -50,85 +58,115 @@ static void TestMemAlloc_Malloc(nlTestSuite * inSuite, void * inContext)
 
     // Verify long-term allocation
     p1 = static_cast<char *>(MemoryAlloc(64));
-    NL_TEST_ASSERT(inSuite, p1 != nullptr);
+    EXPECT_NE(p1, nullptr);
 
     p2 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p2 != nullptr);
+    EXPECT_NE(p2, nullptr);
 
     chip::Platform::MemoryFree(p1);
     chip::Platform::MemoryFree(p2);
 
     // Verify short-term allocation
     p1 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p1 != nullptr);
+    EXPECT_NE(p1, nullptr);
 
     p2 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p2 != nullptr);
+    EXPECT_NE(p2, nullptr);
 
     p3 = static_cast<char *>(MemoryAlloc(256));
-    NL_TEST_ASSERT(inSuite, p3 != nullptr);
+    EXPECT_NE(p3, nullptr);
 
     chip::Platform::MemoryFree(p1);
     chip::Platform::MemoryFree(p2);
     chip::Platform::MemoryFree(p3);
 }
 
-static void TestMemAlloc_Calloc(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, TestMemAlloc_Calloc)
 {
-    char * p = static_cast<char *>(MemoryCalloc(128, true));
-    NL_TEST_ASSERT(inSuite, p != nullptr);
+    char * p = static_cast<char *>(MemoryCalloc(128, sizeof(char)));
+    ASSERT_NE(p, nullptr);
 
     for (int i = 0; i < 128; i++)
-        NL_TEST_ASSERT(inSuite, p[i] == 0);
+        EXPECT_EQ(p[i], 0);
 
     chip::Platform::MemoryFree(p);
 }
 
-static void TestMemAlloc_Realloc(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestCHIPMem, TestMemAlloc_Realloc)
 {
     char * pa = static_cast<char *>(MemoryAlloc(128));
-    NL_TEST_ASSERT(inSuite, pa != nullptr);
+    EXPECT_NE(pa, nullptr);
 
     char * pb = static_cast<char *>(MemoryRealloc(pa, 256));
-    NL_TEST_ASSERT(inSuite, pb != nullptr);
+    EXPECT_NE(pb, nullptr);
 
     chip::Platform::MemoryFree(pb);
 }
 
-/**
- *   Test Suite. It lists all the test functions.
- */
-static const nlTest sTests[] = { NL_TEST_DEF("Test MemAlloc::Malloc", TestMemAlloc_Malloc),
-                                 NL_TEST_DEF("Test MemAlloc::Calloc", TestMemAlloc_Calloc),
-                                 NL_TEST_DEF("Test MemAlloc::Realloc", TestMemAlloc_Realloc), NL_TEST_SENTINEL() };
-
-/**
- *  Set up the test suite.
- */
-int TestMemAlloc_Setup(void * inContext)
+TEST_F(TestCHIPMem, TestMemAlloc_UniquePtr)
 {
-    CHIP_ERROR error = MemoryInit();
-    if (error != CHIP_NO_ERROR)
-        return (FAILURE);
-    return (SUCCESS);
+    // UniquePtr is a wrapper of std::unique_ptr for platform allocators, we just check if we created a correct wrapper here.
+    int constructorCalled = 0;
+    int destructorCalled  = 0;
+
+    class Cls
+    {
+    public:
+        Cls(int * constructCtr, int * desctructorCtr) : mpDestructorCtr(desctructorCtr) { (*constructCtr)++; }
+        ~Cls() { (*mpDestructorCtr)++; }
+
+    private:
+        int * mpDestructorCtr;
+    };
+
+    {
+        auto ptr = MakeUnique<Cls>(&constructorCalled, &destructorCalled);
+        EXPECT_EQ(constructorCalled, 1);
+        EXPECT_EQ(destructorCalled, 0);
+        IgnoreUnusedVariable(ptr);
+    }
+
+    EXPECT_TRUE(destructorCalled);
 }
 
-/**
- *  Tear down the test suite.
- */
-int TestMemAlloc_Teardown(void * inContext)
+TEST_F(TestCHIPMem, TestMemAlloc_SharedPtr)
 {
-    MemoryShutdown();
-    return (SUCCESS);
+    // SharedPtr is a wrapper of std::shared_ptr for platform allocators.
+    int instanceConstructorCalled      = 0;
+    int instanceDestructorCalled       = 0;
+    int otherInstanceConstructorCalled = 0;
+    int otherInstanceDestructorCalled  = 0;
+
+    class Cls
+    {
+    public:
+        Cls(int * constructCtr, int * desctructorCtr) : mpDestructorCtr(desctructorCtr) { (*constructCtr)++; }
+        ~Cls() { (*mpDestructorCtr)++; }
+
+    private:
+        int * mpDestructorCtr;
+    };
+
+    // Check constructor call for a block-scoped variable and share our
+    // reference to a function-scoped variable.
+    SharedPtr<Cls> otherReference;
+    {
+        auto ptr = MakeShared<Cls>(&instanceConstructorCalled, &instanceDestructorCalled);
+        EXPECT_EQ(instanceConstructorCalled, 1);
+        // Capture a shared reference so we aren't destructed when we leave this scope.
+        otherReference = ptr;
+    }
+
+    // Verify that by sharing to otherReference, we weren't destructed.
+    EXPECT_EQ(instanceDestructorCalled, 0);
+
+    // Now drop our reference.
+    otherReference = MakeShared<Cls>(&otherInstanceConstructorCalled, &otherInstanceDestructorCalled);
+
+    // Verify that the new instance was constructed and the first instance was
+    // destructed, and that we retain a reference to the new instance.
+    EXPECT_EQ(instanceConstructorCalled, 1);
+    EXPECT_EQ(instanceDestructorCalled, 1);
+    EXPECT_EQ(otherInstanceConstructorCalled, 1);
+    EXPECT_EQ(otherInstanceDestructorCalled, 0);
 }
-
-int TestMemAlloc()
-{
-    nlTestSuite theSuite = { "CHIP Memory Allocation tests", &sTests[0], TestMemAlloc_Setup, TestMemAlloc_Teardown };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestMemAlloc)

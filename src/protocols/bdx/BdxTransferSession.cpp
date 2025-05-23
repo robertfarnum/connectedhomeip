@@ -6,14 +6,16 @@
 
 #include <protocols/bdx/BdxTransferSession.h>
 
+#include <lib/support/BufferReader.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/TypeTraits.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <protocols/Protocols.h>
 #include <protocols/bdx/BdxMessages.h>
 #include <protocols/secure_channel/Constants.h>
 #include <protocols/secure_channel/StatusReport.h>
-#include <support/BufferReader.h>
-#include <support/CodeUtils.h>
 #include <system/SystemPacketBuffer.h>
-#include <transport/SecureSessionMgr.h>
+#include <transport/SessionManager.h>
 
 #include <type_traits>
 
@@ -41,26 +43,17 @@ CHIP_ERROR WriteToPacketBuffer(const ::chip::bdx::BdxMessage & msgStruct, ::chip
     return CHIP_NO_ERROR;
 }
 
-// We could make this whole method a template, but it's probably smaller code to
-// share the implementation across all message types.
-CHIP_ERROR AttachHeader(chip::Protocols::Id protocolId, uint8_t msgType, ::chip::System::PacketBufferHandle & msgBuf)
-{
-    ::chip::PayloadHeader payloadHeader;
-
-    payloadHeader.SetMessageType(protocolId, msgType);
-
-    CHIP_ERROR err = payloadHeader.EncodeBeforeData(msgBuf);
-    SuccessOrExit(err);
-
-exit:
-    return err;
-}
-
 template <typename MessageType>
-inline CHIP_ERROR AttachHeader(MessageType msgType, ::chip::System::PacketBufferHandle & msgBuf)
+void PrepareOutgoingMessageEvent(MessageType messageType, chip::bdx::TransferSession::OutputEventType & pendingOutput,
+                                 chip::bdx::TransferSession::MessageTypeData & outputMsgType)
 {
-    return AttachHeader(chip::Protocols::MessageTypeTraits<MessageType>::ProtocolId(), static_cast<uint8_t>(msgType), msgBuf);
+    static_assert(std::is_same<std::underlying_type_t<decltype(messageType)>, uint8_t>::value, "Cast is not safe");
+
+    pendingOutput             = chip::bdx::TransferSession::OutputEventType::kMsgToSend;
+    outputMsgType.ProtocolId  = chip::Protocols::MessageTypeTraits<MessageType>::ProtocolId();
+    outputMsgType.MessageType = static_cast<uint8_t>(messageType);
 }
+
 } // anonymous namespace
 
 namespace chip {
@@ -71,17 +64,17 @@ TransferSession::TransferSession()
     mSuppportedXferOpts.ClearAll();
 }
 
-void TransferSession::PollOutput(OutputEvent & event, uint64_t curTimeMs)
+void TransferSession::PollOutput(OutputEvent & event, System::Clock::Timestamp curTime)
 {
     event = OutputEvent(OutputEventType::kNone);
 
     if (mShouldInitTimeoutStart)
     {
-        mTimeoutStartTimeMs     = curTimeMs;
+        mTimeoutStartTime       = curTime;
         mShouldInitTimeoutStart = false;
     }
 
-    if (mAwaitingResponse && ((curTimeMs - mTimeoutStartTimeMs) >= mTimeoutMs))
+    if (mAwaitingResponse && ((curTime - mTimeoutStartTime) >= mTimeout))
     {
         event             = OutputEvent(OutputEventType::kTransferTimeout);
         mState            = TransferState::kErrorState;
@@ -101,9 +94,8 @@ void TransferSession::PollOutput(OutputEvent & event, uint64_t curTimeMs)
         event = OutputEvent::StatusReportEvent(OutputEventType::kStatusReceived, mStatusReportData);
         break;
     case OutputEventType::kMsgToSend:
-        event               = OutputEvent(OutputEventType::kMsgToSend);
-        event.MsgData       = std::move(mPendingMsgHandle);
-        mTimeoutStartTimeMs = curTimeMs;
+        event             = OutputEvent::MsgToSendEvent(mMsgTypeData, std::move(mPendingMsgHandle));
+        mTimeoutStartTime = curTime;
         break;
     case OutputEventType::kInitReceived:
         event = OutputEvent::TransferInitEvent(mTransferRequestData, std::move(mPendingMsgHandle));
@@ -113,6 +105,9 @@ void TransferSession::PollOutput(OutputEvent & event, uint64_t curTimeMs)
         break;
     case OutputEventType::kQueryReceived:
         event = OutputEvent(OutputEventType::kQueryReceived);
+        break;
+    case OutputEventType::kQueryWithSkipReceived:
+        event = OutputEvent::QueryWithSkipEvent(mBytesToSkip);
         break;
     case OutputEventType::kBlockReceived:
         event = OutputEvent::BlockDataEvent(mBlockEventData, std::move(mPendingMsgHandle));
@@ -128,7 +123,7 @@ void TransferSession::PollOutput(OutputEvent & event, uint64_t curTimeMs)
         break;
     }
 
-    // If there's no other pending output but an error occured or was received, then continue to output the error.
+    // If there's no other pending output but an error occurred or was received, then continue to output the error.
     // This ensures that when the TransferSession encounters an error and needs to send a StatusReport, both a kMsgToSend and a
     // kInternalError output event will be emitted.
     if (event.EventType == OutputEventType::kNone && mState == TransferState::kErrorState)
@@ -139,16 +134,17 @@ void TransferSession::PollOutput(OutputEvent & event, uint64_t curTimeMs)
     mPendingOutput = OutputEventType::kNone;
 }
 
-CHIP_ERROR TransferSession::StartTransfer(TransferRole role, const TransferInitData & initData, uint32_t timeoutMs)
+void TransferSession::GetNextAction(OutputEvent & event)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    MessageType msgType;
-    TransferInit initMsg;
+    PollOutput(event, System::SystemClock().GetMonotonicTimestamp());
+}
 
-    VerifyOrExit(mState == TransferState::kUnitialized, err = CHIP_ERROR_INCORRECT_STATE);
+CHIP_ERROR TransferSession::StartTransfer(TransferRole role, const TransferInitData & initData, System::Clock::Timeout timeout)
+{
+    VerifyOrReturnError(mState == TransferState::kUnitialized, CHIP_ERROR_INCORRECT_STATE);
 
-    mRole      = role;
-    mTimeoutMs = timeoutMs;
+    mRole    = role;
+    mTimeout = timeout;
 
     // Set transfer parameters. They may be overridden later by an Accept message
     mSuppportedXferOpts    = initData.TransferCtlFlags;
@@ -157,6 +153,7 @@ CHIP_ERROR TransferSession::StartTransfer(TransferRole role, const TransferInitD
     mTransferLength        = initData.Length;
 
     // Prepare TransferInit message
+    TransferInit initMsg;
     initMsg.TransferCtlOptions = initData.TransferCtlFlags;
     initMsg.Version            = kBdxVersion;
     initMsg.MaxBlockSize       = mMaxSupportedBlockSize;
@@ -167,54 +164,52 @@ CHIP_ERROR TransferSession::StartTransfer(TransferRole role, const TransferInitD
     initMsg.Metadata           = initData.Metadata;
     initMsg.MetadataLength     = initData.MetadataLength;
 
-    err = WriteToPacketBuffer(initMsg, mPendingMsgHandle);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(WriteToPacketBuffer(initMsg, mPendingMsgHandle));
 
-    msgType = (mRole == TransferRole::kSender) ? MessageType::SendInit : MessageType::ReceiveInit;
-    err     = AttachHeader(msgType, mPendingMsgHandle);
-    SuccessOrExit(err);
+    const MessageType msgType = (mRole == TransferRole::kSender) ? MessageType::SendInit : MessageType::ReceiveInit;
+
+#if CHIP_AUTOMATION_LOGGING
+    ChipLogAutomation("Sending BDX Message");
+    initMsg.LogMessage(msgType);
+#endif // CHIP_AUTOMATION_LOGGING
 
     mState            = TransferState::kAwaitingAccept;
     mAwaitingResponse = true;
 
-    mPendingOutput = OutputEventType::kMsgToSend;
+    PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TransferSession::WaitForTransfer(TransferRole role, BitFlags<TransferControlFlags> xferControlOpts,
-                                            uint16_t maxBlockSize, uint32_t timeoutMs)
+                                            uint16_t maxBlockSize, System::Clock::Timeout timeout)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    VerifyOrExit(mState == TransferState::kUnitialized, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mState == TransferState::kUnitialized, CHIP_ERROR_INCORRECT_STATE);
 
     // Used to determine compatibility with any future TransferInit parameters
     mRole                  = role;
-    mTimeoutMs             = timeoutMs;
+    mTimeout               = timeout;
     mSuppportedXferOpts    = xferControlOpts;
     mMaxSupportedBlockSize = maxBlockSize;
 
     mState = TransferState::kAwaitingInitMsg;
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TransferSession::AcceptTransfer(const TransferAcceptData & acceptData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    System::PacketBufferHandle outMsgBuf;
+    MessageType msgType;
+
     const BitFlags<TransferControlFlags> proposedControlOpts(mTransferRequestData.TransferCtlFlags);
 
-    VerifyOrExit(mState == TransferState::kNegotiateTransferParams, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mPendingOutput == OutputEventType::kNone, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mState == TransferState::kNegotiateTransferParams, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
 
     // Don't allow a Control method that wasn't supported by the initiator
     // MaxBlockSize can't be larger than the proposed value
-    VerifyOrExit(proposedControlOpts.Has(acceptData.ControlMode), err = CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrExit(acceptData.MaxBlockSize <= mTransferRequestData.MaxBlockSize, err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(proposedControlOpts.Has(acceptData.ControlMode), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(acceptData.MaxBlockSize <= mTransferRequestData.MaxBlockSize, CHIP_ERROR_INVALID_ARGUMENT);
 
     mTransferMaxBlockSize = acceptData.MaxBlockSize;
 
@@ -232,11 +227,13 @@ CHIP_ERROR TransferSession::AcceptTransfer(const TransferAcceptData & acceptData
         acceptMsg.Metadata       = acceptData.Metadata;
         acceptMsg.MetadataLength = acceptData.MetadataLength;
 
-        err = WriteToPacketBuffer(acceptMsg, mPendingMsgHandle);
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(WriteToPacketBuffer(acceptMsg, mPendingMsgHandle));
+        msgType = MessageType::ReceiveAccept;
 
-        err = AttachHeader(MessageType::ReceiveAccept, mPendingMsgHandle);
-        SuccessOrExit(err);
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Sending BDX Message");
+        acceptMsg.LogMessage(msgType);
+#endif // CHIP_AUTOMATION_LOGGING
     }
     else
     {
@@ -247,14 +244,14 @@ CHIP_ERROR TransferSession::AcceptTransfer(const TransferAcceptData & acceptData
         acceptMsg.Metadata       = acceptData.Metadata;
         acceptMsg.MetadataLength = acceptData.MetadataLength;
 
-        err = WriteToPacketBuffer(acceptMsg, mPendingMsgHandle);
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(WriteToPacketBuffer(acceptMsg, mPendingMsgHandle));
+        msgType = MessageType::SendAccept;
 
-        err = AttachHeader(MessageType::SendAccept, mPendingMsgHandle);
-        SuccessOrExit(err);
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Sending BDX Message");
+        acceptMsg.LogMessage(msgType);
+#endif // CHIP_AUTOMATION_LOGGING
     }
-
-    mPendingOutput = OutputEventType::kMsgToSend;
 
     mState = TransferState::kTransferInProgress;
 
@@ -264,95 +261,115 @@ CHIP_ERROR TransferSession::AcceptTransfer(const TransferAcceptData & acceptData
         mAwaitingResponse = true;
     }
 
-exit:
-    return err;
+    PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR TransferSession::RejectTransfer(StatusCode reason)
+{
+    VerifyOrReturnError(mState == TransferState::kNegotiateTransferParams, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
+
+    PrepareStatusReport(reason);
+    mState = TransferState::kTransferDone;
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TransferSession::PrepareBlockQuery()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    const MessageType msgType = MessageType::BlockQuery;
+
+    VerifyOrReturnError(mState == TransferState::kTransferInProgress, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mRole == TransferRole::kReceiver, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(!mAwaitingResponse, CHIP_ERROR_INCORRECT_STATE);
+
     BlockQuery queryMsg;
-
-    VerifyOrExit(mState == TransferState::kTransferInProgress, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mRole == TransferRole::kReceiver, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mPendingOutput == OutputEventType::kNone, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(!mAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
-
     queryMsg.BlockCounter = mNextQueryNum;
 
-    err = WriteToPacketBuffer(queryMsg, mPendingMsgHandle);
-    SuccessOrExit(err);
-
-    err = AttachHeader(MessageType::BlockQuery, mPendingMsgHandle);
-    SuccessOrExit(err);
-
-    mPendingOutput = OutputEventType::kMsgToSend;
+    ReturnErrorOnFailure(WriteToPacketBuffer(queryMsg, mPendingMsgHandle));
 
     mAwaitingResponse = true;
     mLastQueryNum     = mNextQueryNum++;
 
-exit:
-    return err;
+    PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
+
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR TransferSession::PrepareBlockQueryWithSkip(const uint64_t & bytesToSkip)
+{
+    const MessageType msgType = MessageType::BlockQueryWithSkip;
+
+    VerifyOrReturnError(mState == TransferState::kTransferInProgress, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mRole == TransferRole::kReceiver, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(!mAwaitingResponse, CHIP_ERROR_INCORRECT_STATE);
+
+    BlockQueryWithSkip queryMsg;
+    queryMsg.BlockCounter = mNextQueryNum;
+    queryMsg.BytesToSkip  = bytesToSkip;
+
+    ReturnErrorOnFailure(WriteToPacketBuffer(queryMsg, mPendingMsgHandle));
+
+    mAwaitingResponse = true;
+    mLastQueryNum     = mNextQueryNum++;
+
+    PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TransferSession::PrepareBlock(const BlockData & inData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    DataBlock blockMsg;
-    MessageType msgType;
-
-    VerifyOrExit(mState == TransferState::kTransferInProgress, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mRole == TransferRole::kSender, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mPendingOutput == OutputEventType::kNone, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(!mAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mState == TransferState::kTransferInProgress, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mRole == TransferRole::kSender, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(!mAwaitingResponse, CHIP_ERROR_INCORRECT_STATE);
 
     // Verify non-zero data is provided and is no longer than MaxBlockSize (BlockEOF may contain 0 length data)
-    VerifyOrExit((inData.Data != nullptr) && (inData.Length <= mTransferMaxBlockSize), err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError((inData.Data != nullptr) && (inData.Length <= mTransferMaxBlockSize), CHIP_ERROR_INVALID_ARGUMENT);
 
+    DataBlock blockMsg;
     blockMsg.BlockCounter = mNextBlockNum;
     blockMsg.Data         = inData.Data;
     blockMsg.DataLength   = inData.Length;
 
-    err = WriteToPacketBuffer(blockMsg, mPendingMsgHandle);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(WriteToPacketBuffer(blockMsg, mPendingMsgHandle));
 
-    msgType = inData.IsEof ? MessageType::BlockEOF : MessageType::Block;
-    err     = AttachHeader(msgType, mPendingMsgHandle);
-    SuccessOrExit(err);
-
-    mPendingOutput = OutputEventType::kMsgToSend;
+    const MessageType msgType = inData.IsEof ? MessageType::BlockEOF : MessageType::Block;
 
     if (msgType == MessageType::BlockEOF)
     {
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Sending BDX Message");
+        blockMsg.LogMessage(msgType);
+#endif // CHIP_AUTOMATION_LOGGING
         mState = TransferState::kAwaitingEOFAck;
     }
 
     mAwaitingResponse = true;
     mLastBlockNum     = mNextBlockNum++;
 
-exit:
-    return err;
+    PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
+
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TransferSession::PrepareBlockAck()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturnError(mRole == TransferRole::kReceiver, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError((mState == TransferState::kTransferInProgress) || (mState == TransferState::kReceivedEOF),
+                        CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
+
     CounterMessage ackMsg;
-    MessageType msgType;
+    ackMsg.BlockCounter       = mLastBlockNum;
+    const MessageType msgType = (mState == TransferState::kReceivedEOF) ? MessageType::BlockAckEOF : MessageType::BlockAck;
 
-    VerifyOrExit(mRole == TransferRole::kReceiver, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit((mState == TransferState::kTransferInProgress) || (mState == TransferState::kReceivedEOF),
-                 err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mPendingOutput == OutputEventType::kNone, err = CHIP_ERROR_INCORRECT_STATE);
-
-    ackMsg.BlockCounter = mLastBlockNum;
-    msgType             = (mState == TransferState::kReceivedEOF) ? MessageType::BlockAckEOF : MessageType::BlockAck;
-
-    err = WriteToPacketBuffer(ackMsg, mPendingMsgHandle);
-    SuccessOrExit(err);
-
-    err = AttachHeader(msgType, mPendingMsgHandle);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(WriteToPacketBuffer(ackMsg, mPendingMsgHandle));
 
     if (mState == TransferState::kTransferInProgress)
     {
@@ -366,28 +383,28 @@ CHIP_ERROR TransferSession::PrepareBlockAck()
     }
     else if (mState == TransferState::kReceivedEOF)
     {
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Sending BDX Message");
+        ackMsg.LogMessage(msgType);
+#endif // CHIP_AUTOMATION_LOGGING
         mState            = TransferState::kTransferDone;
         mAwaitingResponse = false;
     }
 
-    mPendingOutput = OutputEventType::kMsgToSend;
+    PrepareOutgoingMessageEvent(msgType, mPendingOutput, mMsgTypeData);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR TransferSession::AbortTransfer(StatusCode reason)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    VerifyOrExit((mState != TransferState::kUnitialized) && (mState != TransferState::kTransferDone) &&
-                     (mState != TransferState::kErrorState),
-                 err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError((mState != TransferState::kUnitialized) && (mState != TransferState::kTransferDone) &&
+                            (mState != TransferState::kErrorState),
+                        CHIP_ERROR_INCORRECT_STATE);
 
     PrepareStatusReport(reason);
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 void TransferSession::Reset()
@@ -409,66 +426,69 @@ void TransferSession::Reset()
     mLastQueryNum      = 0;
     mNextQueryNum      = 0;
 
-    mTimeoutMs              = 0;
-    mTimeoutStartTimeMs     = 0;
+    mTimeout                = System::Clock::kZero;
+    mTimeoutStartTime       = System::Clock::kZero;
     mShouldInitTimeoutStart = true;
     mAwaitingResponse       = false;
 }
 
-CHIP_ERROR TransferSession::HandleMessageReceived(System::PacketBufferHandle msg, uint64_t curTimeMs)
+CHIP_ERROR TransferSession::HandleMessageReceived(const PayloadHeader & payloadHeader, System::PacketBufferHandle msg,
+                                                  System::Clock::Timestamp curTime)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    PayloadHeader payloadHeader;
-
-    VerifyOrExit(!msg.IsNull(), err = CHIP_ERROR_INVALID_ARGUMENT);
-
-    err = payloadHeader.DecodeAndConsume(msg);
-    SuccessOrExit(err);
+    VerifyOrReturnError(!msg.IsNull(), CHIP_ERROR_INVALID_ARGUMENT);
 
     if (payloadHeader.HasProtocol(Protocols::BDX::Id))
     {
-        err = HandleBdxMessage(payloadHeader, std::move(msg));
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(HandleBdxMessage(payloadHeader, std::move(msg)));
 
-        mTimeoutStartTimeMs = curTimeMs;
+        mTimeoutStartTime = curTime;
     }
     else if (payloadHeader.HasMessageType(Protocols::SecureChannel::MsgType::StatusReport))
     {
-        err = HandleStatusReportMessage(payloadHeader, std::move(msg));
-        SuccessOrExit(err);
+        ReturnErrorOnFailure(HandleStatusReportMessage(payloadHeader, std::move(msg)));
     }
     else
     {
-        err = CHIP_ERROR_INVALID_MESSAGE_TYPE;
+        return CHIP_ERROR_INVALID_MESSAGE_TYPE;
     }
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 // Return CHIP_ERROR only if there was a problem decoding the message. Otherwise, call PrepareStatusReport().
-CHIP_ERROR TransferSession::HandleBdxMessage(PayloadHeader & header, System::PacketBufferHandle msg)
+CHIP_ERROR TransferSession::HandleBdxMessage(const PayloadHeader & header, System::PacketBufferHandle msg)
 {
-    CHIP_ERROR err      = CHIP_NO_ERROR;
-    MessageType msgType = static_cast<MessageType>(header.GetMessageType());
+    VerifyOrReturnError(!msg.IsNull(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(mPendingOutput == OutputEventType::kNone, CHIP_ERROR_INCORRECT_STATE);
 
-    VerifyOrExit(!msg.IsNull(), err = CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrExit(mPendingOutput == OutputEventType::kNone, err = CHIP_ERROR_INCORRECT_STATE);
+    const MessageType msgType = static_cast<MessageType>(header.GetMessageType());
 
     switch (msgType)
     {
     case MessageType::SendInit:
     case MessageType::ReceiveInit:
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Handling received BDX Message");
+#endif // CHIP_AUTOMATION_LOGGING
         HandleTransferInit(msgType, std::move(msg));
         break;
     case MessageType::SendAccept:
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Handling received BDX Message");
+#endif // CHIP_AUTOMATION_LOGGING
         HandleSendAccept(std::move(msg));
         break;
     case MessageType::ReceiveAccept:
+#if CHIP_AUTOMATION_LOGGING
+        ChipLogAutomation("Handling received BDX Message");
+#endif // CHIP_AUTOMATION_LOGGING
         HandleReceiveAccept(std::move(msg));
         break;
     case MessageType::BlockQuery:
         HandleBlockQuery(std::move(msg));
+        break;
+    case MessageType::BlockQueryWithSkip:
+        HandleBlockQueryWithSkip(std::move(msg));
         break;
     case MessageType::Block:
         HandleBlock(std::move(msg));
@@ -483,12 +503,10 @@ CHIP_ERROR TransferSession::HandleBdxMessage(PayloadHeader & header, System::Pac
         HandleBlockAckEOF(std::move(msg));
         break;
     default:
-        err = CHIP_ERROR_INVALID_MESSAGE_TYPE;
-        break;
+        return CHIP_ERROR_INVALID_MESSAGE_TYPE;
     }
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 /**
@@ -498,7 +516,7 @@ exit:
  *   NOTE: BDX does not currently expect to ever use a "Success" general code, so it will be treated as an error along with any
  *         other code.
  */
-CHIP_ERROR TransferSession::HandleStatusReportMessage(PayloadHeader & header, System::PacketBufferHandle msg)
+CHIP_ERROR TransferSession::HandleStatusReportMessage(const PayloadHeader & header, System::PacketBufferHandle msg)
 {
     VerifyOrReturnError(!msg.IsNull(), CHIP_ERROR_INVALID_ARGUMENT);
 
@@ -507,7 +525,7 @@ CHIP_ERROR TransferSession::HandleStatusReportMessage(PayloadHeader & header, Sy
 
     Protocols::SecureChannel::StatusReport report;
     ReturnErrorOnFailure(report.Parse(std::move(msg)));
-    VerifyOrReturnError((report.GetProtocolId() == Protocols::BDX::Id.ToFullyQualifiedSpecForm()), CHIP_ERROR_INVALID_MESSAGE_TYPE);
+    VerifyOrReturnError((report.GetProtocolId() == Protocols::BDX::Id), CHIP_ERROR_INVALID_MESSAGE_TYPE);
 
     mStatusReportData.statusCode = static_cast<StatusCode>(report.GetProtocolCode());
 
@@ -518,26 +536,24 @@ CHIP_ERROR TransferSession::HandleStatusReportMessage(PayloadHeader & header, Sy
 
 void TransferSession::HandleTransferInit(MessageType msgType, System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    TransferInit transferInit;
-
-    VerifyOrExit(mState == TransferState::kAwaitingInitMsg, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kAwaitingInitMsg, PrepareStatusReport(StatusCode::kUnexpectedMessage));
 
     if (mRole == TransferRole::kSender)
     {
-        VerifyOrExit(msgType == MessageType::ReceiveInit, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+        VerifyOrReturn(msgType == MessageType::ReceiveInit, PrepareStatusReport(StatusCode::kUnexpectedMessage));
     }
     else
     {
-        VerifyOrExit(msgType == MessageType::SendInit, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+        VerifyOrReturn(msgType == MessageType::SendInit, PrepareStatusReport(StatusCode::kUnexpectedMessage));
     }
 
-    err = transferInit.Parse(msgData.Retain());
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
+    TransferInit transferInit;
+    const CHIP_ERROR err = transferInit.Parse(msgData.Retain());
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
 
     ResolveTransferControlOptions(transferInit.TransferCtlOptions);
-    mTransferVersion      = ::chip::min(kBdxVersion, transferInit.Version);
-    mTransferMaxBlockSize = ::chip::min(mMaxSupportedBlockSize, transferInit.MaxBlockSize);
+    mTransferVersion      = std::min(kBdxVersion, transferInit.Version);
+    mTransferMaxBlockSize = std::min(mMaxSupportedBlockSize, transferInit.MaxBlockSize);
 
     // Accept for now, they may be changed or rejected by the peer if this is a ReceiveInit
     mStartOffset    = transferInit.StartOffset;
@@ -558,24 +574,22 @@ void TransferSession::HandleTransferInit(MessageType msgType, System::PacketBuff
 
     mState = TransferState::kNegotiateTransferParams;
 
-exit:
-    return;
+#if CHIP_AUTOMATION_LOGGING
+    transferInit.LogMessage(msgType);
+#endif // CHIP_AUTOMATION_LOGGING
 }
 
 void TransferSession::HandleReceiveAccept(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kReceiver, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kAwaitingAccept, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     ReceiveAccept rcvAcceptMsg;
-
-    VerifyOrExit(mRole == TransferRole::kReceiver, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kAwaitingAccept, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-
-    err = rcvAcceptMsg.Parse(msgData.Retain());
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
+    const CHIP_ERROR err = rcvAcceptMsg.Parse(msgData.Retain());
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
 
     // Verify that Accept parameters are compatible with the original proposed parameters
-    err = VerifyProposedMode(rcvAcceptMsg.TransferCtlFlags);
-    SuccessOrExit(err);
+    ReturnOnFailure(VerifyProposedMode(rcvAcceptMsg.TransferCtlFlags));
 
     mTransferMaxBlockSize = rcvAcceptMsg.MaxBlockSize;
     mStartOffset          = rcvAcceptMsg.StartOffset;
@@ -596,24 +610,22 @@ void TransferSession::HandleReceiveAccept(System::PacketBufferHandle msgData)
     mAwaitingResponse = (mControlMode == TransferControlFlags::kSenderDrive);
     mState            = TransferState::kTransferInProgress;
 
-exit:
-    return;
+#if CHIP_AUTOMATION_LOGGING
+    rcvAcceptMsg.LogMessage(MessageType::ReceiveAccept);
+#endif // CHIP_AUTOMATION_LOGGING
 }
 
 void TransferSession::HandleSendAccept(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kAwaitingAccept, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     SendAccept sendAcceptMsg;
-
-    VerifyOrExit(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kAwaitingAccept, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-
-    err = sendAcceptMsg.Parse(msgData.Retain());
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
+    const CHIP_ERROR err = sendAcceptMsg.Parse(msgData.Retain());
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
 
     // Verify that Accept parameters are compatible with the original proposed parameters
-    err = VerifyProposedMode(sendAcceptMsg.TransferCtlFlags);
-    SuccessOrExit(err);
+    ReturnOnFailure(VerifyProposedMode(sendAcceptMsg.TransferCtlFlags));
 
     // Note: if VerifyProposedMode() returned with no error, then mControlMode must match the proposed mode in the SendAccept
     // message
@@ -632,57 +644,72 @@ void TransferSession::HandleSendAccept(System::PacketBufferHandle msgData)
     mAwaitingResponse = (mControlMode == TransferControlFlags::kReceiverDrive);
     mState            = TransferState::kTransferInProgress;
 
-exit:
-    return;
+#if CHIP_AUTOMATION_LOGGING
+    sendAcceptMsg.LogMessage(MessageType::SendAccept);
+#endif // CHIP_AUTOMATION_LOGGING
 }
 
 void TransferSession::HandleBlockQuery(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     BlockQuery query;
+    const CHIP_ERROR err = query.Parse(std::move(msgData));
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
 
-    VerifyOrExit(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-
-    err = query.Parse(std::move(msgData));
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
-
-    VerifyOrExit(query.BlockCounter == mNextBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
+    VerifyOrReturn(query.BlockCounter == mNextBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
 
     mPendingOutput = OutputEventType::kQueryReceived;
 
     mAwaitingResponse = false;
     mLastQueryNum     = query.BlockCounter;
+}
 
-exit:
-    return;
+void TransferSession::HandleBlockQueryWithSkip(System::PacketBufferHandle msgData)
+{
+    VerifyOrReturn(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
+    BlockQueryWithSkip query;
+    const CHIP_ERROR err = query.Parse(std::move(msgData));
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
+
+    VerifyOrReturn(query.BlockCounter == mNextBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
+
+    mPendingOutput = OutputEventType::kQueryWithSkipReceived;
+
+    mAwaitingResponse        = false;
+    mLastQueryNum            = query.BlockCounter;
+    mBytesToSkip.BytesToSkip = query.BytesToSkip;
 }
 
 void TransferSession::HandleBlock(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kReceiver, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     Block blockMsg;
+    const CHIP_ERROR err = blockMsg.Parse(msgData.Retain());
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
 
-    VerifyOrExit(mRole == TransferRole::kReceiver, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-
-    err = blockMsg.Parse(msgData.Retain());
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
-
-    VerifyOrExit(blockMsg.BlockCounter == mLastQueryNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
-    VerifyOrExit((blockMsg.DataLength > 0) && (blockMsg.DataLength <= mTransferMaxBlockSize),
-                 PrepareStatusReport(StatusCode::kBadMessageContents));
+    VerifyOrReturn(blockMsg.BlockCounter == mLastQueryNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
+    VerifyOrReturn((blockMsg.DataLength > 0) && (blockMsg.DataLength <= mTransferMaxBlockSize),
+                   PrepareStatusReport(StatusCode::kBadMessageContents));
 
     if (IsTransferLengthDefinite())
     {
-        VerifyOrExit(mNumBytesProcessed + blockMsg.DataLength <= mTransferLength, PrepareStatusReport(StatusCode::kLengthMismatch));
+        VerifyOrReturn(mNumBytesProcessed + blockMsg.DataLength <= mTransferLength,
+                       PrepareStatusReport(StatusCode::kLengthMismatch));
     }
 
-    mBlockEventData.Data   = blockMsg.Data;
-    mBlockEventData.Length = blockMsg.DataLength;
-    mBlockEventData.IsEof  = false;
+    mBlockEventData.Data         = blockMsg.Data;
+    mBlockEventData.Length       = blockMsg.DataLength;
+    mBlockEventData.IsEof        = false;
+    mBlockEventData.BlockCounter = blockMsg.BlockCounter;
 
     mPendingMsgHandle = std::move(msgData);
     mPendingOutput    = OutputEventType::kBlockReceived;
@@ -691,29 +718,25 @@ void TransferSession::HandleBlock(System::PacketBufferHandle msgData)
     mLastBlockNum = blockMsg.BlockCounter;
 
     mAwaitingResponse = false;
-
-exit:
-    return;
 }
 
 void TransferSession::HandleBlockEOF(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kReceiver, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     BlockEOF blockEOFMsg;
+    const CHIP_ERROR err = blockEOFMsg.Parse(msgData.Retain());
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
 
-    VerifyOrExit(mRole == TransferRole::kReceiver, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(blockEOFMsg.BlockCounter == mLastQueryNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
+    VerifyOrReturn(blockEOFMsg.DataLength <= mTransferMaxBlockSize, PrepareStatusReport(StatusCode::kBadMessageContents));
 
-    err = blockEOFMsg.Parse(msgData.Retain());
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
-
-    VerifyOrExit(blockEOFMsg.BlockCounter == mLastQueryNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
-    VerifyOrExit(blockEOFMsg.DataLength <= mTransferMaxBlockSize, PrepareStatusReport(StatusCode::kBadMessageContents));
-
-    mBlockEventData.Data   = blockEOFMsg.Data;
-    mBlockEventData.Length = blockEOFMsg.DataLength;
-    mBlockEventData.IsEof  = true;
+    mBlockEventData.Data         = blockEOFMsg.Data;
+    mBlockEventData.Length       = blockEOFMsg.DataLength;
+    mBlockEventData.IsEof        = true;
+    mBlockEventData.BlockCounter = blockEOFMsg.BlockCounter;
 
     mPendingMsgHandle = std::move(msgData);
     mPendingOutput    = OutputEventType::kBlockReceived;
@@ -724,45 +747,39 @@ void TransferSession::HandleBlockEOF(System::PacketBufferHandle msgData)
     mAwaitingResponse = false;
     mState            = TransferState::kReceivedEOF;
 
-exit:
-    return;
+#if CHIP_AUTOMATION_LOGGING
+    blockEOFMsg.LogMessage(MessageType::BlockEOF);
+#endif // CHIP_AUTOMATION_LOGGING
 }
 
 void TransferSession::HandleBlockAck(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     BlockAck ackMsg;
-
-    VerifyOrExit(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kTransferInProgress, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-
-    err = ackMsg.Parse(std::move(msgData));
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
-    VerifyOrExit(ackMsg.BlockCounter == mLastBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
+    const CHIP_ERROR err = ackMsg.Parse(std::move(msgData));
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
+    VerifyOrReturn(ackMsg.BlockCounter == mLastBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
 
     mPendingOutput = OutputEventType::kAckReceived;
 
     // In Receiver Drive, the Receiver can send a BlockAck to indicate receipt of the message and reset the timeout.
     // In this case, the Sender should wait to receive a BlockQuery next.
     mAwaitingResponse = (mControlMode == TransferControlFlags::kReceiverDrive);
-
-exit:
-    return;
 }
 
 void TransferSession::HandleBlockAckEOF(System::PacketBufferHandle msgData)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    VerifyOrReturn(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mState == TransferState::kAwaitingEOFAck, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+    VerifyOrReturn(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
+
     BlockAckEOF ackMsg;
-
-    VerifyOrExit(mRole == TransferRole::kSender, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mState == TransferState::kAwaitingEOFAck, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-    VerifyOrExit(mAwaitingResponse, PrepareStatusReport(StatusCode::kUnexpectedMessage));
-
-    err = ackMsg.Parse(std::move(msgData));
-    VerifyOrExit(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
-    VerifyOrExit(ackMsg.BlockCounter == mLastBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
+    const CHIP_ERROR err = ackMsg.Parse(std::move(msgData));
+    VerifyOrReturn(err == CHIP_NO_ERROR, PrepareStatusReport(StatusCode::kBadMessageContents));
+    VerifyOrReturn(ackMsg.BlockCounter == mLastBlockNum, PrepareStatusReport(StatusCode::kBadBlockCounter));
 
     mPendingOutput = OutputEventType::kAckEOFReceived;
 
@@ -770,8 +787,9 @@ void TransferSession::HandleBlockAckEOF(System::PacketBufferHandle msgData)
 
     mState = TransferState::kTransferDone;
 
-exit:
-    return;
+#if CHIP_AUTOMATION_LOGGING
+    ackMsg.LogMessage(MessageType::BlockAckEOF);
+#endif // CHIP_AUTOMATION_LOGGING
 }
 
 void TransferSession::ResolveTransferControlOptions(const BitFlags<TransferControlFlags> & proposed)
@@ -844,12 +862,10 @@ CHIP_ERROR TransferSession::VerifyProposedMode(const BitFlags<TransferControlFla
 
 void TransferSession::PrepareStatusReport(StatusCode code)
 {
-    static_assert(std::is_same<std::underlying_type_t<decltype(code)>, uint16_t>::value, "Cast is not safe");
-
     mStatusReportData.statusCode = code;
 
-    Protocols::SecureChannel::StatusReport report(Protocols::SecureChannel::GeneralStatusCode::kFailure,
-                                                  Protocols::BDX::Id.ToFullyQualifiedSpecForm(), static_cast<uint16_t>(code));
+    Protocols::SecureChannel::StatusReport report(Protocols::SecureChannel::GeneralStatusCode::kFailure, Protocols::BDX::Id,
+                                                  to_underlying(code));
     size_t msgSize = report.Size();
     Encoding::LittleEndian::PacketBufferWriter bbuf(chip::MessagePacketBuffer::New(msgSize), msgSize);
     VerifyOrExit(!bbuf.IsNull(), mPendingOutput = OutputEventType::kInternalError);
@@ -858,13 +874,12 @@ void TransferSession::PrepareStatusReport(StatusCode code)
     mPendingMsgHandle = bbuf.Finalize();
     if (mPendingMsgHandle.IsNull())
     {
+        ChipLogError(BDX, "%s: error preparing message: %" CHIP_ERROR_FORMAT, __FUNCTION__, CHIP_ERROR_NO_MEMORY.Format());
         mPendingOutput = OutputEventType::kInternalError;
     }
     else
     {
-        CHIP_ERROR err = AttachHeader(Protocols::SecureChannel::MsgType::StatusReport, mPendingMsgHandle);
-        VerifyOrExit(err == CHIP_NO_ERROR, mPendingOutput = OutputEventType::kInternalError);
-        mPendingOutput = OutputEventType::kMsgToSend;
+        PrepareOutgoingMessageEvent(Protocols::SecureChannel::MsgType::StatusReport, mPendingOutput, mMsgTypeData);
     }
 
 exit:
@@ -872,9 +887,47 @@ exit:
     mAwaitingResponse = false; // Prevent triggering timeout
 }
 
-bool TransferSession::IsTransferLengthDefinite()
+bool TransferSession::IsTransferLengthDefinite() const
 {
     return (mTransferLength > 0);
+}
+
+const char * TransferSession::OutputEvent::ToString(OutputEventType outputEventType)
+{
+    return TypeToString(outputEventType);
+}
+
+const char * TransferSession::OutputEvent::TypeToString(OutputEventType outputEventType)
+{
+    switch (outputEventType)
+    {
+    case OutputEventType::kNone:
+        return "None";
+    case OutputEventType::kMsgToSend:
+        return "MsgToSend";
+    case OutputEventType::kInitReceived:
+        return "InitReceived";
+    case OutputEventType::kAcceptReceived:
+        return "AcceptReceived";
+    case OutputEventType::kBlockReceived:
+        return "BlockReceived";
+    case OutputEventType::kQueryReceived:
+        return "QueryReceived";
+    case OutputEventType::kQueryWithSkipReceived:
+        return "QueryWithSkipReceived";
+    case OutputEventType::kAckReceived:
+        return "AckReceived";
+    case OutputEventType::kAckEOFReceived:
+        return "AckEOFReceived";
+    case OutputEventType::kStatusReceived:
+        return "StatusReceived";
+    case OutputEventType::kInternalError:
+        return "InternalError";
+    case OutputEventType::kTransferTimeout:
+        return "TransferTimeout";
+    default:
+        return "Unknown";
+    }
 }
 
 TransferSession::OutputEvent TransferSession::OutputEvent::TransferInitEvent(TransferInitData data, System::PacketBufferHandle msg)
@@ -923,6 +976,21 @@ TransferSession::OutputEvent TransferSession::OutputEvent::StatusReportEvent(Out
 {
     OutputEvent event(type);
     event.statusData = data;
+    return event;
+}
+
+TransferSession::OutputEvent TransferSession::OutputEvent::MsgToSendEvent(MessageTypeData typeData, System::PacketBufferHandle msg)
+{
+    OutputEvent event(OutputEventType::kMsgToSend);
+    event.MsgData     = std::move(msg);
+    event.msgTypeData = typeData;
+    return event;
+}
+
+TransferSession::OutputEvent TransferSession::OutputEvent::QueryWithSkipEvent(TransferSkipData bytesToSkip)
+{
+    OutputEvent event(OutputEventType::kQueryWithSkipReceived);
+    event.bytesToSkip = bytesToSkip;
     return event;
 }
 

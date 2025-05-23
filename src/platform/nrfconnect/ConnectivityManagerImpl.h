@@ -19,19 +19,29 @@
 
 #include <platform/ConnectivityManager.h>
 #include <platform/internal/GenericConnectivityManagerImpl.h>
+#include <platform/internal/GenericConnectivityManagerImpl_UDP.h>
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+#include <platform/internal/GenericConnectivityManagerImpl_TCP.h>
+#endif
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 #include <platform/internal/GenericConnectivityManagerImpl_BLE.h>
 #else
 #include <platform/internal/GenericConnectivityManagerImpl_NoBLE.h>
 #endif
+
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/internal/GenericConnectivityManagerImpl_Thread.h>
 #else
 #include <platform/internal/GenericConnectivityManagerImpl_NoThread.h>
 #endif
-#include <platform/internal/GenericConnectivityManagerImpl_NoWiFi.h>
 
-#include <support/logging/CHIPLogging.h>
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+#include "wifi/ConnectivityManagerImplWiFi.h"
+#else
+#include <platform/internal/GenericConnectivityManagerImpl_NoWiFi.h>
+#endif
+
+#include <lib/support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace Inet {
@@ -47,6 +57,10 @@ namespace DeviceLayer {
  */
 class ConnectivityManagerImpl final : public ConnectivityManager,
                                       public Internal::GenericConnectivityManagerImpl<ConnectivityManagerImpl>,
+                                      public Internal::GenericConnectivityManagerImpl_UDP<ConnectivityManagerImpl>,
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+                                      public Internal::GenericConnectivityManagerImpl_TCP<ConnectivityManagerImpl>,
+#endif
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
                                       public Internal::GenericConnectivityManagerImpl_BLE<ConnectivityManagerImpl>,
 #else
@@ -57,18 +71,45 @@ class ConnectivityManagerImpl final : public ConnectivityManager,
 #else
                                       public Internal::GenericConnectivityManagerImpl_NoThread<ConnectivityManagerImpl>,
 #endif
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+                                      public ConnectivityManagerImplWiFi
+#else
                                       public Internal::GenericConnectivityManagerImpl_NoWiFi<ConnectivityManagerImpl>
+#endif
 {
     // Allow the ConnectivityManager interface class to delegate method calls to
     // the implementation methods provided by this class.
     friend class ConnectivityManager;
 
+public:
+    // Generic network status checkers
+    bool IsIPv6NetworkEnabled()
+    {
+        return false
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+            || IsThreadEnabled()
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+            || IsWiFiStationEnabled()
+#endif
+            ;
+    };
+
+    bool IsIPv6NetworkProvisioned()
+    {
+        return false
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+            || IsThreadProvisioned()
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+            || IsWiFiStationProvisioned()
+#endif
+            ;
+    }
+
 private:
     // ===== Members that implement the ConnectivityManager abstract interface.
 
-    bool _HaveIPv4InternetConnectivity(void);
-    bool _HaveIPv6InternetConnectivity(void);
-    bool _HaveServiceConnectivity(void);
     CHIP_ERROR _Init(void);
     void _OnPlatformEvent(const ChipDeviceEvent * event);
 
@@ -79,21 +120,6 @@ private:
 
     static ConnectivityManagerImpl sInstance;
 };
-
-inline bool ConnectivityManagerImpl::_HaveIPv4InternetConnectivity(void)
-{
-    return false;
-}
-
-inline bool ConnectivityManagerImpl::_HaveIPv6InternetConnectivity(void)
-{
-    return false;
-}
-
-inline bool ConnectivityManagerImpl::_HaveServiceConnectivity(void)
-{
-    return _HaveServiceConnectivityViaThread();
-}
 
 /**
  * Returns the public interface of the ConnectivityManager singleton object.
@@ -110,7 +136,7 @@ inline ConnectivityManager & ConnectivityMgr(void)
  * Returns the platform-specific implementation of the ConnectivityManager singleton object.
  *
  * chip applications can use this to gain access to features of the ConnectivityManager
- * that are specific to the ESP32 platform.
+ * that are specific to the nrfconnect platform.
  */
 inline ConnectivityManagerImpl & ConnectivityMgrImpl(void)
 {

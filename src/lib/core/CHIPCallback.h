@@ -26,6 +26,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <lib/core/CHIPConfig.h>
+
 namespace chip {
 
 namespace Callback {
@@ -50,8 +52,12 @@ public:
     Cancelable * mNext;
     Cancelable * mPrev;
 
-    void * mInfoPtr;
-    uint64_t mInfoScalar;
+    // CHIP_CONFIG_CANCELABLE_HAS_INFO_STRING_FIELD allows consumers that were
+    // using this field to opt into having it (and the resulting memory bloat)
+    // while allowing everyone else to save the memory.
+#if CHIP_CONFIG_CANCELABLE_HAS_INFO_STRING_FIELD
+    alignas(uint64_t) char mInfo[24];
+#endif // CHIP_CONFIG_CANCELABLE_HAS_INFO_STRING_FIELD
 
     /**
      * @brief when non-null, indicates the Callback is registered with
@@ -120,7 +126,7 @@ public:
     void * mContext;
 
     /**
-     * where to call when the event of interest has occured
+     * where to call when the event of interest has occurred
      */
     T mCall;
 

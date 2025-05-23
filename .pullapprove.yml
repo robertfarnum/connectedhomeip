@@ -4,370 +4,254 @@ version: 3
 github_api_version: "shadow-cat-preview"
 
 ############################################################
-#  Conditions
+#  Overrides
 ############################################################
 
-pullapprove_conditions:
-    ############################################################
-    #  License Checks
-    ############################################################
-    - condition: "'*license/cla*' in statuses.successful"
-      unmet_status: "pending"
-      explanation: "CLA must be agreed to by all contributors"
+overrides:
+  - if: "'hotfix' in labels"
+    status: success
+    explanation: "Hotfix label added, bypassing reviews"
 
-    ############################################################
-    #  Draft PRs
-    ############################################################
-    - condition: "'WIP' not in title"
-      unmet_status: "pending"
-      explanation: "Work in progress"
+  ############################################################
+  #  Draft PRs
+  ############################################################
+  - if: "draft"
+    status: pending
+    explanation: "PR is draft, pending review"
 
-    - condition: "not draft"
-      unmet_status: "pending"
-      explanation: "Work in progress"
+  ############################################################
+  #  License Checks
+  ############################################################
+  - if: "'*license/cla*' not in statuses.successful"
+    status: pending
+    explanation: "CLA must be agreed to by all contributors"
 
-    ############################################################
-    #  Conditions to Skip Review
-    ############################################################
-    - condition: "base.ref == 'master'"
-      unmet_status: "success"
-      explanation: "Review not required unless merging to master"
+  ############################################################
+  #  Conditions to Skip Review
+  ############################################################
+  - if: "base.ref != 'master'"
+    status: success
+    explanation: "Review not required unless merging to master"
 
-    ############################################################
-    #  Bypass reviews
-    ############################################################
-    - "'hotfix' not in labels"
+  ############################################################
+  #  Require Issues
+  ############################################################
+  # disabling until we have PRs up to date
+  #     - if: "'*issue*' not in statuses.successful"
+  #       status: failure
+  #       explanation: "An issue is required for all PRs"
 
-    ############################################################
-    #  Required status checks
-    ############################################################
-    - condition: "'*restyle*' in statuses.successful"
-      unmet_status: "failure"
-      explanation: "Style must be inline before reviewing can be complete"
+  ############################################################
+  #  Fast tracking
+  ############################################################
+  - if: "'fast track' in labels"
+    status: success
+    explanation: "PR has been fast tracked, bypassing reviews"
 
 ############################################################
 #  Notifications
 ############################################################
 
 notifications:
-    ############################################################
-    #  New contributors
-    ############################################################
-    - when: pull_request.opened
-      if: "author_association == 'FIRST_TIME_CONTRIBUTOR'"
-      comment: |
-          Hey @{{ author }}, thanks for the PR! The review will start once
-          the tests and CI checks have passed. If they don't, please review
-          the logs and try to fix the issues (ask for help if you can't
-          figure it out). A reviewer will be assigned once the tests are
-          passing and they'll walk you through getting the PR finished
-          and merged.
+  ############################################################
+  #  New contributors
+  ############################################################
+  - when: pull_request.opened
+    if: "author_association == 'FIRST_TIME_CONTRIBUTOR'"
+    comment: |
+      Hey @{{ author }}, thanks for the PR! The review will start once
+      the tests and CI checks have passed. If they don't, please review
+      the logs and try to fix the issues (ask for help if you can't
+      figure it out). A reviewer will be assigned once the tests are
+      passing and they'll walk you through getting the PR finished
+      and merged.
 
 groups:
-    ############################################################
-    #  Shared Reviewer Groups
-    ############################################################
-    shared-reviewers-amazon:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-amazon]
-        reviews:
-            request: 1
-    shared-reviewers-apple:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-apple]
-        reviews:
-            request: 1
-    shared-reviewers-comcast:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-comcast]
-        reviews:
-            request: 1
-    shared-reviewers-google:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-google]
-        reviews:
-            request: 1
-    shared-reviewers-nordic:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-nordic]
-        reviews:
-            request: 1
-    shared-reviewers-samsung:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-samsung]
-        reviews:
-            request: 1
-    shared-reviewers-silabs:
-        type: optional
-        conditions:
-            - files.include('*')
-        reviewers:
-            teams: [reviewers-silabs]
-        reviews:
-            request: 1
+  ############################################################
+  #  Shared Reviewer Groups
+  ############################################################
+  shared-reviewers-amazon:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-amazon]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-apple:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-apple]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-bosch:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-bosch]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-comcast:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-comcast]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-dyson:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-dyson]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-espressif:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-espressif]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-google:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-google]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-grundfos:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-grundfos]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-irobot:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-irobot]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-lg:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-lg]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-logitech:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-logitech]
+    reviews:
+      request: 0 # Requested to be only on demand
+  shared-reviewers-nordic:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-nordic]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-nxp:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-nxp]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-samsung:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-samsung]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-eve:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-eve]
+    reviews:
+      request: 0 # Do not auto-add
+  # shared-reviewers-signify disabled for now, because the reviewers-signify
+  # team is empty and pullapprove seems to mis-handle that badly and treats
+  # _all_ reviewers as being in this group.
+  #
+  # See https://github.com/dropseed/pullapprove/issues/71
+  #
+  # shared-reviewers-signify:
+  #     type: optional
+  #     conditions:
+  #         - files.include('*')
+  #     reviewers:
+  #         teams: [reviewers-signify]
+  #     reviews:
+  #         request: 0 # Do not auto-add
+  shared-reviewers-silabs:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-silabs]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-somfy:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-somfy]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-tcl:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-tcl]
+    reviews:
+      request: 0 # Do not auto-add
+  shared-reviewers-qorvo:
+    type: optional
+    conditions:
+      - files.include('*')
+    reviewers:
+      teams: [reviewers-qorvo]
+    reviews:
+      request: 0 # Do not auto-add
 
-    ############################################################
-    #  Base Required Reviewers
-    ############################################################
-    required-reviewers:
-        description: >
-            [Required
-            Reviewers](https://github.com/project-chip/connectedhomeip/blob/master/CONTRIBUTING.md#review-requirements)
-            This is the main group of required reviews for general pull
-            requests.
-        type: required
-        requirements:
-            - len(groups.approved.include('shared-reviewers-*')) >= 3
-        reviews:
-            required: 0
-
-    ############################################################
-    #  Label Based Reviewers
-    ############################################################
-    codeowners-android:
-        type: optional
-        conditions:
-            - "'android' in labels"
-        reviewers:
-            teams:
-                - codeowners-android
-        reviews:
-            request: 1
-
-    codeowners-app:
-        type: optional
-        conditions:
-            - "'app' in labels"
-        reviewers:
-            teams:
-                - codeowners-app
-        reviews:
-            request: 1
-
-    codeowners-ble:
-        type: optional
-        conditions:
-            - "'ble' in labels"
-        reviewers:
-            teams:
-                - codeowners-ble
-        reviews:
-            request: 1
-
-    codeowners-controller:
-        type: optional
-        conditions:
-            - "'controller' in labels"
-        reviewers:
-            teams:
-                - codeowners-controller
-        reviews:
-            request: 1
-
-    codeowners-darwin:
-        type: optional
-        conditions:
-            - "'darwin' in labels"
-        reviewers:
-            teams:
-                - codeowners-darwin
-        reviews:
-            request: 1
-
-    codeowners-crypto:
-        type: optional
-        conditions:
-            - "'crypto' in labels"
-        reviewers:
-            teams:
-                - codeowners-crypto
-        reviews:
-            request: 1
-
-    codeowners-inet:
-        type: optional
-        conditions:
-            - "'inet' in labels"
-        reviewers:
-            teams:
-                - codeowners-inet
-        reviews:
-            request: 2
-
-    codeowners-core:
-        type: optional
-        conditions:
-            - "'core' in labels"
-        reviewers:
-            teams:
-                - codeowners-core
-        reviews:
-            request: 2
-
-    codeowners-protocols:
-        type: optional
-        conditions:
-            - "'protocols' in labels"
-        reviewers:
-            teams:
-                - codeowners-protocols
-        reviews:
-            request: 1
-
-    codeowners-shell:
-        type: optional
-        conditions:
-            - "'shell' in labels"
-        reviewers:
-            teams:
-                - codeowners-shell
-        reviews:
-            request: 1
-
-    codeowners-support:
-        type: optional
-        conditions:
-            - "'support' in labels"
-        reviewers:
-            teams:
-                - codeowners-support
-        reviews:
-            request: 1
-
-    codeowners-platform:
-        type: optional
-        conditions:
-            - "'platform' in labels"
-        reviewers:
-            teams:
-                - codeowners-platform
-        reviews:
-            request: 1
-
-    codeowners-qrcode:
-        type: optional
-        conditions:
-            - "'qrcode' in labels"
-        reviewers:
-            teams:
-                - codeowners-qrcode
-        reviews:
-            request: 1
-
-    codeowners-setup-payload:
-        type: optional
-        conditions:
-            - "'setup payload' in labels"
-        reviewers:
-            teams:
-                - codeowners-setup-payload
-        reviews:
-            request: 1
-
-    codeowners-system:
-        type: optional
-        conditions:
-            - "'system' in labels"
-        reviewers:
-            teams:
-                - codeowners-system
-        reviews:
-            request: 1
-
-    codeowners-test-driver:
-        type: optional
-        conditions:
-            - "'test driver' in labels"
-        reviewers:
-            teams:
-                - codeowners-test-driver
-        reviews:
-            request: 1
-
-    codeowners-github:
-        type: optional
-        conditions:
-            - "'github' in labels"
-        reviewers:
-            teams:
-                - codeowners-github
-        reviews:
-            request: 1
-
-    codeowners-vscode:
-        type: optional
-        conditions:
-            - "'vscode' in labels"
-        reviewers:
-            teams:
-                - codeowners-vscode
-        reviews:
-            request: 2
-
-    codeowners-integrations:
-        type: optional
-        conditions:
-            - "'integrations' in labels"
-        reviewers:
-            teams:
-                - codeowners-integrations
-        reviews:
-            request: 1
-
-    codeowners-transport:
-        type: optional
-        conditions:
-            - "'transport' in labels"
-        reviewers:
-            teams:
-                - codeowners-transport
-        reviews:
-            request: 1
-
-    codeowners-scripts:
-        type: optional
-        conditions:
-            - "'scripts' in labels"
-        reviewers:
-            teams:
-                - codeowners-scripts
-        reviews:
-            request: 1
-
-    codeowners-documentation:
-        type: optional
-        conditions:
-            - "'documentation' in labels"
-        reviewers:
-            teams:
-                - codeowners-documentation
-        reviews:
-            request: 1
-
-    codeowners-gn:
-        type: optional
-        conditions:
-            - "'gn' in labels"
-        reviewers:
-            teams:
-                - codeowners-gn
-        reviews:
-            request: 1
+  ############################################################
+  #  Base Required Reviewers
+  ############################################################
+  required-reviewers:
+    description: >
+      [Required
+      Reviewers](https://github.com/project-chip/connectedhomeip/blob/master/CONTRIBUTING.md#review-requirements)
+      This is the main group of required reviews for general pull
+      requests.
+    type: required
+    requirements:
+      - len(groups.approved.include('shared-reviewers-*')) >= 2
+    reviews:
+      required: 0
+    labels:
+      approved: "review - approved"
+      pending: "review - pending"
+      rejected: "review - changed requested"

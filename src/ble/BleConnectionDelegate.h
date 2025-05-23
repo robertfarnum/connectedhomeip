@@ -23,10 +23,15 @@
 
 #pragma once
 
-#include <ble/BleConfig.h>
-#include <ble/BleError.h>
+#ifndef _CHIP_BLE_BLE_H
+#error "Please include <ble/Ble.h> instead!"
+#endif
 
-#include <support/DLLUtil.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/SetupDiscriminator.h>
+
+#include "BleConfig.h"
+#include "BleError.h"
 
 namespace chip {
 namespace Ble {
@@ -47,15 +52,19 @@ public:
     typedef void (*OnConnectionCompleteFunct)(void * appState, BLE_CONNECTION_OBJECT connObj);
     OnConnectionCompleteFunct OnConnectionComplete;
 
-    typedef void (*OnConnectionErrorFunct)(void * appState, BLE_ERROR err);
+    typedef void (*OnConnectionErrorFunct)(void * appState, CHIP_ERROR err);
     OnConnectionErrorFunct OnConnectionError;
 
     // Call this function to delegate the connection steps required to get a BLE_CONNECTION_OBJECT
-    // out of a peripheral discriminator.
-    virtual void NewConnection(BleLayer * bleLayer, void * appState, uint16_t connDiscriminator) = 0;
+    // out of a peripheral that matches the given discriminator.
+    virtual void NewConnection(BleLayer * bleLayer, void * appState, const SetupDiscriminator & connDiscriminator) = 0;
+
+    // Call this function to delegate the connection steps required to get a connected BLE_CONNECTION_OBJECT
+    // out of a disconnected BLE_CONNECTION_OBJECT.
+    virtual void NewConnection(BleLayer * bleLayer, void * appState, BLE_CONNECTION_OBJECT connObj) = 0;
 
     // Call this function to stop the connection
-    virtual BLE_ERROR CancelConnection() = 0;
+    virtual CHIP_ERROR CancelConnection() = 0;
 };
 
 } /* namespace Ble */

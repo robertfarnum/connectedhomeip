@@ -1,183 +1,76 @@
-# CHIP All Clusters Example
+# Matter ESP32 All Clusters Example
 
-A prototype application that uses CHIP to setup WiFi on the ESP32 and runs an
-Echo Server. This example will evolve as more complex messaging is supported in
-CHIP.
+A prototype application that demonstrates device commissioning and cluster
+control.
 
----
-
--   [CHIP App Server Example](#chip-app-server-example)
-    -   [Supported Devices](#supported-devices)
-    -   [Building the Example Application](#building-the-example-application)
-        -   [To build the application, follow these steps:](#to-build-the-application-follow-these-steps)
-    -   [Using the Echo Server](#using-the-echo-server)
-        -   [Connect the ESP32 to a 2.4GHz Network of your choice](#connect-the-esp32-to-a-24ghz-network-of-your-choice)
-        -   [Use the ESP32's Network](#use-the-esp32s-network)
+Please
+[setup ESP-IDF and CHIP Environment](../../../docs/platforms/esp32/setup_idf_chip.md)
+and refer
+[building and commissioning](../../../docs/platforms/esp32/build_app_and_commission.md)
+guides to get started.
 
 ---
 
-## Supported Devices
+-   [Cluster control](#cluster-control)
+-   [Matter OTA guide](../../../docs/platforms/esp32/ota.md)
+-   [RPC console and Device Tracing](../../../docs/platforms/esp32/rpc_console.md)
+-   [Multiple Network Interfaces](#multiple-network-interfaces)
 
-The CHIP demo application is intended to work on two categories of ESP32
-devices: the
-[ESP32-DevKitC](https://www.espressif.com/en/products/hardware/esp32-devkitc/overview),
-and the [M5Stack](http://m5stack.com). On the [M5Stack](http://m5stack.com) this
-example displays a CHIP QRCode with the device's Soft-AP SSID encoded in the TLV
-section.
+---
 
-## Building the Example Application
+### Cluster control
 
-Building the example application requires the use of the Espressif ESP32 IoT
-Development Framework and the xtensa-esp32-elf toolchain.
+#### onoff
 
-The VSCode devcontainer has these components pre-installed, so you can skip this
-step. To install these components manually, follow these steps:
+To use the Client to send Matter commands, run the built executable and pass it
+the target cluster name, the target command name as well as an endpoint id.
 
--   Clone the Espressif ESP-IDF and checkout release/v4.2 branch
+```
+$ ./out/debug/chip-tool onoff on <NODE ID> <ENDPOINT>
+```
 
-          $ mkdir ${HOME}/tools
-          $ cd ${HOME}/tools
-          $ git clone https://github.com/espressif/esp-idf.git
-          $ cd esp-idf
-          $ git checkout release/v4.2
-          $ git submodule update --init
-          $ export IDF_PATH=${HOME}/tools/esp-idf
-          $ ./install.sh
+The client will send a single command packet and then exit.
 
--   Install ninja-build
+#### levelcontrol
 
-          $ sudo apt-get install ninja-build
+```bash
+Usage:
+  $ ./out/debug/chip-tool levelcontrol move-to-level Level=10 TransitionTime=0 OptionMask=0 OptionOverride=0 <NODE ID> <ENDPOINT>
+```
 
-### To build the application, follow these steps:
+### Multiple Network Interfaces
 
-Currently building in VSCode _and_ deploying from native is not supported, so
-make sure the IDF_PATH has been exported(See the manual setup steps above).
+The data model of this example includes a secondary NetworkCommissioning
+Endpoint with another NetworkCommissioning cluster. The Endpoint Id for the
+secondary NetworkCommissioning Endpoint is 65534. The secondary
+NetworkCommissioning Endpoint can be used to manage the driver of extra network
+interface.
 
--   Setting up the environment
+For ESP32-C6 DevKits, if `CHIP_DEVICE_CONFIG_ENABLE_WIFI` and
+`CHIP_DEVICE_CONFIG_ENABLE_THREAD` are both enabled, please set
+`CONFIG_THREAD_NETWORK_ENDPOINT_ID` to 0 and set
+`CONFIG_WIFI_NETWORK_ENDPOINT_ID` to 65534, which presents that the
+NetworkCommissioning cluster in Endpoint 0 will be used for Thread network
+driver and the same cluster on Endpoint 65534 will be used for Wi-Fi network
+driver. Or vice versa.
 
-To download and install packages.
+For ESP32-Ethernet-Kits, if `CHIP_DEVICE_CONFIG_ENABLE_WIFI` and
+`CHIP_DEVICE_CONFIG_ENABLE_ETHERNET` are both enabled, please set
+`CONFIG_ETHERNET_NETWORK_ENDPOINT_ID` to 0 and set
+`CONFIG_WIFI_NETWORK_ENDPOINT_ID` to 65534, which presents that the
+NetworkCommissioning cluster in Endpoint 0 will be used for Ethernet network
+driver and the same cluster on Endpoint 65534 will be used for Wi-Fi network
+driver. Or vice versa.
 
-        $ cd ${HOME}/tools/esp-idf
-        $ ./install.sh
-        $ . ./export.sh
-        $ cd {path-to-connectedhomeip}
-        $ source ./scripts/bootstrap.sh
-        $ source ./scripts/activate.sh
-        $ cd {path-to-connectedhomeip-examples}
+---
 
-If packages are already installed then simply activate it.
+This demo app illustrates controlling OnOff cluster (Server) attributes of an
+endpoint. For `ESP32-DevKitC`, `ESP32-WROVER-KIT_V4.1` and `ESP32C3-DevKitM`, a
+GPIO (configurable through `STATUS_LED_GPIO_NUM` in `main/main.cpp`) is updated
+through the on/off/toggle commands from the `python-controller`. For `M5Stack`,
+a virtual Green LED on the display is used for the same.
 
-        $ cd ${HOME}/tools/esp-idf
-        $ ./install.sh
-        $ . ./export.sh
-        $ cd {path-to-connectedhomeip}
-        $ source ./scripts/activate.sh
-        $ cd {path-to-connectedhomeip-examples}
-
--   Configuration Options
-
-        To choose from the different configuration options, run menuconfig
-
-          $ idf.py menuconfig
-
-        Select ESP32 based `Device Type` through `Demo`->`Device Type`.
-        The device types that are currently supported include `ESP32-DevKitC` (default),
-        `ESP32-WROVER-KIT_V4.1` and `M5Stack`
-
-        If you are using `standalone chip-tool` to communicate with the ESP32, bypass the
-        Rendezvous mode so that the device can communicate over an insecure channel.
-        This can be done through `Demo`->`Rendezvous Mode`->`Bypass`
-
-        To connect the ESP32 to your network, configure the Wi-Fi SSID and Passphrase through
-        `Component config`->`CHIP Device Layer`->`WiFi Station Options`->`Default WiFi SSID` and
-        `Default WiFi Password` respectively.
-
--   To build the demo application.
-
-          $ idf.py build
-
--   After building the application, to flash it outside of VSCode, connect your
-    device via USB. Then run the following command to flash the demo application
-    onto the device and then monitor its output. If necessary, replace
-    `/dev/tty.SLAB_USBtoUART`(MacOS) with the correct USB device name for your
-    system(like `/dev/ttyUSB0` on Linux). Note that sometimes you might have to
-    press and hold the `boot` button on the device while it's trying to connect
-    before flashing. For ESP32-DevKitC devices this is labeled in the
-    [functional description diagram](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/esp32/get-started-devkitc.html#functional-description).
-
-          $ idf.py flash monitor ESPPORT=/dev/tty.SLAB_USBtoUART
-
-    Note: Some users might have to install the
-    [VCP driver](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers)
-    before the device shows up on `/dev/tty`.
-
--   Quit the monitor by hitting `Ctrl+]`.
-
-    Note: You can see a menu of various monitor commands by hitting
-    `Ctrl+t Ctrl+h` while the monitor is running.
-
--   If desired, the monitor can be run again like so:
-
-          $ idf.py monitor ESPPORT=/dev/tty.SLAB_USBtoUART
-
-## Using the Echo Server
-
-There are two ways to use the Echo Server running on the device.
-
-### Connect the ESP32 to a 2.4GHz Network of your choice
-
-1.  If the `WiFi Station Options` mentioned above are populated through
-    menuconfig, then ESP32 connects to the AP with those credentials (STA mode).
-
-2.  Now flash the device with the same command as before. (Use the right `/dev`
-    device)
-
-          $ idf make flash monitor ESPPORT=/dev/tty.SLAB_USBtoUART
-
-3.  The device should boot up and connect to your network. When that happens you
-    will see a log like this in the monitor.
-
-          I (5524) chip[DL]: SYSTEM_EVENT_STA_GOT_IP
-          I (5524) chip[DL]: IPv4 address changed on WiFi station interface: <IP_ADDRESS>...
-
-    Note: If you are using the M5Stack, the screen will display the server's IP
-    Address if it successfully connects to the configured 2.4GHz Network.
-
-4.  Use
-    [standalone chip-tool](https://github.com/project-chip/connectedhomeip/tree/master/examples/chip-tool)
-    or
-    [iOS chip-tool app](https://github.com/project-chip/connectedhomeip/tree/master/src/darwin)
-    to communicate with the device.
-
-Note: The ESP32 does not support 5GHz networks. Also, the Device will persist
-your network configuration. To erase it, simply run.
-
-          $ idf make erase_flash ESPPORT=/dev/tty.SLAB_USBtoUART
-
-### Use the ESP32's Network
-
-Alternatively, you can connect to the ESP32's Soft-AP directly.
-
-1.  After the application has been flashed, connect to the ESP32's Soft-AP. If
-    you use the M5Stack, the Soft-AP's SSID is encoded in the TLV section of the
-    QRCode on screen. It's usually something like `CHIP-XXX` where the last 3
-    digits are from the setup payload discriminator.
-
-2.  Once you're connected, the server's IP can be found at the gateway address.
-
-3.  Use
-    [standalone chip-tool](https://github.com/project-chip/connectedhomeip/tree/master/examples/chip-tool)
-    or
-    [iOS chip-tool app](https://github.com/project-chip/connectedhomeip/tree/master/src/darwin)
-    to communicate with the device.
-
-In addition to the echo server, this demo also supports controlling OnOff
-cluster (Server) attributes of an endpoint. For `ESP32-DevKitC` and
-`ESP32-WROVER-KIT_V4.1`, a GPIO (configurable through `STATUS_LED_GPIO_NUM` in
-`main/main.cpp`) is updated through the on/off/toggle commands from the
-`chip-tool`. For `M5Stack`, a virtual Green LED on the display is used for the
-same.
-
-Note: If you wish to see the actual effect of the commands on `ESP32-DevKitC`
-and `ESP32-WROVER-KIT_V4.1`, you will have to connect an external LED to GPIO
-`STATUS_LED_GPIO_NUM`.
+If you wish to see the actual effect of the commands on `ESP32-DevKitC`,
+`ESP32-WROVER-KIT_V4.1`, you will have to connect an external LED to GPIO
+`STATUS_LED_GPIO_NUM`. For `ESP32C3-DevKitM`, the on-board LED will show the
+actual effect of the commands.

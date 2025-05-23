@@ -17,16 +17,50 @@
 # The following lines of boilerplate have to be in your project's
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-# The list of extra component dirs must be in sync with that in temperature-measurement-app/esp32/Makefile
+set(PROJECT_VER "v1.0")
+set(PROJECT_VER_NUMBER 1)
+
+set(is_debug true CACHE BOOL "Optimization variable")
+if(NOT is_debug)
+    set(SDKCONFIG_DEFAULTS "sdkconfig.optimize.defaults")
+endif()
+
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/examples/common/cmake/idf_flashing.cmake)
+
+
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/config/esp32/components"
-    "${CMAKE_CURRENT_LIST_DIR}/../../common/m5stack-tft/repo/components"
-    "${CMAKE_CURRENT_LIST_DIR}/../../common/QRCode"
-    "${CMAKE_CURRENT_LIST_DIR}/../../common/screen-framework"
+    "${CMAKE_CURRENT_LIST_DIR}/third_party/connectedhomeip/examples/common/QRCode"
 )
 
 project(chip-temperature-measurement-app)
-idf_build_set_property(CXX_COMPILE_OPTIONS "-std=c++14;-Os;-DLWIP_IPV6_SCOPES=0;-DCHIP_HAVE_CONFIG_H" APPEND)
-idf_build_set_property(C_COMPILE_OPTIONS "-Os;-DLWIP_IPV6_SCOPES=0" APPEND)
+idf_build_set_property(CXX_COMPILE_OPTIONS "-std=gnu++17;-Os;-DCHIP_HAVE_CONFIG_H" APPEND)
+idf_build_set_property(C_COMPILE_OPTIONS "-Os" APPEND)
+# For the C3, project_include.cmake sets -Wno-format, but does not clear various
+# flags that depend on -Wformat
+idf_build_set_property(COMPILE_OPTIONS "-Wno-format-nonliteral;-Wno-format-security" APPEND)
+
+# -Wmaybe-uninitialized has too many false positives, including on std::optional
+# and chip::Optional.  Make it nonfatal.
+#
+# See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80635
+idf_build_set_property(COMPILE_OPTIONS "-Wno-error=maybe-uninitialized" APPEND)
+
+flashing_script()
+
+if (CONFIG_ENABLE_PW_RPC)
+get_filename_component(CHIP_ROOT ./third_party/connectedhomeip REALPATH)
+include(third_party/connectedhomeip/third_party/pigweed/repo/pw_build/pigweed.cmake)
+pw_set_module_config(pw_rpc_CONFIG pw_rpc.disable_global_mutex_config)
+pw_set_backend(pw_log pw_log_basic)
+pw_set_backend(pw_assert.check pw_assert_log.check_backend)
+pw_set_backend(pw_assert.assert pw_assert.assert_compatibility_backend)
+pw_set_backend(pw_sys_io pw_sys_io.esp32)
+
+add_subdirectory(third_party/connectedhomeip/third_party/pigweed/repo)
+add_subdirectory(third_party/connectedhomeip/third_party/nanopb/repo)
+add_subdirectory(third_party/connectedhomeip/examples/platform/esp32/pw_sys_io)
+
+endif(CONFIG_ENABLE_PW_RPC)

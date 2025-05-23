@@ -19,58 +19,56 @@
 
 #include <inet/tests/TestInetCommon.h>
 
-#include <support/CHIPMem.h>
-#include <support/CodeUtils.h>
-#include <support/ErrorStr.h>
+#include <lib/core/ErrorStr.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/CodeUtils.h>
+#include <platform/CHIPDeviceLayer.h>
 
 namespace chip {
 namespace Test {
 
-CHIP_ERROR IOContext::Init(nlTestSuite * suite)
+CHIP_ERROR IOContext::Init()
 {
     CHIP_ERROR err = Platform::MemoryInit();
+    chip::DeviceLayer::SetConfigurationMgr(&chip::DeviceLayer::ConfigurationMgrImpl());
 
-    gSystemLayer.Init(nullptr);
-
+    InitSystemLayer();
     InitNetwork();
 
-    mSuite       = suite;
     mSystemLayer = &gSystemLayer;
-    mInetLayer   = &gInet;
-
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    mTCPEndPointManager = &gTCP;
+#endif
+#if INET_CONFIG_ENABLE_UDP_ENDPOINT
+    mUDPEndPointManager = &gUDP;
+#endif
     return err;
 }
 
 // Shutdown all layers, finalize operations
-CHIP_ERROR IOContext::Shutdown()
+void IOContext::Shutdown()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     ShutdownNetwork();
+    ShutdownSystemLayer();
     Platform::MemoryShutdown();
-
-    return err;
 }
 
 void IOContext::DriveIO()
 {
-    // Set the select timeout to 100ms
-    struct timeval aSleepTime;
-    aSleepTime.tv_sec  = 0;
-    aSleepTime.tv_usec = 100 * 1000;
-
-    ServiceEvents(aSleepTime);
+    // Set the select timeout to 10ms
+    constexpr uint32_t kSleepTimeMilliseconds = 10;
+    ServiceEvents(kSleepTimeMilliseconds);
 }
 
-void IOContext::DriveIOUntil(unsigned maxWaitMs, std::function<bool(void)> completionFunction)
+void IOContext::DriveIOUntil(System::Clock::Timeout maxWait, std::function<bool(void)> completionFunction)
 {
-    uint64_t mStartTime = mSystemLayer->GetClock_MonotonicMS();
+    System::Clock::Timestamp startTime = System::SystemClock().GetMonotonicTimestamp();
 
     while (true)
     {
         DriveIO(); // at least one IO loop is guaranteed
 
-        if (completionFunction() || ((mSystemLayer->GetClock_MonotonicMS() - mStartTime) >= maxWaitMs))
+        if (completionFunction() || ((System::SystemClock().GetMonotonicTimestamp() - startTime) >= maxWait))
         {
             break;
         }

@@ -21,7 +21,9 @@
 #import "CHIPUIViewUtils.h"
 #import "DefaultsUtils.h"
 #import "DeviceSelector.h"
-#import <CHIP/CHIP.h>
+#import <Matter/MTRDeviceAttestationDelegate.h>
+#import <Matter/MTRSetupPayload.h>
+#import <Matter/Matter.h>
 
 // system imports
 #import <AVFoundation/AVFoundation.h>
@@ -31,8 +33,8 @@
 #define QR_CODE_FREEZE 1.0 * NSEC_PER_SEC
 
 // The expected Vendor ID for CHIP demos
-// 0x235A: Chip's Vendor Id
-#define EXAMPLE_VENDOR_ID 0x235A
+// 0xFFF1: Chip's Vendor Id
+#define EXAMPLE_VENDOR_ID 0xFFF1
 
 #define EXAMPLE_VENDOR_TAG_IP 1
 #define MAX_IP_LEN 46
@@ -65,14 +67,30 @@
 @property (strong, nonatomic) UILabel * productID;
 @property (strong, nonatomic) UILabel * serialNumber;
 
+@property (strong, nonatomic) UIButton * readFromLedgerButton;
+@property (strong, nonatomic) UIButton * redirectButton;
+@property (strong, nonatomic) UILabel * commissioningFlowLabel;
+@property (strong, nonatomic) UILabel * commissioningCustomFlowUrl;
+@property (strong, nonatomic) UIView * deviceModelInfoView;
+@property (strong, nonatomic) NSDictionary * ledgerRespond;
+
 @property (strong, nonatomic) UIActivityIndicatorView * activityIndicator;
 @property (strong, nonatomic) UILabel * errorLabel;
 
-@property (readwrite) CHIPDeviceController * chipController;
+@property (readwrite) MTRDeviceController * chipController;
+@property (nonatomic, strong) MTRBaseClusterNetworkCommissioning * cluster;
 
 @property (strong, nonatomic) NFCNDEFReaderSession * session;
-@property (strong, nonatomic) CHIPSetupPayload * setupPayload;
+@property (strong, nonatomic) MTRSetupPayload * setupPayload;
 @property (strong, nonatomic) DeviceSelector * deviceList;
+@end
+
+@interface CHIPToolDeviceAttestationDelegate : NSObject <MTRDeviceAttestationDelegate>
+
+@property (weak, nonatomic) QRCodeViewController * viewController;
+
+- (instancetype)initWithViewController:(QRCodeViewController *)viewController;
+
 @end
 
 @implementation QRCodeViewController {
@@ -104,6 +122,9 @@
     // Setup nav bar button
     [self changeNavBarButtonToCamera];
 
+    // Initialize all Labels
+    [self initializeAllLabels];
+
     // Title
     UILabel * titleLabel = [CHIPUIViewUtils addTitle:@"QR Code Parser" toView:self.view];
 
@@ -112,7 +133,7 @@
     stackView.axis = UILayoutConstraintAxisVertical;
     stackView.distribution = UIStackViewDistributionFill;
     stackView.alignment = UIStackViewAlignmentLeading;
-    stackView.spacing = 15;
+    stackView.spacing = 10;
     [self.view addSubview:stackView];
 
     stackView.translatesAutoresizingMaskIntoConstraints = false;
@@ -169,9 +190,29 @@
     [_setupPayloadView.topAnchor constraintEqualToAnchor:stackView.bottomAnchor constant:10].active = YES;
     [_setupPayloadView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:30].active = YES;
     [_setupPayloadView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-30].active = YES;
-    [_setupPayloadView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-30].active = YES;
+    [_setupPayloadView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-60].active = YES;
 
-    [self addViewsToSetupPayloadView];
+    _deviceModelInfoView = [UIView new];
+    [self.view addSubview:_deviceModelInfoView];
+
+    _deviceModelInfoView.translatesAutoresizingMaskIntoConstraints = false;
+    [_deviceModelInfoView.topAnchor constraintEqualToAnchor:stackView.bottomAnchor constant:10].active = YES;
+    [_deviceModelInfoView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:30].active = YES;
+    [_deviceModelInfoView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-30].active = YES;
+    [_deviceModelInfoView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-60].active
+        = YES;
+
+    // manual entry field
+    _manualCodeLabel = [UILabel new];
+    _manualCodeLabel.text = @"00000000000000000000";
+    _manualCodeLabel.textColor = UIColor.systemBlueColor;
+    _manualCodeLabel.font = [UIFont systemFontOfSize:17];
+    _manualCodeLabel.textAlignment = NSTextAlignmentRight;
+    [_setupPayloadView addSubview:_manualCodeLabel];
+
+    _manualCodeLabel.translatesAutoresizingMaskIntoConstraints = false;
+    [_manualCodeLabel.topAnchor constraintEqualToAnchor:_setupPayloadView.topAnchor].active = YES;
+    [_manualCodeLabel.trailingAnchor constraintEqualToAnchor:_setupPayloadView.trailingAnchor].active = YES;
 
     // activity indicator
     _activityIndicator = [UIActivityIndicatorView new];
@@ -218,51 +259,45 @@
     [_resetButton.widthAnchor constraintEqualToConstant:60].active = YES;
     [_resetButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-30].active = YES;
     [_resetButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-30].active = YES;
+
+    // Read from Ledger button
+    _readFromLedgerButton = [UIButton new];
+    [_readFromLedgerButton setTitle:@"Read from Ledger" forState:UIControlStateNormal];
+    [_readFromLedgerButton addTarget:self action:@selector(readFromLedgerApi:) forControlEvents:UIControlEventTouchUpInside];
+    _readFromLedgerButton.backgroundColor = UIColor.systemBlueColor;
+    _readFromLedgerButton.titleLabel.font = [UIFont systemFontOfSize:17];
+    _readFromLedgerButton.titleLabel.textColor = [UIColor whiteColor];
+    _readFromLedgerButton.layer.cornerRadius = 5;
+    _readFromLedgerButton.clipsToBounds = YES;
+    _readFromLedgerButton.hidden = YES;
+    [self.view addSubview:_readFromLedgerButton];
+
+    _readFromLedgerButton.translatesAutoresizingMaskIntoConstraints = false;
+    [_readFromLedgerButton.widthAnchor constraintEqualToConstant:200].active = YES;
+    [_readFromLedgerButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-30].active
+        = YES;
+    [_readFromLedgerButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-30].active = YES;
+
+    // Redirect Custom Flow button
+    _redirectButton = [UIButton new];
+    [_redirectButton setTitle:@"Redirect" forState:UIControlStateNormal];
+    [_redirectButton addTarget:self action:@selector(redirectToUrl:) forControlEvents:UIControlEventTouchUpInside];
+    _redirectButton.backgroundColor = UIColor.systemBlueColor;
+    _redirectButton.titleLabel.font = [UIFont systemFontOfSize:17];
+    _redirectButton.titleLabel.textColor = [UIColor whiteColor];
+    _redirectButton.layer.cornerRadius = 5;
+    _redirectButton.clipsToBounds = YES;
+    _redirectButton.hidden = YES;
+    [self.view addSubview:_redirectButton];
+
+    _redirectButton.translatesAutoresizingMaskIntoConstraints = false;
+    [_redirectButton.widthAnchor constraintEqualToConstant:200].active = YES;
+    [_redirectButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-30].active = YES;
+    [_redirectButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-30].active = YES;
 }
 
-- (void)addViewsToSetupPayloadView
+- (void)initializeAllLabels
 {
-    // manual entry field
-    _manualCodeLabel = [UILabel new];
-    _manualCodeLabel.text = @"00000000000000000000";
-    _manualCodeLabel.textColor = UIColor.systemBlueColor;
-    _manualCodeLabel.font = [UIFont systemFontOfSize:17];
-    _manualCodeLabel.textAlignment = NSTextAlignmentRight;
-    [_setupPayloadView addSubview:_manualCodeLabel];
-
-    _manualCodeLabel.translatesAutoresizingMaskIntoConstraints = false;
-    [_manualCodeLabel.topAnchor constraintEqualToAnchor:_setupPayloadView.topAnchor].active = YES;
-    [_manualCodeLabel.trailingAnchor constraintEqualToAnchor:_setupPayloadView.trailingAnchor].active = YES;
-
-    // Results scroll view
-    UIScrollView * resultsScrollView = [UIScrollView new];
-    [_setupPayloadView addSubview:resultsScrollView];
-
-    resultsScrollView.translatesAutoresizingMaskIntoConstraints = false;
-    [resultsScrollView.topAnchor constraintEqualToAnchor:_manualCodeLabel.bottomAnchor constant:10].active = YES;
-    [resultsScrollView.leadingAnchor constraintEqualToAnchor:_setupPayloadView.leadingAnchor].active = YES;
-    [resultsScrollView.trailingAnchor constraintEqualToAnchor:_setupPayloadView.trailingAnchor].active = YES;
-    [resultsScrollView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-20].active = YES;
-
-    UIStackView * parserResultsView = [UIStackView new];
-    parserResultsView.axis = UILayoutConstraintAxisVertical;
-    parserResultsView.distribution = UIStackViewDistributionEqualSpacing;
-    parserResultsView.alignment = UIStackViewAlignmentLeading;
-    parserResultsView.spacing = 15;
-    [resultsScrollView addSubview:parserResultsView];
-
-    parserResultsView.translatesAutoresizingMaskIntoConstraints = false;
-    [parserResultsView.topAnchor constraintEqualToAnchor:resultsScrollView.topAnchor].active = YES;
-    [parserResultsView.leadingAnchor constraintEqualToAnchor:resultsScrollView.leadingAnchor].active = YES;
-    [parserResultsView.trailingAnchor constraintEqualToAnchor:resultsScrollView.trailingAnchor].active = YES;
-    [parserResultsView.bottomAnchor constraintEqualToAnchor:resultsScrollView.bottomAnchor].active = YES;
-    [self addResultsUIToStackView:parserResultsView];
-}
-
-- (void)addResultsUIToStackView:(UIStackView *)stackView
-{
-    NSArray<NSString *> * resultLabelTexts =
-        @[ @"version", @"discriminator", @"setup pin code", @"rendez vous information", @"vendor ID", @"product ID", @"serial #" ];
     _versionLabel = [UILabel new];
     _discriminatorLabel = [UILabel new];
     _setupPinCodeLabel = [UILabel new];
@@ -270,17 +305,86 @@
     _vendorID = [UILabel new];
     _productID = [UILabel new];
     _serialNumber = [UILabel new];
-    NSArray<UILabel *> * resultLabels =
-        @[ _versionLabel, _discriminatorLabel, _setupPinCodeLabel, _rendezVousInformation, _vendorID, _productID, _serialNumber ];
-    for (int i = 0; i < resultLabels.count && i < resultLabels.count; i++) {
+    _commissioningFlowLabel = [UILabel new];
+    _commissioningCustomFlowUrl = [UILabel new];
+}
+
+- (void)addDetailSubview:(UIView *)superView
+{
+    // Results scroll view
+    UIScrollView * resultsScrollView = [UIScrollView new];
+    [superView addSubview:resultsScrollView];
+
+    resultsScrollView.translatesAutoresizingMaskIntoConstraints = false;
+    [resultsScrollView.topAnchor constraintEqualToAnchor:superView.topAnchor constant:10].active = YES;
+    [resultsScrollView.leadingAnchor constraintEqualToAnchor:superView.leadingAnchor].active = YES;
+    [resultsScrollView.trailingAnchor constraintEqualToAnchor:superView.trailingAnchor].active = YES;
+    [resultsScrollView.bottomAnchor constraintEqualToAnchor:superView.bottomAnchor constant:-20].active = YES;
+
+    UIStackView * parserResultsView = [UIStackView new];
+    parserResultsView.axis = UILayoutConstraintAxisVertical;
+    parserResultsView.distribution = UIStackViewDistributionEqualSpacing;
+    parserResultsView.alignment = UIStackViewAlignmentLeading;
+    parserResultsView.spacing = 5;
+    [resultsScrollView addSubview:parserResultsView];
+
+    parserResultsView.translatesAutoresizingMaskIntoConstraints = false;
+    [parserResultsView.topAnchor constraintEqualToAnchor:resultsScrollView.topAnchor].active = YES;
+    [parserResultsView.leadingAnchor constraintEqualToAnchor:resultsScrollView.leadingAnchor].active = YES;
+    [parserResultsView.trailingAnchor constraintEqualToAnchor:resultsScrollView.trailingAnchor].active = YES;
+    [parserResultsView.bottomAnchor constraintEqualToAnchor:resultsScrollView.bottomAnchor].active = YES;
+
+    if (superView == _setupPayloadView) {
+        [superView addSubview:_manualCodeLabel];
+        [self addResultsUIToStackView:parserResultsView];
+    } else if (superView == _deviceModelInfoView) {
+        [self addDeviceInfoUIToStackView:parserResultsView];
+    }
+}
+
+- (void)addResultsUIToStackView:(UIStackView *)stackView
+{
+    NSArray<NSString *> * resultLabelTexts = @[
+        @"Version", @"Vendor ID", @"Product ID", @"Discriminator", @"Setup PIN Code", @"Rendez Vous Information", @"Serial #",
+        @"Commissioning Flow"
+    ];
+    NSArray<UILabel *> * resultLabels = @[
+        _versionLabel, _vendorID, _productID, _discriminatorLabel, _setupPinCodeLabel, _rendezVousInformation, _serialNumber,
+        _commissioningFlowLabel
+    ];
+    [self addItemToStackView:stackView resultLabels:resultLabels resultLabelTexts:resultLabelTexts];
+}
+
+- (void)addDeviceInfoUIToStackView:(UIStackView *)stackView
+{
+    NSArray<NSString *> * resultLabelTexts = @[ @"Vendor ID", @"Product ID", @"Commissioning URL" ];
+    NSArray<UILabel *> * resultLabels = @[ _vendorID, _productID, _commissioningCustomFlowUrl ];
+    [self addItemToStackView:stackView resultLabels:resultLabels resultLabelTexts:resultLabelTexts];
+}
+
+- (void)addItemToStackView:(UIStackView *)stackView
+              resultLabels:(NSArray<UILabel *> *)resultLabels
+          resultLabelTexts:(NSArray<NSString *> *)resultLabelTexts
+{
+    for (int i = 0; i < resultLabels.count && i < resultLabelTexts.count; i++) {
         UILabel * label = [UILabel new];
         label.text = [resultLabelTexts objectAtIndex:i];
         UILabel * result = [resultLabels objectAtIndex:i];
-        result.text = @"N/A";
+        if (!result.text)
+            result.text = @"N/A";
         UIStackView * labelStackView = [CHIPUIViewUtils stackViewWithLabel:label result:result];
         labelStackView.translatesAutoresizingMaskIntoConstraints = false;
         [stackView addArrangedSubview:labelStackView];
     }
+}
+
+- (void)updateResultViewUI:(UIView *)superView
+{
+    NSArray * viewsToRemove = [superView subviews];
+    for (UIView * v in viewsToRemove) {
+        [v removeFromSuperview];
+    }
+    [self addDetailSubview:superView];
 }
 
 // MARK: UIViewController methods
@@ -302,9 +406,9 @@
     [super viewDidLoad];
     [self setupUI];
 
-    dispatch_queue_t callbackQueue = dispatch_queue_create("com.zigbee.chip.qrcodevc.callback", DISPATCH_QUEUE_SERIAL);
-    self.chipController = InitializeCHIP();
-    [self.chipController setPairingDelegate:self queue:callbackQueue];
+    dispatch_queue_t callbackQueue = dispatch_queue_create("com.csa.matter.qrcodevc.callback", DISPATCH_QUEUE_SERIAL);
+    self.chipController = InitializeMTR();
+    [self.chipController setDeviceControllerDelegate:self queue:callbackQueue];
 
     UITapGestureRecognizer * tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissKeyboard)];
     [self.view addGestureRecognizer:tap];
@@ -328,11 +432,7 @@
                         NSURL * payloadURI = [payload wellKnownTypeURIPayload];
                         NSLog(@"Payload text:%@", payloadURI);
                         if (payloadURI) {
-                            /* CHIP Issue #415
-                             Once #415 goes in, there will b no need to replace _ with spaces.
-                            */
-                            NSString * qrCode = [[payloadURI absoluteString] stringByReplacingOccurrencesOfString:@"_"
-                                                                                                       withString:@" "];
+                            NSString * qrCode = [payloadURI absoluteString];
                             NSLog(@"Scanned code string:%@", qrCode);
                             [self scannedQRCode:qrCode];
                         }
@@ -364,30 +464,53 @@
     _session = nil;
 }
 
-// MARK: CHIPDevicePairingDelegate
-- (void)onNetworkCredentialsRequested:(CHIPNetworkCredentialType)type
+- (void)setVendorIDOnAccessory
 {
-    NSLog(@"Network credential requested for pairing for type %lu", (unsigned long) type);
-    if (type == kNetworkCredentialTypeWiFi) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, DISPATCH_TIME_NOW), dispatch_get_main_queue(), ^{
-            [self retrieveAndSendWifiCredentials];
-        });
+    NSLog(@"Call to setVendorIDOnAccessory");
+    if (MTRGetConnectedDevice(^(MTRBaseDevice * _Nullable device, NSError * _Nullable error) {
+            if (!device) {
+                NSLog(@"Status: Failed to establish a connection with the device");
+            }
+        })) {
+        NSLog(@"Status: Waiting for connection with the device");
     } else {
-        NSLog(@"Unsupported credentials requested");
+        NSLog(@"Status: Failed to trigger the connection with the device");
     }
 }
 
-- (void)onPairingComplete:(NSError *)error
+// MARK: MTRDeviceControllerDelegate
+- (void)controller:(MTRDeviceController *)controller commissioningSessionEstablishmentDone:(NSError * _Nullable)error
 {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, DISPATCH_TIME_NOW), dispatch_get_main_queue(), ^{
-        [self->_deviceList refreshDeviceList];
-    });
+    if (error != nil) {
+        NSLog(@"Got pairing error back %@", error);
+    } else {
+        MTRDeviceController * controller = InitializeMTR();
+        uint64_t deviceId = MTRGetLastPairedDeviceId();
+        MTRBaseDevice * device = [controller deviceBeingCommissionedWithNodeID:@(deviceId) error:NULL];
+        if (device.sessionTransportType == MTRTransportTypeBLE) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self->_deviceList refreshDeviceList];
+                [self retrieveAndSendWiFiCredentials];
+            });
+        } else {
+            MTRCommissioningParameters * params = [[MTRCommissioningParameters alloc] init];
+            params.deviceAttestationDelegate = [[CHIPToolDeviceAttestationDelegate alloc] initWithViewController:self];
+            params.failSafeExpiryTimeoutSecs = @600;
+            NSError * error;
+            if (![controller commissionDevice:deviceId commissioningParams:params error:&error]) {
+                NSLog(@"Failed to commission Device %llu, with error %@", deviceId, error);
+            }
+        }
+    }
 }
 
 // MARK: UI Helper methods
 
 - (void)manualCodeInitialState
 {
+    _deviceModelInfoView.hidden = YES;
+    _readFromLedgerButton.hidden = YES;
+    _redirectButton.hidden = YES;
     _setupPayloadView.hidden = YES;
     _resetButton.hidden = YES;
     _activityIndicator.hidden = YES;
@@ -415,6 +538,9 @@
     _setupPayloadView.hidden = YES;
     _resetButton.hidden = YES;
     _errorLabel.hidden = YES;
+    _deviceModelInfoView.hidden = YES;
+    _redirectButton.hidden = YES;
+    _readFromLedgerButton.hidden = YES;
 }
 
 - (void)manualCodeEnteredStartState
@@ -452,7 +578,7 @@
     });
 }
 
-- (void)showPayload:(CHIPSetupPayload *)payload decimalString:(nullable NSString *)decimalString
+- (void)showPayload:(MTRSetupPayload *)payload rawPayload:(NSString *)rawPayload isManualCode:(BOOL)isManualCode
 {
     [self->_activityIndicator stopAnimating];
     self->_activityIndicator.hidden = YES;
@@ -461,15 +587,15 @@
     self->_setupPayloadView.hidden = NO;
     self->_resetButton.hidden = NO;
 
-    [self updateUIFields:payload decimalString:decimalString];
+    [self updateUIFields:payload rawPayload:rawPayload isManualCode:isManualCode];
     [self parseOptionalData:payload];
-    [self handleRendezVous:payload];
+    [self handleRendezVous:payload rawPayload:rawPayload];
 }
 
-- (void)retrieveAndSendWifiCredentials
+- (void)retrieveAndSendWiFiCredentials
 {
     UIAlertController * alertController =
-        [UIAlertController alertControllerWithTitle:@"Wifi Configuration"
+        [UIAlertController alertControllerWithTitle:@"WiFi Configuration"
                                             message:@"Input network SSID and password that your phone is connected to."
                                      preferredStyle:UIAlertControllerStyleAlert];
     [alertController addTextFieldWithConfigurationHandler:^(UITextField * textField) {
@@ -477,7 +603,7 @@
         textField.clearButtonMode = UITextFieldViewModeWhileEditing;
         textField.borderStyle = UITextBorderStyleRoundedRect;
 
-        NSString * networkSSID = CHIPGetDomainValueForKey(kCHIPToolDefaultsDomain, kNetworkSSIDDefaultsKey);
+        NSString * networkSSID = MTRGetDomainValueForKey(MTRToolDefaultsDomain, kNetworkSSIDDefaultsKey);
         if ([networkSSID length] > 0) {
             textField.text = networkSSID;
         }
@@ -489,7 +615,7 @@
         textField.borderStyle = UITextBorderStyleRoundedRect;
         textField.secureTextEntry = YES;
 
-        NSString * networkPassword = CHIPGetDomainValueForKey(kCHIPToolDefaultsDomain, kNetworkPasswordDefaultsKey);
+        NSString * networkPassword = MTRGetDomainValueForKey(MTRToolDefaultsDomain, kNetworkPasswordDefaultsKey);
         if ([networkPassword length] > 0) {
             textField.text = networkPassword;
         }
@@ -510,35 +636,78 @@
                                                  UITextField * networkSSID = textfields[0];
                                                  UITextField * networkPassword = textfields[1];
                                                  if ([networkSSID.text length] > 0) {
-                                                     CHIPSetDomainValueForKey(
-                                                         kCHIPToolDefaultsDomain, kNetworkSSIDDefaultsKey, networkSSID.text);
+                                                     MTRSetDomainValueForKey(
+                                                         MTRToolDefaultsDomain, kNetworkSSIDDefaultsKey, networkSSID.text);
                                                  }
 
                                                  if ([networkPassword.text length] > 0) {
-                                                     CHIPSetDomainValueForKey(kCHIPToolDefaultsDomain, kNetworkPasswordDefaultsKey,
-                                                         networkPassword.text);
+                                                     MTRSetDomainValueForKey(
+                                                         MTRToolDefaultsDomain, kNetworkPasswordDefaultsKey, networkPassword.text);
                                                  }
                                                  NSLog(@"New SSID: %@ Password: %@", networkSSID.text, networkPassword.text);
 
-                                                 [strongSelf.chipController sendWiFiCredentials:networkSSID.text
-                                                                                       password:networkPassword.text];
+                                                 [strongSelf commissionWithSSID:networkSSID.text password:networkPassword.text];
                                              }
                                          }]];
     [self presentViewController:alertController animated:YES completion:nil];
 }
 
-- (void)updateUIFields:(CHIPSetupPayload *)payload decimalString:(nullable NSString *)decimalString
+- (void)commissionWithSSID:(NSString *)ssid password:(NSString *)password
 {
-    if (decimalString) {
+
+    NSError * error;
+    MTRDeviceController * controller = InitializeMTR();
+    // create commissioning params in ObjC. Pass those in here with network credentials.
+    // maybe this just becomes the new norm
+    MTRCommissioningParameters * params = [[MTRCommissioningParameters alloc] init];
+    params.wifiSSID = [ssid dataUsingEncoding:NSUTF8StringEncoding];
+    params.wifiCredentials = [password dataUsingEncoding:NSUTF8StringEncoding];
+    params.deviceAttestationDelegate = [[CHIPToolDeviceAttestationDelegate alloc] initWithViewController:self];
+    params.failSafeExpiryTimeoutSecs = @600;
+
+    uint64_t deviceId = MTRGetNextAvailableDeviceID() - 1;
+
+    if (![controller commissionDevice:deviceId commissioningParams:params error:&error]) {
+        NSLog(@"Failed to commission Device %llu, with error %@", deviceId, error);
+    }
+}
+
+// MARK: MTRDeviceControllerDelegate
+- (void)controller:(MTRDeviceController *)controller
+    commissioningComplete:(NSError * _Nullable)error
+                   nodeID:(NSNumber * _Nullable)nodeID
+{
+    if (error != nil) {
+        NSLog(@"Error retrieving device informations over Mdns: %@", error);
+        return;
+    }
+    // track this device
+    MTRSetDevicePaired([nodeID unsignedLongLongValue], YES);
+    [self setVendorIDOnAccessory];
+}
+
+// MARK: MTRDeviceControllerDelegate
+- (void)controller:(MTRDeviceController *)controller readCommissioningInfo:(MTRProductIdentity *)info
+{
+    NSLog(@"readCommissioningInfo, vendorID:%@, productID:%@", info.vendorID, info.productID);
+}
+
+- (void)updateUIFields:(MTRSetupPayload *)payload rawPayload:(nullable NSString *)rawPayload isManualCode:(BOOL)isManualCode
+{
+    if (isManualCode) {
         _manualCodeLabel.hidden = NO;
-        _manualCodeLabel.text = decimalString;
+        _manualCodeLabel.text = rawPayload;
         _versionLabel.text = NOT_APPLICABLE_STRING;
         _rendezVousInformation.text = NOT_APPLICABLE_STRING;
         _serialNumber.text = NOT_APPLICABLE_STRING;
     } else {
         _manualCodeLabel.hidden = YES;
         _versionLabel.text = [NSString stringWithFormat:@"%@", payload.version];
-        _rendezVousInformation.text = [NSString stringWithFormat:@"%lu", payload.rendezvousInformation];
+        if (payload.rendezvousInformation == nil) {
+            _rendezVousInformation.text = NOT_APPLICABLE_STRING;
+        } else {
+            _rendezVousInformation.text = [NSString stringWithFormat:@"%lu", [payload.rendezvousInformation unsignedLongValue]];
+        }
         if ([payload.serialNumber length] > 0) {
             self->_serialNumber.text = payload.serialNumber;
         } else {
@@ -551,9 +720,16 @@
     // TODO: Only display vid and pid if present
     _vendorID.text = [NSString stringWithFormat:@"%@", payload.vendorID];
     _productID.text = [NSString stringWithFormat:@"%@", payload.productID];
+    _commissioningFlowLabel.text = [NSString stringWithFormat:@"%lu", payload.commissioningFlow];
+
+    [self updateResultViewUI:_setupPayloadView];
+
+    if (payload.commissioningFlow == MTRCommissioningFlowCustom) {
+        _readFromLedgerButton.hidden = NO;
+    }
 }
 
-- (void)parseOptionalData:(CHIPSetupPayload *)payload
+- (void)parseOptionalData:(MTRSetupPayload *)payload
 {
     NSLog(@"Payload vendorID %@", payload.vendorID);
     BOOL isSameVendorID = [payload.vendorID isEqualToNumber:[NSNumber numberWithInt:EXAMPLE_VENDOR_ID]];
@@ -562,13 +738,13 @@
     }
 
     NSArray * optionalInfo = [payload getAllOptionalVendorData:nil];
-    for (CHIPOptionalQRCodeInfo * info in optionalInfo) {
+    for (MTROptionalQRCodeInfo * info in optionalInfo) {
         NSNumber * tag = info.tag;
         if (!tag) {
             continue;
         }
 
-        BOOL isTypeString = [info.infoType isEqualToNumber:[NSNumber numberWithInt:kOptionalQRCodeInfoTypeString]];
+        BOOL isTypeString = [info.infoType isEqualToNumber:[NSNumber numberWithInt:MTROptionalQRCodeInfoTypeString]];
         if (!isTypeString) {
             return;
         }
@@ -586,22 +762,26 @@
 
 // MARK: Rendez Vous
 
-- (void)handleRendezVous:(CHIPSetupPayload *)payload
+- (void)handleRendezVous:(MTRSetupPayload *)payload rawPayload:(NSString *)rawPayload
 {
-    switch (payload.rendezvousInformation) {
-    case kRendezvousInformationThread:
-    case kRendezvousInformationEthernet:
-    case kRendezvousInformationAllMask:
-        NSLog(@"Rendezvous Unknown");
+    if (payload.rendezvousInformation == nil) {
+        NSLog(@"Rendezvous Default");
+        [self handleRendezVousDefault:rawPayload];
+        return;
+    }
+
+    // TODO: This is a pretty broken way to handle a bitmask.
+    switch ([payload.rendezvousInformation unsignedLongValue]) {
+    case MTRDiscoveryCapabilitiesNone:
+    case MTRDiscoveryCapabilitiesOnNetwork:
+    case MTRDiscoveryCapabilitiesBLE:
+    case MTRDiscoveryCapabilitiesAllMask:
+        NSLog(@"Rendezvous Default");
+        [self handleRendezVousDefault:rawPayload];
         break;
-    case kRendezvousInformationWiFi:
+    case MTRDiscoveryCapabilitiesSoftAP:
         NSLog(@"Rendezvous Wi-Fi");
         [self handleRendezVousWiFi:[self getNetworkName:payload.discriminator]];
-        break;
-    case kRendezvousInformationNone:
-    case kRendezvousInformationBLE:
-        NSLog(@"Rendezvous BLE");
-        [self handleRendezVousBLE:payload.discriminator.unsignedShortValue setupPINCode:payload.setUpPINCode.unsignedIntValue];
         break;
     }
 }
@@ -613,13 +793,24 @@
     return peripheralFullName;
 }
 
-- (void)handleRendezVousBLE:(uint16_t)discriminator setupPINCode:(uint32_t)setupPINCode
+- (void)_restartMatterStack
+{
+    self.chipController = MTRRestartController(self.chipController);
+    dispatch_queue_t callbackQueue = dispatch_queue_create("com.csa.matter.qrcodevc.callback", DISPATCH_QUEUE_SERIAL);
+    [self.chipController setDeviceControllerDelegate:self queue:callbackQueue];
+}
+
+- (void)handleRendezVousDefault:(NSString *)payload
 {
     NSError * error;
-    uint64_t deviceID = CHIPGetNextAvailableDeviceID();
-    if ([self.chipController pairDevice:deviceID discriminator:discriminator setupPINCode:setupPINCode error:&error]) {
+    uint64_t deviceID = MTRGetNextAvailableDeviceID();
+
+    // restart the Matter Stack before pairing (for reliability + testing restarts)
+    [self _restartMatterStack];
+
+    if ([self.chipController pairDevice:deviceID onboardingPayload:payload error:&error]) {
         deviceID++;
-        CHIPSetNextAvailableDeviceID(deviceID);
+        MTRSetNextAvailableDeviceID(deviceID);
     }
 }
 
@@ -670,12 +861,12 @@
     return YES;
 }
 
-- (void)displayQRCodeInSetupPayloadView:(CHIPSetupPayload *)payload withError:(NSError *)error
+- (void)displayQRCodeInSetupPayloadView:(MTRSetupPayload *)payload rawPayload:(NSString *)rawPayload error:(NSError *)error
 {
     if (error) {
         [self showError:error];
     } else {
-        [self showPayload:payload decimalString:nil];
+        [self showPayload:payload rawPayload:rawPayload isManualCode:NO];
     }
 }
 
@@ -685,14 +876,14 @@
         [self->_captureSession stopRunning];
         [self->_session invalidateSession];
     });
-    CHIPQRCodeSetupPayloadParser * parser = [[CHIPQRCodeSetupPayloadParser alloc] initWithBase41Representation:qrCode];
+    MTRQRCodeSetupPayloadParser * parser = [[MTRQRCodeSetupPayloadParser alloc] initWithBase38Representation:qrCode];
     NSError * error;
     _setupPayload = [parser populatePayload:&error];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1.0 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [self postScanningQRCodeState];
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, INDICATOR_DELAY), dispatch_get_main_queue(), ^{
-            [self displayQRCodeInSetupPayloadView:self->_setupPayload withError:error];
+            [self displayQRCodeInSetupPayloadView:self->_setupPayload rawPayload:qrCode error:error];
         });
     });
 }
@@ -710,7 +901,7 @@
 }
 
 // MARK: Manual Code
-- (void)displayManualCodeInSetupPayloadView:(CHIPSetupPayload *)payload
+- (void)displayManualCodeInSetupPayloadView:(MTRSetupPayload *)payload
                               decimalString:(NSString *)decimalString
                                   withError:(NSError *)error
 {
@@ -719,7 +910,7 @@
     if (error) {
         [self showError:error];
     } else {
-        [self showPayload:payload decimalString:decimalString];
+        [self showPayload:payload rawPayload:decimalString isManualCode:YES];
     }
 }
 
@@ -758,8 +949,7 @@
     NSString * decimalString = _manualCodeTextField.text;
     [self manualCodeEnteredStartState];
 
-    CHIPManualSetupPayloadParser * parser =
-        [[CHIPManualSetupPayloadParser alloc] initWithDecimalStringRepresentation:decimalString];
+    MTRManualSetupPayloadParser * parser = [[MTRManualSetupPayloadParser alloc] initWithDecimalStringRepresentation:decimalString];
     NSError * error;
     _setupPayload = [parser populatePayload:&error];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, INDICATOR_DELAY), dispatch_get_main_queue(), ^{
@@ -768,6 +958,168 @@
     [_manualCodeTextField resignFirstResponder];
 }
 
+// Ledger
+
+- (IBAction)readFromLedgerApi:(id)sender
+{
+    NSLog(@"Clicked readFromLedger...");
+    _readFromLedgerButton.hidden = YES;
+    _setupPayloadView.hidden = YES;
+    _activityIndicator.hidden = NO;
+    [_activityIndicator startAnimating];
+
+    [self updateResultViewUI:_deviceModelInfoView];
+    [self updateLedgerFields];
+}
+
+- (void)updateLedgerFields
+{
+    // check vendor Id and product Id
+    NSLog(@"Validating Vender Id and Product Id...");
+    if ([_vendorID.text isEqual:@"N/A"] || [_productID.text isEqual:@"N/A"]) {
+        NSError * error = [[NSError alloc] initWithDomain:@"com.chiptool.customflow"
+                                                     code:1
+                                                 userInfo:@{ NSLocalizedDescriptionKey : @"Vendor ID or Product Id is invalid." }];
+        [self showError:error];
+        return;
+    }
+    // make API call
+    NSLog(@"Making API call...");
+    [self getRequest:[[[NSBundle mainBundle] objectForInfoDictionaryKey:@"LSEnvironment"]
+                         objectForKey:@"CommissioningCustomFlowLedgerUrl"]
+            vendorId:self->_vendorID.text
+           productId:self->_productID.text];
+}
+
+- (void)getRequest:(NSString *)url vendorId:(NSString *)vendorId productId:(NSString *)productId
+{
+    [_activityIndicator startAnimating];
+    _activityIndicator.hidden = NO;
+    NSString * targetUrl = [NSString stringWithFormat:@"%@/%@/%@", url, vendorId, productId];
+    NSMutableURLRequest * request = [[NSMutableURLRequest alloc] init];
+    [request setHTTPMethod:@"GET"];
+    [request setURL:[NSURL URLWithString:targetUrl]];
+
+    [[[NSURLSession sharedSession]
+        dataTaskWithRequest:request
+          completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+              NSString * myString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+              NSLog(@"Data received: %@", myString);
+              self->_ledgerRespond = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+              [self getRequestCallback];
+          }] resume];
+}
+
+- (void)getRequestCallback
+{
+    BOOL commissioningCustomFlowUseMockFlag = (BOOL)
+        [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"LSEnvironment"] objectForKey:@"CommissioningCustomFlowUseMockFlag"];
+    // use mock respond if useMockFlag is TRUE
+    if (commissioningCustomFlowUseMockFlag) {
+        NSLog(@"Using mock respond");
+        _ledgerRespond = @{
+            @"height" : @"mockHeight",
+            @"result" : @ {
+                @"vid" : @1,
+                @"pid" : @1,
+                @"cid" : @1,
+                @"name" : @"mockName",
+                @"owner" : @"mockOwner",
+                @"description" : @"mockDescription",
+                @"sku" : @"mockSku",
+                @"firmware_version" : @"mockFirmware",
+                @"hardware_version" : @"mockHardware",
+                @"tis_or_trp_testing_completed" : @TRUE,
+                @"CommissioningCustomFlowUrl" : @"https://lijusankar.github.io/commissioning-react-app/"
+            }
+        };
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self->_commissioningCustomFlowUrl.text =
+            [[self->_ledgerRespond objectForKey:@"result"] objectForKey:@"CommissioningCustomFlowUrl"];
+        [self->_activityIndicator stopAnimating];
+        self->_activityIndicator.hidden = YES;
+        self->_deviceModelInfoView.hidden = NO;
+        self->_redirectButton.hidden = NO;
+    });
+}
+
+// redirect
+- (IBAction)redirectToUrl:(id)sender
+{
+    [self redirectToUrl];
+}
+
+- (void)redirectToUrl
+{
+    NSArray * redirectPayload = @[ @{
+        @"version" : _versionLabel.text,
+        @"vendorID" : _vendorID.text,
+        @"productID" : _productID.text,
+        @"commissioingFlow" : _commissioningFlowLabel.text,
+        @"discriminator" : _discriminatorLabel.text,
+        @"setupPinCode" : _setupPinCodeLabel.text,
+        @"serialNumber" : _serialNumber.text,
+        @"rendezvousInformation" : _rendezVousInformation.text
+    } ];
+    NSString * returnUrl =
+        [[[NSBundle mainBundle] objectForInfoDictionaryKey:@"LSEnvironment"] objectForKey:@"CommissioningCustomFlowReturnUrl"];
+    NSString * base64EncodedString = [self encodeStringTo64:redirectPayload];
+    NSString * urlString =
+        [NSString stringWithFormat:@"%@?payload=%@&returnUrl=%@", _commissioningCustomFlowUrl.text, base64EncodedString, returnUrl];
+    NSURL * url = [NSURL URLWithString:urlString];
+    [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+}
+
+- (NSString *)encodeStringTo64:(NSArray *)fromArray
+{
+    NSData * jsonData = [NSJSONSerialization dataWithJSONObject:fromArray options:NSJSONWritingWithoutEscapingSlashes error:nil];
+    NSString * base64String = [jsonData base64EncodedStringWithOptions:kNilOptions];
+    return base64String;
+}
+
 @synthesize description;
+
+@end
+
+@implementation CHIPToolDeviceAttestationDelegate
+
+- (instancetype)initWithViewController:(QRCodeViewController *)viewController
+{
+    if (self = [super init]) {
+        _viewController = viewController;
+    }
+    return self;
+}
+
+- (void)deviceAttestation:(MTRDeviceController *)controller failedForDevice:(void *)device error:(NSError * _Nonnull)error
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIAlertController * alertController = [UIAlertController
+            alertControllerWithTitle:@"Device Attestation"
+                             message:@"Device Attestation failed for device under commissioning. Do you wish to continue pairing?"
+                      preferredStyle:UIAlertControllerStyleAlert];
+
+        [alertController addAction:[UIAlertAction actionWithTitle:@"No"
+                                                            style:UIAlertActionStyleDefault
+                                                          handler:^(UIAlertAction * action) {
+                                                              NSError * err;
+                                                              [controller continueCommissioningDevice:device
+                                                                             ignoreAttestationFailure:NO
+                                                                                                error:&err];
+                                                          }]];
+
+        [alertController addAction:[UIAlertAction actionWithTitle:@"Continue"
+                                                            style:UIAlertActionStyleDefault
+                                                          handler:^(UIAlertAction * action) {
+                                                              NSError * err;
+                                                              [controller continueCommissioningDevice:device
+                                                                             ignoreAttestationFailure:YES
+                                                                                                error:&err];
+                                                          }]];
+
+        [self.viewController presentViewController:alertController animated:YES completion:nil];
+    });
+}
 
 @end
