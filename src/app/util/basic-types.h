@@ -23,19 +23,18 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
-// Pull in NodeId
-#include <transport/raw/MessageHeader.h>
+// Pull in core types
+#include <lib/core/DataModelTypes.h>
 
 namespace chip {
-typedef uint8_t EndpointId;
-typedef uint16_t ClusterId;
-typedef uint16_t AttributeId;
-typedef uint16_t GroupId;
-typedef uint8_t CommandId;
-typedef uint16_t EventId;
-typedef uint64_t EventNumber;
-typedef uint64_t DataVersion;
-typedef uint32_t DeviceTypeId;
+
+typedef uint8_t Percent;
+typedef uint16_t Percent100ths;
+typedef int64_t Energy_mWh;
+typedef int64_t Amperage_mA;
+typedef int64_t Power_mW;
+typedef int64_t Voltage_mV;
+
 } // namespace chip

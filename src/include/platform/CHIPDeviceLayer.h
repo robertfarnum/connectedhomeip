@@ -22,31 +22,45 @@
 
 #if !CHIP_DEVICE_LAYER_NONE
 
-#include <ble/BleLayer.h>
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
 #include <platform/CHIPDeviceError.h>
 #include <platform/ConfigurationManager.h>
 #include <platform/ConnectivityManager.h>
 #include <platform/GeneralUtils.h>
+#include <platform/KeyValueStoreManager.h>
 #include <platform/PlatformManager.h>
 #include <system/SystemClock.h>
-#if CHIP_DEVICE_CONFIG_ENABLE_SOFTWARE_UPDATE_MANAGER
-#include <platform/SoftwareUpdateManager.h>
-#endif // CHIP_DEVICE_CONFIG_ENABLE_SOFTWARE_UPDATE_MANAGER
-#include <platform/TimeSyncManager.h>
+#include <system/SystemLayerImpl.h>
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ThreadStackManager.h>
 #endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
-#if CHIP_DEVICE_CONFIG_ENABLE_NFC
-#include <platform/NFCManager.h>
+#if CHIP_DEVICE_CONFIG_ENABLE_NFC_ONBOARDING_PAYLOAD
+#include <platform/NFCOnboardingPayloadManager.h>
 #endif
 
 namespace chip {
 namespace DeviceLayer {
 
-struct ChipDeviceEvent;
-extern chip::System::Layer SystemLayer;
-extern Inet::InetLayer InetLayer;
+void SetSystemLayerForTesting(System::Layer * layer);
+
+// These functions are defined in src/platform/Globals.cpp
+chip::System::Layer & SystemLayer();
+
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
+chip::System::LayerSockets & SystemLayerSockets();
+#endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
+
+inline chip::Inet::EndPointManager<Inet::UDPEndPoint> * UDPEndPointManager()
+{
+    return &ConnectivityMgr().UDPEndPointManager();
+}
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+inline chip::Inet::EndPointManager<Inet::TCPEndPoint> * TCPEndPointManager()
+{
+    return &ConnectivityMgr().TCPEndPointManager();
+}
+#endif
 
 } // namespace DeviceLayer
 } // namespace chip

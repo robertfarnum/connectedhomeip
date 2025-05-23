@@ -23,7 +23,9 @@
 
 #pragma once
 
+#include <lib/core/CHIPError.h>
 #include <platform/CHIPDeviceEvent.h>
+#include <system/SystemPacketBuffer.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -44,6 +46,8 @@ enum PublicPlatformSpecificEventTypes
 enum InternalPlatformSpecificEventTypes
 {
     kPlatformLinuxEvent = kRange_InternalPlatformSpecific,
+    kPlatformLinuxBLEAdapterAdded,
+    kPlatformLinuxBLEAdapterRemoved,
     kPlatformLinuxBLECentralConnected,
     kPlatformLinuxBLECentralConnectFailed,
     kPlatformLinuxBLEWriteComplete,
@@ -52,9 +56,9 @@ enum InternalPlatformSpecificEventTypes
     kPlatformLinuxBLEC1WriteEvent,
     kPlatformLinuxBLEOutOfBuffersEvent,
     kPlatformLinuxBLEPeripheralRegisterAppComplete,
-    kPlatformLinuxBLEPeripheralAdvConfiguredComplete,
     kPlatformLinuxBLEPeripheralAdvStartComplete,
-    kPlatformLinuxBLEPeripheralAdvStopComplete
+    kPlatformLinuxBLEPeripheralAdvStopComplete,
+    kPlatformLinuxBLEPeripheralAdvReleased,
 };
 
 } // namespace DeviceEventType
@@ -66,6 +70,11 @@ struct ChipDevicePlatformEvent
 {
     union
     {
+        struct
+        {
+            unsigned int mAdapterId;
+            char mAdapterAddress[18];
+        } BLEAdapter;
         struct
         {
             BLE_CONNECTION_OBJECT mConnection;
@@ -90,23 +99,15 @@ struct ChipDevicePlatformEvent
         } BLEIndicationReceived;
         struct
         {
-            bool mIsSuccess;
-            void * mpAppstate;
+            CHIP_ERROR mError;
         } BLEPeripheralRegisterAppComplete;
         struct
         {
-            bool mIsSuccess;
-            void * mpAppstate;
-        } BLEPeripheralAdvConfiguredComplete;
-        struct
-        {
-            bool mIsSuccess;
-            void * mpAppstate;
+            CHIP_ERROR mError;
         } BLEPeripheralAdvStartComplete;
         struct
         {
-            bool mIsSuccess;
-            void * mpAppstate;
+            CHIP_ERROR mError;
         } BLEPeripheralAdvStopComplete;
     };
 };

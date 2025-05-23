@@ -18,25 +18,27 @@
 
 /**
  *    @file
- *      This file defines objects for a CHIP Echo unsolicitied
+ *      This file defines objects for a CHIP Echo unsolicited
  *      initaitor (client) and responder (server).
  *
  */
 
 #pragma once
 
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
-#include <support/CodeUtils.h>
-#include <support/DLLUtil.h>
-#include <support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace Protocols {
 namespace Echo {
+
+inline constexpr char kProtocolName[] = "Echo";
 
 /**
  * Echo Protocol Message Types
@@ -47,12 +49,12 @@ enum class MsgType : uint8_t
     EchoResponse = 0x02
 };
 
-using EchoFunct = void (*)(Messaging::ExchangeContext * ec, System::PacketBufferHandle payload);
+using EchoFunct = void (*)(Messaging::ExchangeContext * ec, System::PacketBufferHandle && payload);
 
 class DLL_EXPORT EchoClient : public Messaging::ExchangeDelegate
 {
 public:
-    // TODO: Init function will take a Channel instead a SecureSessionHandle, when Channel API is ready
+    // TODO: Init function will take a Channel instead a SessionHandle, when Channel API is ready
     /**
      *  Initialize the EchoClient object. Within the lifetime
      *  of this instance, this method is invoked once after object
@@ -67,7 +69,7 @@ public:
      *  @retval #CHIP_NO_ERROR On success.
      *
      */
-    CHIP_ERROR Init(Messaging::ExchangeManager * exchangeMgr, SecureSessionHandle session);
+    CHIP_ERROR Init(Messaging::ExchangeManager * exchangeMgr, const SessionHandle & session);
 
     /**
      *  Shutdown the EchoClient. This terminates this instance
@@ -89,25 +91,28 @@ public:
      *
      * @param payload       A PacketBufferHandle with the payload.
      * @param sendFlags     Flags set by the application for the CHIP message being sent.
+     *                      SendEchoRequest will always add
+     *                      SendMessageFlags::kExpectResponse to the flags.
      *
      * @return CHIP_ERROR_NO_MEMORY if no ExchangeContext is available.
      *         Other CHIP_ERROR codes as returned by the lower layers.
      *
      */
-    CHIP_ERROR SendEchoRequest(System::PacketBufferHandle && payload, const Messaging::SendFlags & sendFlags);
+    CHIP_ERROR SendEchoRequest(System::PacketBufferHandle && payload,
+                               Messaging::SendFlags sendFlags = Messaging::SendFlags(Messaging::SendMessageFlags::kNone));
 
 private:
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
     Messaging::ExchangeContext * mExchangeCtx = nullptr;
     EchoFunct OnEchoResponseReceived          = nullptr;
-    SecureSessionHandle mSecureSession;
+    SessionHolder mSecureSession;
 
-    void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle payload) override;
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * ec, const PayloadHeader & payloadHeader,
+                                 System::PacketBufferHandle && payload) override;
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override;
 };
 
-class DLL_EXPORT EchoServer : public Messaging::ExchangeDelegate
+class DLL_EXPORT EchoServer : public Messaging::UnsolicitedMessageHandler, public Messaging::ExchangeDelegate
 {
 public:
     /**
@@ -144,8 +149,9 @@ private:
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
     EchoFunct OnEchoRequestReceived           = nullptr;
 
-    void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle payload) override;
+    CHIP_ERROR OnUnsolicitedMessageReceived(const PayloadHeader & payloadHeader, ExchangeDelegate *& newDelegate) override;
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * ec, const PayloadHeader & payloadHeader,
+                                 System::PacketBufferHandle && payload) override;
     void OnResponseTimeout(Messaging::ExchangeContext * ec) override {}
 };
 
@@ -155,6 +161,18 @@ template <>
 struct MessageTypeTraits<Echo::MsgType>
 {
     static constexpr const Protocols::Id & ProtocolId() { return Echo::Id; }
+
+    static auto GetTypeToNameTable()
+    {
+        static const std::array<MessageTypeNameLookup, 2> typeToNameTable = {
+            {
+                { Echo::MsgType::EchoRequest, "EchoRequest" },
+                { Echo::MsgType::EchoResponse, "EchoResponse" },
+            },
+        };
+
+        return &typeToNameTable;
+    }
 };
 
 } // namespace Protocols

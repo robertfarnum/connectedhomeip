@@ -23,14 +23,11 @@
 
 #pragma once
 
-#ifndef _CHIP_INTERACTION_MODEL_MESSAGE_DEF_BUILDER_H
-#define _CHIP_INTERACTION_MODEL_MESSAGE_DEF_BUILDER_H
-
-#include <core/CHIPCore.h>
-#include <core/CHIPTLV.h>
-#include <support/CodeUtils.h>
-#include <support/logging/CHIPLogging.h>
-#include <util/basic-types.h>
+#include <app/util/basic-types.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/core/TLV.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace app {
@@ -84,9 +81,17 @@ public:
     /**
      * Rollback the request state to the checkpointed TLVWriter
      *
-     * @param[in] aPoint A that captured the state via Checkpoint() at some point in the past
+     * @param[in] aPoint A writer that captured the state via Checkpoint() at some point in the past
      */
-    void Rollback(const chip::TLV::TLVWriter & aPoint) { *mpWriter = aPoint; }
+    void Rollback(const chip::TLV::TLVWriter & aPoint)
+    {
+        *mpWriter = aPoint;
+        ResetError();
+    }
+
+    void EndOfContainer();
+
+    Builder(Builder &) = delete;
 
 protected:
     CHIP_ERROR mError;
@@ -94,11 +99,7 @@ protected:
     chip::TLV::TLVType mOuterContainerType;
 
     Builder();
-    void EndOfContainer();
-
     CHIP_ERROR InitAnonymousStructure(chip::TLV::TLVWriter * const apWriter);
 };
-}; // namespace app
-}; // namespace chip
-
-#endif // _CHIP_INTERACTION_MODEL_MESSAGE_DEF_BUILDER_H
+} // namespace app
+} // namespace chip
