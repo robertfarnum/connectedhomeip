@@ -17,12 +17,48 @@
 
 #pragma once
 
+#include <lib/support/Span.h>
 #include <setup_payload/SetupPayload.h>
 
-void PrintOnboardingCodes(chip::RendezvousInformationFlags rendezvousFlags);
-void ShareQRCodeOverNFC(chip::RendezvousInformationFlags rendezvousFlags);
-CHIP_ERROR GetQRCode(std::string & QRCode, chip::RendezvousInformationFlags rendezvousFlags);
-CHIP_ERROR GetManualPairingCode(std::string & manualPairingCode, chip::RendezvousInformationFlags rendezvousFlags);
+void PrintOnboardingCodes(chip::RendezvousInformationFlags aRendezvousFlags);
+void PrintOnboardingCodes(const chip::PayloadContents & payload);
+void PrintQrCodeURL(const chip::MutableCharSpan qrCode);
+void ShareQRCodeOverNFC(chip::RendezvousInformationFlags aRendezvousFlags);
+
+/**
+ * Creates a null-terminated QR code from the payload created based on rendezvous flag information.
+ *
+ * The resulting size of the QR code span will be the size of data written and not including the null terminator.
+ */
+CHIP_ERROR GetQRCode(chip::MutableCharSpan & aQRCode, chip::RendezvousInformationFlags aRendezvousFlags);
+
+/**
+ * Creates a null-terminated QR code based on the provided payload.
+ *
+ * The resulting size of the QR code span will be the size of data written and not including the null terminator.
+ */
+CHIP_ERROR GetQRCode(chip::MutableCharSpan & aQRCode, const chip::PayloadContents & payload);
+
+/**
+ * Creates a null-terminated QR code url.
+ */
+CHIP_ERROR GetQRCodeUrl(char * aQRCodeUrl, size_t aUrlMaxSize, const chip::CharSpan & aQRCode);
+
+/**
+ * Creates a null-terminated manual pairing code from the payload created based on rendezvous flag information.
+ *
+ * The resulting size of the manual pairing code span will be the size of data written and not including the null terminator.
+ */
+CHIP_ERROR GetManualPairingCode(chip::MutableCharSpan & aManualPairingCode, chip::RendezvousInformationFlags aRendezvousFlags);
+
+/**
+ * Creates a null-terminated manual pairing code based on the provided payload.
+ *
+ * The resulting size of the manual pairing code span will be the size of data written and not including the null terminator.
+ */
+CHIP_ERROR GetManualPairingCode(chip::MutableCharSpan & aManualPairingCode, const chip::PayloadContents & payload);
+
+CHIP_ERROR GetPayloadContents(chip::PayloadContents & aPayload, chip::RendezvousInformationFlags aRendezvousFlags);
 
 /**
  * Initialize DataModelHandler and start CHIP datamodel server, the server
@@ -31,10 +67,10 @@ CHIP_ERROR GetManualPairingCode(std::string & manualPairingCode, chip::Rendezvou
  * Method verifies if every character of the QR Code is valid for the url encoding
  * and otherwise it encodes the invalid character using available ones.
  *
- * @param QRCode address of the array storing QR Code to encode.
- * @param len length of the given QR Code.
- * @param url address of the location where encoded url should be stored.
- * @param maxSize maximal size of the array where encoded url should be stored.
+ * @param aQRCode address of the array storing QR Code to encode.
+ * @param aLen length of the given QR Code.
+ * @param aUrl address of the location where encoded url should be stored.
+ * @param aMaxSize maximal size of the array where encoded url should be stored.
  * @return CHIP_NO_ERROR on success and other values on error.
  */
-CHIP_ERROR EncodeQRCodeToUrl(const char * QRCode, size_t len, char * url, size_t maxSize);
+CHIP_ERROR EncodeQRCodeToUrl(const char * aQRCode, size_t aLen, char * aUrl, size_t aMaxSize);

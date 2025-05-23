@@ -24,56 +24,66 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <platform/ConfigurationManager.h>
-#include <platform/internal/GenericConfigurationManagerImpl.cpp>
+#include <platform/internal/GenericConfigurationManagerImpl.ipp>
 
-#include <core/CHIPVendorIdentifiers.hpp>
+#include <lib/core/CHIPVendorIdentifiers.hpp>
+
 #include <platform/Zephyr/ZephyrConfig.h>
 
-#if CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
-#include <platform/internal/FactoryProvisioning.cpp>
-#endif // CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
+#include "InetUtils.h"
 
-#include <support/CodeUtils.h>
-#include <support/logging/CHIPLogging.h>
+#ifdef CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
+#if (CHIP_DEVICE_CONFIG_ENABLE_WIFI) || (CHIP_DEVICE_CONFIG_ENABLE_ETHERNET)
+#include <zephyr/net/net_if.h>
+#endif //(CHIP_DEVICE_CONFIG_ENABLE_WIFI) || (CHIP_DEVICE_CONFIG_ENABLE_ETHERNET)
+#endif // CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
 
-#include <power/reboot.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/logging/CHIPLogging.h>
+
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_NVS
+#include <zephyr/fs/nvs.h>
+#include <zephyr/settings/settings.h>
+#endif
+
+#ifdef CONFIG_NET_L2_OPENTHREAD
+#include <platform/ThreadStackManager.h>
+#endif
 
 namespace chip {
 namespace DeviceLayer {
 
 using namespace ::chip::DeviceLayer::Internal;
 
-/** Singleton instance of the ConfigurationManager implementation object.
- */
-ConfigurationManagerImpl ConfigurationManagerImpl::sInstance;
+ConfigurationManagerImpl & ConfigurationManagerImpl::GetDefaultInstance()
+{
+    static ConfigurationManagerImpl sInstance;
+    return sInstance;
+}
 
-CHIP_ERROR ConfigurationManagerImpl::_Init()
+CHIP_ERROR ConfigurationManagerImpl::Init()
 {
     CHIP_ERROR err;
-    bool failSafeArmed;
+    uint32_t rebootCount;
 
     // Initialize the generic implementation base class.
-    err = Internal::GenericConfigurationManagerImpl<ConfigurationManagerImpl>::_Init();
+    err = Internal::GenericConfigurationManagerImpl<ZephyrConfig>::Init();
     SuccessOrExit(err);
 
-    // TODO: Initialize the global GroupKeyStore object here
-#if CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
+    if (ZephyrConfig::ConfigValueExists(ZephyrConfig::kCounterKey_RebootCount))
     {
-        FactoryProvisioning factoryProv;
-        uint8_t * const kDeviceRAMStart = (uint8_t *) CONFIG_SRAM_BASE_ADDRESS;
-        uint8_t * const kDeviceRAMEnd   = kDeviceRAMStart + CONFIG_SRAM_SIZE * 1024 - 1;
+        err = GetRebootCount(rebootCount);
+        SuccessOrExit(err);
 
-        // Scan device RAM for injected provisioning data and save to persistent storage if found.
-        err = factoryProv.ProvisionDeviceFromRAM(kDeviceRAMStart, kDeviceRAMEnd);
+        // Do not increment reboot count if the value is going to overflow UINT16.
+        err = StoreRebootCount(rebootCount < UINT16_MAX ? rebootCount + 1 : rebootCount);
         SuccessOrExit(err);
     }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_FACTORY_PROVISIONING
-
-    // If the fail-safe was armed when the device last shutdown, initiate a factory reset.
-    if (_GetFailSafeArmed(failSafeArmed) == CHIP_NO_ERROR && failSafeArmed)
+    else
     {
-        ChipLogProgress(DeviceLayer, "Detected fail-safe armed on reboot; initiating factory reset");
-        _InitiateFactoryReset();
+        // The first boot after factory reset of the Node.
+        err = StoreRebootCount(1);
+        SuccessOrExit(err);
     }
 
     err = CHIP_NO_ERROR;
@@ -82,26 +92,162 @@ exit:
     return err;
 }
 
-void ConfigurationManagerImpl::_InitiateFactoryReset()
+CHIP_ERROR ConfigurationManagerImpl::GetRebootCount(uint32_t & rebootCount)
+{
+    return ReadConfigValue(ZephyrConfig::kCounterKey_RebootCount, rebootCount);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::StoreRebootCount(uint32_t rebootCount)
+{
+    return WriteConfigValue(ZephyrConfig::kCounterKey_RebootCount, rebootCount);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::GetTotalOperationalHours(uint32_t & totalOperationalHours)
+{
+    if (!ZephyrConfig::ConfigValueExists(ZephyrConfig::kCounterKey_TotalOperationalHours))
+    {
+        totalOperationalHours = 0;
+        return CHIP_NO_ERROR;
+    }
+
+    return ZephyrConfig::ReadConfigValue(ZephyrConfig::kCounterKey_TotalOperationalHours, totalOperationalHours);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::StoreTotalOperationalHours(uint32_t totalOperationalHours)
+{
+    return ZephyrConfig::WriteConfigValue(ZephyrConfig::kCounterKey_TotalOperationalHours, totalOperationalHours);
+}
+
+void ConfigurationManagerImpl::InitiateFactoryReset()
 {
     PlatformMgr().ScheduleWork(DoFactoryReset);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::ReadConfigValue(Key key, bool & val)
+{
+    return ZephyrConfig::ReadConfigValue(key, val);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::ReadConfigValue(Key key, uint32_t & val)
+{
+    return ZephyrConfig::ReadConfigValue(key, val);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::ReadConfigValue(Key key, uint64_t & val)
+{
+    return ZephyrConfig::ReadConfigValue(key, val);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::ReadConfigValueStr(Key key, char * buf, size_t bufSize, size_t & outLen)
+{
+    return ZephyrConfig::ReadConfigValueStr(key, buf, bufSize, outLen);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::ReadConfigValueBin(Key key, uint8_t * buf, size_t bufSize, size_t & outLen)
+{
+    return ZephyrConfig::ReadConfigValueBin(key, buf, bufSize, outLen);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::WriteConfigValue(Key key, bool val)
+{
+    return ZephyrConfig::WriteConfigValue(key, val);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::WriteConfigValue(Key key, uint32_t val)
+{
+    return ZephyrConfig::WriteConfigValue(key, val);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::WriteConfigValue(Key key, uint64_t val)
+{
+    return ZephyrConfig::WriteConfigValue(key, val);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::WriteConfigValueStr(Key key, const char * str)
+{
+    return ZephyrConfig::WriteConfigValueStr(key, str);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::WriteConfigValueStr(Key key, const char * str, size_t strLen)
+{
+    return ZephyrConfig::WriteConfigValueStr(key, str, strLen);
+}
+
+CHIP_ERROR ConfigurationManagerImpl::WriteConfigValueBin(Key key, const uint8_t * data, size_t dataLen)
+{
+    return ZephyrConfig::WriteConfigValueBin(key, data, dataLen);
+}
+
+void ConfigurationManagerImpl::RunConfigUnitTest()
+{
+#if CHIP_CONFIG_TEST
+    ZephyrConfig::RunConfigUnitTest();
+#endif
 }
 
 void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
 {
     ChipLogProgress(DeviceLayer, "Performing factory reset");
-    const CHIP_ERROR err = FactoryResetConfig();
+
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+    ThreadStackMgr().ClearAllSrpHostAndServices();
+#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+
+// Lock the Thread stack to avoid unwanted interaction with settings NVS during factory reset.
+#ifdef CONFIG_NET_L2_OPENTHREAD
+    ThreadStackMgr().LockThreadStack();
+#endif
+
+#ifdef CONFIG_CHIP_FACTORY_RESET_ERASE_NVS
+    void * storage = nullptr;
+    int status     = settings_storage_get(&storage);
+
+    if (status == 0)
+    {
+        status = nvs_clear(static_cast<nvs_fs *>(storage));
+    }
+
+    if (status)
+    {
+        ChipLogError(DeviceLayer, "Factory reset failed: %d", status);
+    }
+#else
+    const CHIP_ERROR err = PersistedStorage::KeyValueStoreMgrImpl().DoFactoryReset();
 
     if (err != CHIP_NO_ERROR)
-        ChipLogError(DeviceLayer, "FactoryResetConfig() failed: %s", ErrorStr(err));
+    {
+        ChipLogError(DeviceLayer, "Factory reset failed: %" CHIP_ERROR_FORMAT, err.Format());
+    }
 
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-    ThreadStackMgr().ErasePersistentInfo();
-#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD
-
-#if CONFIG_REBOOT
-    sys_reboot(SYS_REBOOT_WARM);
+    ConnectivityMgr().ErasePersistentInfo();
 #endif
+
+    PlatformMgr().Shutdown();
+}
+
+CHIP_ERROR ConfigurationManagerImpl::GetPrimaryWiFiMACAddress(uint8_t * buf)
+{
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI || CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+    const net_if * const iface = InetUtils::GetWiFiInterface();
+#else
+    const net_if * const iface = InetUtils::GetInterface();
+#endif
+
+    VerifyOrReturnError(iface != nullptr, CHIP_ERROR_INTERNAL);
+
+    const auto linkAddrStruct = iface->if_dev->link_addr;
+    memcpy(buf, linkAddrStruct.addr, linkAddrStruct.len);
+
+    return CHIP_NO_ERROR;
+#else
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+#endif
+}
+
+ConfigurationManager & ConfigurationMgrImpl()
+{
+    return ConfigurationManagerImpl::GetDefaultInstance();
 }
 
 } // namespace DeviceLayer

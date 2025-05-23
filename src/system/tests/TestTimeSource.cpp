@@ -21,72 +21,39 @@
  *    the ability to compile and use the test implementation of the time source.
  */
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
+#include <pw_unit_test/framework.h>
 
+#include <lib/core/ErrorStr.h>
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/CodeUtils.h>
 #include <system/SystemConfig.h>
-
-#include <nlunit-test.h>
-#include <support/CodeUtils.h>
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
 #include <system/TimeSource.h>
 
-namespace {
-
-void TestTimeSourceSetAndGet(nlTestSuite * inSuite, void * inContext)
+TEST(TestTimeSource, TestTimeSourceSetAndGet)
 {
 
     chip::Time::TimeSource<chip::Time::Source::kTest> source;
 
-    NL_TEST_ASSERT(inSuite, source.GetCurrentMonotonicTimeMs() == 0);
+    EXPECT_EQ(source.GetMonotonicTimestamp(), chip::System::Clock::kZero);
 
-    source.SetCurrentMonotonicTimeMs(1234);
-    NL_TEST_ASSERT(inSuite, source.GetCurrentMonotonicTimeMs() == 1234);
+    constexpr chip::System::Clock::Milliseconds64 k1234 = chip::System::Clock::Milliseconds64(1234);
+    source.SetMonotonicTimestamp(k1234);
+    EXPECT_EQ(source.GetMonotonicTimestamp(), k1234);
 }
 
-void SystemTimeSourceGet(nlTestSuite * inSuite, void * inContext)
+TEST(TestTimeSource, SystemTimeSourceGet)
 {
 
     chip::Time::TimeSource<chip::Time::Source::kSystem> source;
 
-    uint64_t oldValue = source.GetCurrentMonotonicTimeMs();
+    chip::System::Clock::Timestamp oldValue = source.GetMonotonicTimestamp();
 
     // a basic monotonic test. This is likely to take less than 1ms, so the
     // actual test value lies mostly in ensuring things compile.
     for (int i = 0; i < 100; i++)
     {
-        uint64_t newValue = source.GetCurrentMonotonicTimeMs();
-        NL_TEST_ASSERT(inSuite, newValue >= oldValue);
+        chip::System::Clock::Timestamp newValue = source.GetMonotonicTimestamp();
+        EXPECT_GE(newValue, oldValue);
         oldValue = newValue;
     }
 }
-
-} // namespace
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("TimeSource<Test>::SetAndGet", TestTimeSourceSetAndGet),
-    NL_TEST_DEF("TimeSource<System>::SetAndGet", SystemTimeSourceGet),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestTimeSource(void)
-{
-    nlTestSuite theSuite = {
-        "chip-timesource", &sTests[0], nullptr /* setup */, nullptr /* teardown */
-    };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr /* context */);
-
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestTimeSource)

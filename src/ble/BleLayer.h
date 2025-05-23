@@ -22,7 +22,7 @@
  *      platform's Bluetooth Low Energy (BLE) implementation and the CHIP
  *      stack.
  *
- *      The BleLayer obect accepts BLE data and control input from the
+ *      The BleLayer object accepts BLE data and control input from the
  *      application via a functional interface. It performs the fragmentation
  *      and reassembly required to transmit CHIP message via a BLE GATT
  *      characteristic interface, and drives incoming messages up the CHIP
@@ -47,21 +47,26 @@
 
 #pragma once
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
+#ifndef _CHIP_BLE_BLE_H
+#error "Please include <ble/Ble.h> instead!"
 #endif
-#include <stdint.h>
 
-#include <ble/BleConfig.h>
+#include <cstddef>
+#include <cstdint>
 
+#include <lib/core/CHIPError.h>
+#include <lib/support/DLLUtil.h>
+#include <lib/support/SetupDiscriminator.h>
 #include <system/SystemLayer.h>
 #include <system/SystemPacketBuffer.h>
 
-#include <ble/BleApplicationDelegate.h>
-#include <ble/BleConnectionDelegate.h>
-#include <ble/BleError.h>
-#include <ble/BlePlatformDelegate.h>
-#include <ble/BleUUID.h>
+#include "BleApplicationDelegate.h"
+#include "BleConfig.h"
+#include "BleConnectionDelegate.h"
+#include "BleLayerDelegate.h"
+#include "BlePlatformDelegate.h"
+#include "BleRole.h"
+#include "BleUUID.h"
 
 namespace chip {
 namespace Ble {
@@ -75,59 +80,30 @@ namespace Ble {
  */
 #define NUM_SUPPORTED_PROTOCOL_VERSIONS 8
 /// Version(s) of the CHIP BLE Transport Protocol that this stack supports.
-#define CHIP_BLE_TRANSPORT_PROTOCOL_MIN_SUPPORTED_VERSION kBleTransportProtocolVersion_V2
-#define CHIP_BLE_TRANSPORT_PROTOCOL_MAX_SUPPORTED_VERSION kBleTransportProtocolVersion_V3
-
-/// Forward declarations.
-class BleLayer;
-class BLEEndPoint;
-
-/// Role of end points' associated BLE connections. Determines means used by end points to send and receive data.
-typedef enum
-{
-    kBleRole_Central    = 0,
-    kBleRole_Peripheral = 1
-} BleRole;
+#define CHIP_BLE_TRANSPORT_PROTOCOL_MIN_SUPPORTED_VERSION kBleTransportProtocolVersion_V4
+#define CHIP_BLE_TRANSPORT_PROTOCOL_MAX_SUPPORTED_VERSION kBleTransportProtocolVersion_V4
 
 /// Enum defining versions of CHIP over BLE transport protocol.
 typedef enum
 {
     kBleTransportProtocolVersion_None = 0,
-    kBleTransportProtocolVersion_V1   = 1, // Prototype BTP version without ACKs or flow-control.
-    kBleTransportProtocolVersion_V2   = 2, // First BTP version with ACKs and flow-control.
-    kBleTransportProtocolVersion_V3   = 3  // First BTP version with asymetric fragement sizes.
+    kBleTransportProtocolVersion_V4   = 4 // BTP as defined by CHIP v1.0
 } BleTransportProtocolVersion;
 
-constexpr size_t kCapabilitiesRequestMagicnumLength          = 2;
-constexpr size_t kCapabilitiesRequestL2capMtuLength          = 2;
-constexpr size_t kCapabilitiesRequestSupportedVersionsLength = 4;
-constexpr size_t kCapabilitiesRequestWindowSizeLength        = 1;
+inline constexpr size_t kCapabilitiesRequestMagicnumLength          = 2;
+inline constexpr size_t kCapabilitiesRequestL2capMtuLength          = 2;
+inline constexpr size_t kCapabilitiesRequestSupportedVersionsLength = 4;
+inline constexpr size_t kCapabilitiesRequestWindowSizeLength        = 1;
 constexpr size_t kCapabilitiesRequestLength = (kCapabilitiesRequestMagicnumLength + kCapabilitiesRequestL2capMtuLength +
                                                kCapabilitiesRequestSupportedVersionsLength + kCapabilitiesRequestWindowSizeLength);
 
-constexpr size_t kCapabilitiesResponseMagicnumLength                = 2;
-constexpr size_t kCapabilitiesResponseL2capMtuLength                = 2;
-constexpr size_t kCapabilitiesResponseSelectedProtocolVersionLength = 1;
-constexpr size_t kCapabilitiesResponseWindowSizeLength              = 1;
+inline constexpr size_t kCapabilitiesResponseMagicnumLength                = 2;
+inline constexpr size_t kCapabilitiesResponseL2capMtuLength                = 2;
+inline constexpr size_t kCapabilitiesResponseSelectedProtocolVersionLength = 1;
+inline constexpr size_t kCapabilitiesResponseWindowSizeLength              = 1;
 constexpr size_t kCapabilitiesResponseLength(kCapabilitiesResponseMagicnumLength + kCapabilitiesResponseL2capMtuLength +
                                              kCapabilitiesResponseSelectedProtocolVersionLength +
                                              kCapabilitiesResponseWindowSizeLength);
-
-class BleLayerObject
-{
-    friend class BleLayer;
-
-public:
-    // Public data members:
-    BleLayer * mBle;  ///< [READ-ONLY] Pointer to the BleLayer object that owns this object.
-    void * mAppState; ///< Generic pointer to app-specific data associated with the object.
-
-protected:
-    uint32_t mRefCount;
-
-    void AddRef() { mRefCount++; }
-    void Release();
-};
 
 class BleTransportCapabilitiesRequestMessage
 {
@@ -167,9 +143,9 @@ public:
     void SetSupportedProtocolVersion(uint8_t index, uint8_t version);
 
     /// Must be able to reserve 20 byte data length in msgBuf.
-    BLE_ERROR Encode(const System::PacketBufferHandle & msgBuf) const;
+    CHIP_ERROR Encode(const System::PacketBufferHandle & msgBuf) const;
 
-    static BLE_ERROR Decode(const System::PacketBufferHandle & msgBuf, BleTransportCapabilitiesRequestMessage & msg);
+    static CHIP_ERROR Decode(const System::PacketBufferHandle & msgBuf, BleTransportCapabilitiesRequestMessage & msg);
 };
 
 class BleTransportCapabilitiesResponseMessage
@@ -201,9 +177,9 @@ public:
     uint8_t mWindowSize;
 
     /// Must be able to reserve 20 byte data length in msgBuf.
-    BLE_ERROR Encode(const System::PacketBufferHandle & msgBuf) const;
+    CHIP_ERROR Encode(const System::PacketBufferHandle & msgBuf) const;
 
-    static BLE_ERROR Decode(const System::PacketBufferHandle & msgBuf, BleTransportCapabilitiesResponseMessage & msg);
+    static CHIP_ERROR Decode(const System::PacketBufferHandle & msgBuf, BleTransportCapabilitiesResponseMessage & msg);
 };
 
 /**
@@ -222,7 +198,7 @@ public:
  *    and hand the platform-specific BLE_CONNECTION_OBJECT that this receipt
  *    generates to BleLayer via the corresponding platform interface function.
  *    This causes BleLayer to wrap the BLE_CONNECTION_OBJECT in a BLEEndPoint,
- *    and notify chipMessageLayer that a new BLE conneciotn has been received.
+ *    and notify chipMessageLayer that a new BLE connection has been received.
  *    The message layer then wraps the new BLEEndPoint object in a
  *    chipConnection, and hands this object to the application via the message
  *    layer's OnConnectionReceived callback.
@@ -239,41 +215,42 @@ public:
 class DLL_EXPORT BleLayer
 {
     friend class BLEEndPoint;
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    friend class BtpEngineTest;
-#endif
 
 public:
     // Public data members:
     enum
     {
         kState_NotInitialized = 0,
-        kState_Initialized    = 1
+        kState_Initialized    = 1,
+        kState_Disconnecting  = 2
     } mState; ///< [READ-ONLY] Current state
 
-    void * mAppState;
-
-    typedef void (*BleConnectionReceivedFunct)(BLEEndPoint * newEndPoint);
-    BleConnectionReceivedFunct OnChipBleConnectReceived;
+    // This app state is not used by ble transport etc, it will be used by external ble implementation like Android
+    void * mAppState                 = nullptr;
+    BleLayerDelegate * mBleTransport = nullptr;
 
     // Public functions:
     BleLayer();
 
-    BLE_ERROR Init(BlePlatformDelegate * platformDelegate, BleApplicationDelegate * appDelegate, chip::System::Layer * systemLayer);
-    BLE_ERROR Init(BlePlatformDelegate * platformDelegate, BleConnectionDelegate * connDelegate,
-                   BleApplicationDelegate * appDelegate, chip::System::Layer * systemLayer);
-    BLE_ERROR Shutdown();
+    CHIP_ERROR Init(BlePlatformDelegate * platformDelegate, BleApplicationDelegate * appDelegate,
+                    chip::System::Layer * systemLayer);
+    CHIP_ERROR Init(BlePlatformDelegate * platformDelegate, BleConnectionDelegate * connDelegate,
+                    BleApplicationDelegate * appDelegate, chip::System::Layer * systemLayer);
+    void IndicateBleClosing();
+    void Shutdown();
 
-    BLE_ERROR NewBleConnection(void * appState, uint16_t connDiscriminator,
-                               BleConnectionDelegate::OnConnectionCompleteFunct onConnectionComplete,
-                               BleConnectionDelegate::OnConnectionErrorFunct onConnectionError);
-    BLE_ERROR CancelBleIncompleteConnection();
-    BLE_ERROR NewBleEndPoint(BLEEndPoint ** retEndPoint, BLE_CONNECTION_OBJECT connObj, BleRole role, bool autoClose);
+    CHIP_ERROR CancelBleIncompleteConnection();
+    CHIP_ERROR NewBleConnectionByDiscriminator(const SetupDiscriminator & connDiscriminator, void * appState = nullptr,
+                                               BleConnectionDelegate::OnConnectionCompleteFunct onSuccess = OnConnectionComplete,
+                                               BleConnectionDelegate::OnConnectionErrorFunct onError      = OnConnectionError);
+    CHIP_ERROR NewBleConnectionByObject(BLE_CONNECTION_OBJECT connObj, void * appState,
+                                        BleConnectionDelegate::OnConnectionCompleteFunct onSuccess = OnConnectionComplete,
+                                        BleConnectionDelegate::OnConnectionErrorFunct onError      = OnConnectionError);
+    CHIP_ERROR NewBleConnectionByObject(BLE_CONNECTION_OBJECT connObj);
+    CHIP_ERROR NewBleEndPoint(BLEEndPoint ** retEndPoint, BLE_CONNECTION_OBJECT connObj, BleRole role, bool autoClose);
 
-    chip::System::Error ScheduleWork(chip::System::Layer::TimerCompleteFunct aComplete, void * aAppState)
-    {
-        return mSystemLayer->ScheduleWork(aComplete, aAppState);
-    }
+    void CloseAllBleConnections();
+    void CloseBleConnection(BLE_CONNECTION_OBJECT connObj);
 
     /**< Platform interface functions:
 
@@ -289,7 +266,7 @@ public:
      *     characteristics CHIP cares about.
 
      *     Platform must call this function when a GATT subscription has been established to any CHIP service
-     *     charateristic.
+     *     characteristic.
      *
      *     If this function returns true, CHIP has accepted the BLE connection and wrapped it
      *     in a chipConnection object. If CHIP accepts a BLE connection, the platform MUST
@@ -301,7 +278,7 @@ public:
     bool HandleSubscribeComplete(BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId);
 
     /**< Platform must call this function when a GATT unsubscribe is requested on any CHIP
-     *   service charateristic, that is, when an existing GATT subscription on a CHIP service
+     *   service characteristic, that is, when an existing GATT subscription on a CHIP service
      *   characteristic is canceled. */
     bool HandleUnsubscribeReceived(BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId);
 
@@ -310,21 +287,17 @@ public:
 
     /// Call when a GATT write request is received.
     bool HandleWriteReceived(BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId,
-                             System::PacketBufferHandle pBuf);
+                             System::PacketBufferHandle && pBuf);
 
     /// Call when a GATT indication is received.
     bool HandleIndicationReceived(BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId,
-                                  System::PacketBufferHandle pBuf);
+                                  System::PacketBufferHandle && pBuf);
 
     /// Call when an outstanding GATT write request receives a positive receipt confirmation.
     bool HandleWriteConfirmation(BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId);
 
-    /// Call when an oustanding GATT indication receives a positive receipt confirmation.
+    /// Call when an outstanding GATT indication receives a positive receipt confirmation.
     bool HandleIndicationConfirmation(BLE_CONNECTION_OBJECT connObj, const ChipBleUUID * svcId, const ChipBleUUID * charId);
-
-    /// Call when a GATT read request is received.
-    bool HandleReadReceived(BLE_CONNECTION_OBJECT connObj, BLE_READ_REQUEST_CONTEXT requestContext, const ChipBleUUID * svcId,
-                            const ChipBleUUID * charId);
 
     /**< Platform must call this function when any previous operation undertaken by the BleLayer via BleAdapter
      *   fails, such as a characteristic write request or subscribe attempt, or when a BLE connection is closed.
@@ -335,21 +308,10 @@ public:
      *   NOTE: if the application explicitly closes a BLE connection with an associated chipConnection such that
      *   the BLE connection close will not generate an upcall to CHIP, HandleConnectionError must be called with
      *   err = BLE_ERROR_APP_CLOSED_CONNECTION to prevent the leak of this chipConnection and its end point object. */
-    void HandleConnectionError(BLE_CONNECTION_OBJECT connObj, BLE_ERROR err);
-
-#if CHIP_ENABLE_CHIPOBLE_TEST
-    BLEEndPoint * mTestBleEndPoint;
-#endif
+    void HandleConnectionError(BLE_CONNECTION_OBJECT connObj, CHIP_ERROR err);
 
 private:
     // Private data members:
-
-    // UUID of CHIP service characteristic used for central writes.
-    static const ChipBleUUID CHIP_BLE_CHAR_1_ID;
-    // UUID of CHIP service characteristic used for peripheral indications.
-    static const ChipBleUUID CHIP_BLE_CHAR_2_ID;
-    // UUID of CHIP service characteristic used for additional data
-    static const ChipBleUUID CHIP_BLE_CHAR_3_ID;
 
     BleConnectionDelegate * mConnectionDelegate;
     BlePlatformDelegate * mPlatformDelegate;
@@ -358,13 +320,13 @@ private:
 
     // Private functions:
     void HandleAckReceived(BLE_CONNECTION_OBJECT connObj);
-    void DriveSending();
-    BLE_ERROR HandleBleTransportConnectionInitiated(BLE_CONNECTION_OBJECT connObj, System::PacketBufferHandle pBuf);
+    CHIP_ERROR HandleBleTransportConnectionInitiated(BLE_CONNECTION_OBJECT connObj, System::PacketBufferHandle && pBuf);
 
     static BleTransportProtocolVersion GetHighestSupportedProtocolVersion(const BleTransportCapabilitiesRequestMessage & reqMsg);
+
+    static void OnConnectionComplete(void * appState, BLE_CONNECTION_OBJECT connObj);
+    static void OnConnectionError(void * appState, CHIP_ERROR err);
 };
 
 } /* namespace Ble */
 } /* namespace chip */
-
-#include "BLEEndPoint.h"

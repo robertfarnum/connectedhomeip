@@ -17,10 +17,12 @@
 
 #include "setup_payload_commands.h"
 
+#include <lib/support/logging/CHIPLogging.h>
 #include <setup_payload/SetupPayloadHelper.h>
 #include <stdio.h>
-#include <support/logging/CHIPLogging.h>
 #include <unistd.h>
+
+#include <string>
 
 using namespace chip;
 

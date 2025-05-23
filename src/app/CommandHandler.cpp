@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2024 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,92 +15,41 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-/**
- *    @file
- *      This file defines object for a CHIP IM Invoke Command Handler
- *
- */
-
-#include "CommandHandler.h"
-#include "Command.h"
-#include "CommandSender.h"
-#include "InteractionModelEngine.h"
-
-#include <protocols/secure_channel/Constants.h>
-
-using GeneralStatusCode = chip::Protocols::SecureChannel::GeneralStatusCode;
+#include <app/CommandHandler.h>
 
 namespace chip {
 namespace app {
-void CommandHandler::OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
-                                       const PayloadHeader & payloadHeader, System::PacketBufferHandle payload)
+
+void CommandHandler::Handle::Init(CommandHandler * handler)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    System::PacketBufferHandle response;
-
-    // NOTE: we already know this is an InvokeCommand Request message because we explicitly registered with the
-    // Exchange Manager for unsolicited InvokeCommand Requests.
-
-    mpExchangeCtx = ec;
-
-    err = ProcessCommandMessage(std::move(payload), CommandRoleId::HandlerId);
-    SuccessOrExit(err);
-
-    SendCommandResponse();
-
-exit:
-    ChipLogFunctError(err);
-}
-
-CHIP_ERROR CommandHandler::SendCommandResponse()
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    err = FinalizeCommandsMessage();
-    SuccessOrExit(err);
-
-    VerifyOrExit(mpExchangeCtx != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
-    err = mpExchangeCtx->SendMessage(Protocols::InteractionModel::MsgType::InvokeCommandResponse, std::move(mCommandMessageBuf),
-                                     Messaging::SendFlags(Messaging::SendMessageFlags::kNone));
-    SuccessOrExit(err);
-
-    MoveToState(CommandState::Sending);
-
-exit:
-    Shutdown();
-    ChipLogFunctError(err);
-    return err;
-}
-
-CHIP_ERROR CommandHandler::ProcessCommandDataElement(CommandDataElement::Parser & aCommandElement)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    CommandPath::Parser commandPath;
-    chip::TLV::TLVReader commandDataReader;
-    chip::ClusterId clusterId;
-    chip::CommandId commandId;
-    chip::EndpointId endpointId;
-
-    ReturnErrorOnFailure(aCommandElement.GetCommandPath(&commandPath));
-    ReturnErrorOnFailure(commandPath.GetClusterId(&clusterId));
-    ReturnErrorOnFailure(commandPath.GetCommandId(&commandId));
-    ReturnErrorOnFailure(commandPath.GetEndpointId(&endpointId));
-
-    err = aCommandElement.GetData(&commandDataReader);
-    if (CHIP_END_OF_TLV == err)
+    if (handler != nullptr)
     {
-        // Empty Command, Add status code in invoke command response, notify cluster handler to hand it further.
-        err = CHIP_NO_ERROR;
-        ChipLogDetail(DataManagement, "Add Status code for empty command, cluster Id is %d", clusterId);
-        AddStatusCode(GeneralStatusCode::kSuccess, Protocols::SecureChannel::Id, Protocols::SecureChannel::kProtocolCodeSuccess);
+        handler->IncrementHoldOff(this);
+        mpHandler = handler;
     }
-    else if (CHIP_NO_ERROR == err)
-    {
-        DispatchSingleClusterCommand(clusterId, commandId, endpointId, commandDataReader, this);
-    }
-
-    return err;
 }
+
+CommandHandler * CommandHandler::Handle::Get()
+{
+    // Not safe to work with CommandHandlerImpl in parallel with other Matter work.
+    assertChipStackLockedByCurrentThread();
+
+    return mpHandler;
+}
+
+void CommandHandler::Handle::Release()
+{
+    if (mpHandler != nullptr)
+    {
+        mpHandler->DecrementHoldOff(this);
+        Invalidate();
+    }
+}
+
+CommandHandler::Handle::Handle(CommandHandler * handler)
+{
+    Init(handler);
+}
+
 } // namespace app
 } // namespace chip

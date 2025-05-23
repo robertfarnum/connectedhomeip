@@ -23,6 +23,10 @@
  */
 
 #pragma once
+#include <stdint.h>
+
+#include <inet/IPAddress.h>
+#include <lib/core/DataModelTypes.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -130,25 +134,11 @@ enum PublicEventTypes
     kServiceConnectivityChange,
 
     /**
-     * Fabric Membership Change
-     *
-     * Signals a change in the device's membership in a chip fabric.
-     */
-    kFabricMembershipChange,
-
-    /**
      * Service Provisioning Change
      *
      * Signals a change to the device's service provisioning state.
      */
     kServiceProvisioningChange,
-
-    /**
-     * Account Pairing Change
-     *
-     * Signals a change to the device's state with respect to being paired to a user account.
-     */
-    kAccountPairingChange,
 
     /**
      * Time Sync Change
@@ -158,18 +148,31 @@ enum PublicEventTypes
     kTimeSyncChange,
 
     /**
-     * Security Session Established
-     *
-     * Signals that an external entity has established a new security session with the device.
-     */
-    kSessionEstablished,
-
-    /**
      * CHIPoBLE Connection Established
      *
      * Signals that an external entity has established a new CHIPoBLE connection with the device.
      */
     kCHIPoBLEConnectionEstablished,
+
+    /**
+     * CHIPoBLE Connection Closed
+     *
+     * Signals that an external entity has closed existing CHIPoBLE connection with the device.
+     */
+    kCHIPoBLEConnectionClosed,
+
+    /**
+     * Request BLE connections to be closed.
+     * This is used in the supportsConcurrentConnection = False case.
+     */
+    kCloseAllBleConnections,
+
+    /**
+     * When supportsConcurrentConnection = False, the ConnectNetwork command cannot start until
+     * the BLE device is closed and the Operation Network device (e.g. WiFi) has been started.
+     */
+    kWiFiDeviceAvailable,
+    kOperationalNetworkStarted,
 
     /**
      * Thread State Change
@@ -197,6 +200,61 @@ enum PublicEventTypes
      * wifi/ethernet interface.
      */
     kInterfaceIpAddressChanged,
+
+    /**
+     * Commissioning has completed by a call to the general commissioning cluster command.
+     */
+    kCommissioningComplete,
+
+    /**
+     * Signals that the fail-safe timer expired before the CommissioningComplete command was
+     * successfully invoked.
+     */
+    kFailSafeTimerExpired,
+
+    /**
+     *
+     */
+    kOperationalNetworkEnabled,
+
+    /**
+     * Signals that DNS-SD has been initialized and is ready to operate.
+     */
+    kDnssdInitialized,
+
+    /**
+     * Signals that DNS-SD backend was restarted and services must be published again.
+     */
+    kDnssdRestartNeeded,
+
+    /**
+     * Signals that bindings were updated.
+     */
+    kBindingsChangedViaCluster,
+
+    /**
+     * Signals that the state of the OTA engine changed.
+     */
+    kOtaStateChanged,
+
+    /**
+     * Server initialization has completed.
+     *
+     * Signals that all server components have been initialized and the node is ready to establish
+     * connections with other nodes. This event can be used to trigger on-boot actions that require
+     * sending messages to other nodes.
+     */
+    kServerReady,
+
+    /**
+     * Signals that BLE is deinitialized.
+     */
+    kBLEDeinitialized,
+
+    /**
+     * Signals that secure session is established.
+     */
+    kSecureSessionEstablished,
 };
 
 /**
@@ -210,12 +268,22 @@ enum InternalEventTypes
     kEventTypeNotSet = kRange_Internal,
     kNoOp,
     kCallWorkFunct,
+    kChipLambdaEvent,
     kChipSystemLayerEvent,
     kCHIPoBLESubscribe,
     kCHIPoBLEUnsubscribe,
     kCHIPoBLEWriteReceived,
     kCHIPoBLEIndicateConfirm,
+
+    /**
+     * Post this event in case of a BLE connection error. This event should be posted
+     * if the BLE central disconnects without unsubscribing from the BLE characteristic.
+     * This event should populate CHIPoBLEConnectionError structure.
+     */
     kCHIPoBLEConnectionError,
+    kCHIPoBLENotifyConfirm,
+    kCHIPoWiFiPAFWriteReceived,
+    kCHIPoWiFiPAFConnected,
 };
 
 static_assert(kEventTypeNotSet == 0, "kEventTypeNotSet must be defined as 0");
@@ -254,6 +322,39 @@ enum ActivityChange
     kActivity_Stopped  = -1,
 };
 
+enum OtaState
+{
+    kOtaSpaceAvailable = 0,
+    /**
+     * This state indicates that Node is currently downloading a software update.
+     */
+    kOtaDownloadInProgress,
+    /**
+     * This state indicates that Node has successfully downloaded a software update.
+     */
+    kOtaDownloadComplete,
+    /**
+     * This state indicates that Node has failed to download a software update.
+     */
+    kOtaDownloadFailed,
+    /**
+     * This state indicates that Node has aborted the download of a software update.
+     */
+    kOtaDownloadAborted,
+    /**
+     * This state indicate that Node is currently in the process of verifying and applying a software update.
+     */
+    kOtaApplyInProgress,
+    /**
+     * This state indicates that Node has successfully applied a software update.
+     */
+    kOtaApplyComplete,
+    /**
+     * This state indicates that Node has failed to apply a software update.
+     */
+    kOtaApplyFailed,
+};
+
 inline ConnectivityChange GetConnectivityChange(bool prevState, bool newState)
 {
     if (prevState == newState)
@@ -280,7 +381,11 @@ typedef void (*AsyncWorkFunct)(intptr_t arg);
 #include CHIPDEVICEPLATFORMEVENT_HEADER
 #endif // defined(CHIP_DEVICE_LAYER_TARGET)
 
-#include <ble/BleConfig.h>
+#include <ble/Ble.h>
+#include <inet/InetInterface.h>
+#include <lib/support/LambdaBridge.h>
+#include <system/SystemEvent.h>
+#include <system/SystemLayer.h>
 #include <system/SystemPacketBuffer.h>
 
 namespace chip {
@@ -296,12 +401,7 @@ struct ChipDeviceEvent final
     union
     {
         ChipDevicePlatformEvent Platform;
-        struct
-        {
-            ::chip::System::EventType Type;
-            ::chip::System::Object * Target;
-            uintptr_t Argument;
-        } ChipSystemLayerEvent;
+        LambdaBridge LambdaEvent;
         struct
         {
             AsyncWorkFunct WorkFunct;
@@ -319,7 +419,14 @@ struct ChipDeviceEvent final
         {
             ConnectivityChange IPv4;
             ConnectivityChange IPv6;
-            char address[INET6_ADDRSTRLEN];
+            // WARNING: There used to be `char address[INET6_ADDRSTRLEN]` here and it is
+            //          deprecated/removed since it was too large and only used for logging.
+            //          Consider not relying on ipAddress field either since the platform
+            //          layer *does not actually validate* that the actual internet is reachable
+            //          before issuing this event *and* there may be multiple addresses
+            //          (especially IPv6) so it's recommended to use `ChipDevicePlatformEvent`
+            //          instead and do something that is better for your platform.
+            chip::Inet::IPAddress ipAddress;
         } InternetConnectivityChange;
         struct
         {
@@ -357,7 +464,7 @@ struct ChipDeviceEvent final
         {
             uint64_t PeerNodeId;
             uint16_t SessionKeyId;
-            uint8_t EncType;
+            uint8_t SessionType;
             bool IsCommissioner;
         } SessionEstablished;
         struct
@@ -384,6 +491,16 @@ struct ChipDeviceEvent final
         } CHIPoBLEConnectionError;
         struct
         {
+            BLE_CONNECTION_OBJECT ConId;
+        } CHIPoBLENotifyConfirm;
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+        struct
+        {
+            chip::System::PacketBuffer * Data;
+        } CHIPoWiFiPAFWriteReceived;
+#endif
+        struct
+        {
             bool RoleChanged : 1;
             bool AddressChanged : 1;
             bool NetDataChanged : 1;
@@ -401,9 +518,46 @@ struct ChipDeviceEvent final
         {
             InterfaceIpChangeType Type;
         } InterfaceIpAddressChanged;
+
+        struct
+        {
+            uint64_t nodeId;
+            FabricIndex fabricIndex;
+        } CommissioningComplete;
+        struct
+        {
+            FabricIndex fabricIndex;
+        } BindingsChanged;
+
+        struct
+        {
+            FabricIndex fabricIndex;
+            bool addNocCommandHasBeenInvoked;
+            bool updateNocCommandHasBeenInvoked;
+            bool updateTermsAndConditionsHasBeenInvoked;
+        } FailSafeTimerExpired;
+
+        struct
+        {
+            // TODO(cecille): This should just specify wifi or thread since we assume at most 1.
+            int network;
+        } OperationalNetwork;
+
+        struct
+        {
+            OtaState newState;
+        } OtaStateChanged;
+
+        struct
+        {
+            uint64_t PeerNodeId;
+            uint8_t FabricIndex;
+            uint8_t SecureSessionType;
+            uint8_t TransportType;
+            uint16_t LocalSessionId;
+        } SecureSessionEstablished;
     };
 
-    void Clear() { memset(this, 0, sizeof(*this)); }
     bool IsPublic() const { return DeviceEventType::IsPublic(Type); }
     bool IsInternal() const { return DeviceEventType::IsInternal(Type); }
     bool IsPlatformSpecific() const { return DeviceEventType::IsPlatformSpecific(Type); }

@@ -16,49 +16,57 @@
  *    limitations under the License.
  */
 
-#include "OnboardingCodesUtil.h"
+#include <app/server/OnboardingCodesUtil.h>
 
 #include <algorithm>
 #include <inttypes.h>
 
+#include <lib/support/CodeUtils.h>
+#include <lib/support/ScopedBuffer.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/CommissionableDataProvider.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
 #include <setup_payload/QRCodeSetupPayloadGenerator.h>
-#include <support/CodeUtils.h>
-#include <support/ScopedBuffer.h>
-#include <support/logging/CHIPLogging.h>
 
-constexpr char qrCodeBaseUrl[]                   = "https://dhrishi.github.io/connectedhomeip/qrcode.html";
-constexpr char specialCharsUnreservedInRfc3986[] = "-._~";
+constexpr char kQrCodeBaseUrl[]                   = "https://project-chip.github.io/connectedhomeip/qrcode.html";
+constexpr char kUrlDataAssignmentPhrase[]         = "?data=";
+constexpr char kSpecialCharsUnreservedInRfc3986[] = "-._~";
 
 using namespace ::chip::DeviceLayer;
 
-void PrintOnboardingCodes(chip::RendezvousInformationFlags rendezvousFlags)
+void PrintOnboardingCodes(chip::RendezvousInformationFlags aRendezvousFlags)
 {
-    std::string QRCode;
-    std::string manualPairingCode;
+    chip::PayloadContents payload;
 
-    if (GetQRCode(QRCode, rendezvousFlags) == CHIP_NO_ERROR)
+    CHIP_ERROR err = GetPayloadContents(payload, aRendezvousFlags);
+    if (err != CHIP_NO_ERROR)
     {
-        chip::Platform::ScopedMemoryBuffer<char> qrCodeBuffer;
-        const size_t qrCodeBufferMaxSize = 3 * QRCode.size() + 1;
-        qrCodeBuffer.Alloc(qrCodeBufferMaxSize);
+        ChipLogError(AppServer, "GetPayloadContents() failed: %" CHIP_ERROR_FORMAT, err.Format());
+    }
 
-        ChipLogProgress(AppServer, "SetupQRCode: [%s]", QRCode.c_str());
-        if (EncodeQRCodeToUrl(QRCode.c_str(), QRCode.size(), &qrCodeBuffer[0], qrCodeBufferMaxSize) == CHIP_NO_ERROR)
-        {
-            ChipLogProgress(AppServer, "Copy/paste the below URL in a browser to see the QR Code:");
-            ChipLogProgress(AppServer, "%s?data=%s", qrCodeBaseUrl, &qrCodeBuffer[0]);
-        }
+    PrintOnboardingCodes(payload);
+}
+
+void PrintOnboardingCodes(const chip::PayloadContents & payload)
+{
+    char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    chip::MutableCharSpan qrCode(payloadBuffer);
+
+    if (GetQRCode(qrCode, payload) == CHIP_NO_ERROR)
+    {
+        PrintQrCodeURL(qrCode);
     }
     else
     {
         ChipLogError(AppServer, "Getting QR code failed!");
     }
 
-    if (GetManualPairingCode(manualPairingCode, rendezvousFlags) == CHIP_NO_ERROR)
+    chip::MutableCharSpan manualPairingCode(payloadBuffer);
+    if (GetManualPairingCode(manualPairingCode, payload) == CHIP_NO_ERROR)
     {
-        ChipLogProgress(AppServer, "Manual pairing code: [%s]", manualPairingCode.c_str());
+        ChipLogProgress(AppServer, "Manual pairing code: [%s]", manualPairingCode.data());
     }
     else
     {
@@ -66,114 +74,178 @@ void PrintOnboardingCodes(chip::RendezvousInformationFlags rendezvousFlags)
     }
 }
 
+void PrintQrCodeURL(const chip::MutableCharSpan qrCode)
+{
+    chip::Platform::ScopedMemoryBuffer<char> qrCodeBuffer;
+    const size_t qrCodeBufferMaxSize = strlen(kQrCodeBaseUrl) + strlen(kUrlDataAssignmentPhrase) + 3 * qrCode.size() + 1;
+    qrCodeBuffer.Alloc(qrCodeBufferMaxSize);
+
+    ChipLogProgress(AppServer, "SetupQRCode: [%s]", qrCode.data());
+    if (GetQRCodeUrl(qrCodeBuffer.Get(), qrCodeBufferMaxSize, qrCode) == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(AppServer, "Copy/paste the below URL in a browser to see the QR Code:");
+        ChipLogProgress(AppServer, "%s", qrCodeBuffer.Get());
+    }
+}
+
 #if CHIP_DEVICE_CONFIG_ENABLE_NFC
-void ShareQRCodeOverNFC(chip::RendezvousInformationFlags rendezvousFlags)
+void ShareQRCodeOverNFC(chip::RendezvousInformationFlags aRendezvousFlags)
 {
     // Get QR Code and emulate its content using NFC tag
-    std::string QRCode;
-    ReturnOnFailure(GetQRCode(QRCode, chip::RendezvousInformationFlags::kBLE));
+    char payloadBuffer[chip::QRCodeBasicSetupPayloadGenerator::kMaxQRCodeBase38RepresentationLength + 1];
+    chip::MutableCharSpan qrCode(payloadBuffer);
 
-    // TODO: Issue #4504 - Remove replacing spaces with _ after problem described in #415 will be fixed.
-    std::replace(QRCode.begin(), QRCode.end(), ' ', '_');
-    ReturnOnFailure(NFCMgr().StartTagEmulation(QRCode.c_str(), QRCode.size()));
+    ReturnOnFailure(GetQRCode(qrCode, chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE)));
+
+    ReturnOnFailure(NFCMgr().StartTagEmulation(qrCode.data(), qrCode.size()));
 }
 #endif
 
-static CHIP_ERROR GetSetupPayload(chip::SetupPayload & setupPayload, chip::RendezvousInformationFlags rendezvousFlags)
+CHIP_ERROR GetPayloadContents(chip::PayloadContents & aPayload, chip::RendezvousInformationFlags aRendezvousFlags)
 {
-    CHIP_ERROR err                     = CHIP_NO_ERROR;
-    setupPayload.version               = 0;
-    setupPayload.rendezvousInformation = rendezvousFlags;
+    CHIP_ERROR err   = CHIP_NO_ERROR;
+    aPayload.version = 0;
+    aPayload.rendezvousInformation.SetValue(aRendezvousFlags);
 
-    err = ConfigurationMgr().GetSetupPinCode(setupPayload.setUpPINCode);
-    VerifyOrExit(err == CHIP_NO_ERROR,
-                 ChipLogProgress(AppServer, "ConfigurationMgr().GetSetupPinCode() failed: %s", chip::ErrorStr(err)));
+    err = GetCommissionableDataProvider()->GetSetupPasscode(aPayload.setUpPINCode);
+    if (err != CHIP_NO_ERROR)
+    {
+#if defined(CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE) && CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE
+        ChipLogProgress(AppServer, "*** Using default EXAMPLE passcode %u ***",
+                        static_cast<unsigned>(CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE));
+        aPayload.setUpPINCode = CHIP_DEVICE_CONFIG_USE_TEST_SETUP_PIN_CODE;
+#else
+        ChipLogError(AppServer, "GetCommissionableDataProvider()->GetSetupPasscode() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+#endif
+    }
 
-    err = ConfigurationMgr().GetSetupDiscriminator(setupPayload.discriminator);
-    VerifyOrExit(err == CHIP_NO_ERROR,
-                 ChipLogProgress(AppServer, "ConfigurationMgr().GetSetupDiscriminator() failed: %s", chip::ErrorStr(err)));
+    uint16_t discriminator = 0;
+    err                    = GetCommissionableDataProvider()->GetSetupDiscriminator(discriminator);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "GetCommissionableDataProvider()->GetSetupDiscriminator() failed: %" CHIP_ERROR_FORMAT,
+                     err.Format());
+        return err;
+    }
+    aPayload.discriminator.SetLongValue(discriminator);
 
-    err = ConfigurationMgr().GetVendorId(setupPayload.vendorID);
-    VerifyOrExit(err == CHIP_NO_ERROR,
-                 ChipLogProgress(AppServer, "ConfigurationMgr().GetVendorId() failed: %s", chip::ErrorStr(err)));
+    err = chip::DeviceLayer::GetDeviceInstanceInfoProvider()->GetVendorId(aPayload.vendorID);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "GetDeviceInstanceInfoProvider()->GetVendorId() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+    }
 
-    err = ConfigurationMgr().GetProductId(setupPayload.productID);
-    VerifyOrExit(err == CHIP_NO_ERROR,
-                 ChipLogProgress(AppServer, "ConfigurationMgr().GetProductId() failed: %s", chip::ErrorStr(err)));
+    err = chip::DeviceLayer::GetDeviceInstanceInfoProvider()->GetProductId(aPayload.productID);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "GetDeviceInstanceInfoProvider()->GetProductId() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+    }
 
-exit:
     return err;
 }
 
-CHIP_ERROR GetQRCode(std::string & QRCode, chip::RendezvousInformationFlags rendezvousFlags)
+CHIP_ERROR GetQRCode(chip::MutableCharSpan & aQRCode, chip::RendezvousInformationFlags aRendezvousFlags)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::SetupPayload payload;
+    chip::PayloadContents payload;
 
-    err = GetSetupPayload(payload, rendezvousFlags);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogProgress(AppServer, "GetSetupPayload() failed: %s", chip::ErrorStr(err)));
+    CHIP_ERROR err = GetPayloadContents(payload, aRendezvousFlags);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "GetPayloadContents() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+    }
 
-    // TODO: Usage of STL will significantly increase the image size, this should be changed to more efficient method for
-    // generating payload
-    err = chip::QRCodeSetupPayloadGenerator(payload).payloadBase41Representation(QRCode);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogProgress(AppServer, "Generating QR Code failed: %s", chip::ErrorStr(err)));
-
-exit:
-    return err;
+    return GetQRCode(aQRCode, payload);
 }
 
-CHIP_ERROR GetManualPairingCode(std::string & manualPairingCode, chip::RendezvousInformationFlags rendezvousFlags)
+CHIP_ERROR GetQRCode(chip::MutableCharSpan & aQRCode, const chip::PayloadContents & payload)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::SetupPayload payload;
+    CHIP_ERROR err = chip::QRCodeBasicSetupPayloadGenerator(payload).payloadBase38Representation(aQRCode);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "Generating QR Code failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+    }
 
-    err = GetSetupPayload(payload, rendezvousFlags);
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogProgress(AppServer, "GetSetupPayload() failed: %s", chip::ErrorStr(err)));
+    return CHIP_NO_ERROR;
+}
 
-    err = chip::ManualSetupPayloadGenerator(payload).payloadDecimalStringRepresentation(manualPairingCode);
-    VerifyOrExit(err == CHIP_NO_ERROR,
-                 ChipLogProgress(AppServer, "Generating Manual Pairing Code failed: %s", chip::ErrorStr(err)));
+CHIP_ERROR GetQRCodeUrl(char * aQRCodeUrl, size_t aUrlMaxSize, const chip::CharSpan & aQRCode)
+{
+    VerifyOrReturnError(aQRCodeUrl, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(aUrlMaxSize >= (strlen(kQrCodeBaseUrl) + strlen(kUrlDataAssignmentPhrase) + aQRCode.size() + 1),
+                        CHIP_ERROR_BUFFER_TOO_SMALL);
 
-exit:
-    return err;
+    const int writtenDataSize = snprintf(aQRCodeUrl, aUrlMaxSize, "%s%s", kQrCodeBaseUrl, kUrlDataAssignmentPhrase);
+    VerifyOrReturnError((writtenDataSize > 0) && (static_cast<size_t>(writtenDataSize) < aUrlMaxSize),
+                        CHIP_ERROR_INVALID_STRING_LENGTH);
+
+    return EncodeQRCodeToUrl(aQRCode.data(), aQRCode.size(), aQRCodeUrl + writtenDataSize,
+                             aUrlMaxSize - static_cast<size_t>(writtenDataSize));
+}
+
+CHIP_ERROR GetManualPairingCode(chip::MutableCharSpan & aManualPairingCode, chip::RendezvousInformationFlags aRendezvousFlags)
+{
+    chip::PayloadContents payload;
+
+    CHIP_ERROR err = GetPayloadContents(payload, aRendezvousFlags);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "GetPayloadContents() failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+    }
+    return GetManualPairingCode(aManualPairingCode, payload);
+}
+
+CHIP_ERROR GetManualPairingCode(chip::MutableCharSpan & aManualPairingCode, const chip::PayloadContents & payload)
+{
+    CHIP_ERROR err = chip::ManualSetupPayloadGenerator(payload).payloadDecimalStringRepresentation(aManualPairingCode);
+    if (err != CHIP_NO_ERROR)
+    {
+        ChipLogError(AppServer, "Generating Manual Pairing Code failed: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
+    }
+
+    return CHIP_NO_ERROR;
 }
 
 static inline bool isCharUnreservedInRfc3986(const char c)
 {
-    return isalpha(c) || isdigit(c) || (strchr(specialCharsUnreservedInRfc3986, c) != nullptr);
+    return isalpha(c) || isdigit(c) || (strchr(kSpecialCharsUnreservedInRfc3986, c) != nullptr);
 }
 
-CHIP_ERROR EncodeQRCodeToUrl(const char * QRCode, size_t len, char * url, size_t maxSize)
+CHIP_ERROR EncodeQRCodeToUrl(const char * aQRCode, size_t aLen, char * aUrl, size_t aMaxSize)
 {
-    const char upperHexDigits[] = "0123456789ABCDEF";
-    CHIP_ERROR err              = CHIP_NO_ERROR;
+    static const char upperHexDigits[] = "0123456789ABCDEF";
     size_t i = 0, j = 0;
 
-    VerifyOrExit((QRCode != nullptr) && (url != nullptr), err = CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError((aQRCode != nullptr) && (aUrl != nullptr), CHIP_ERROR_INVALID_ARGUMENT);
 
-    for (i = 0; i < len; ++i)
+    for (i = 0; i < aLen; ++i)
     {
-        unsigned char c = QRCode[i];
+        char c = aQRCode[i];
         if (isCharUnreservedInRfc3986(c))
         {
 
-            VerifyOrExit((j + 1) < maxSize, err = CHIP_ERROR_BUFFER_TOO_SMALL);
+            VerifyOrReturnError((j + 1) < aMaxSize, CHIP_ERROR_BUFFER_TOO_SMALL);
 
-            url[j++] = c;
+            aUrl[j++] = c;
         }
         else
         {
 
-            VerifyOrExit((j + 3) < maxSize, err = CHIP_ERROR_BUFFER_TOO_SMALL);
+            VerifyOrReturnError((j + 3) < aMaxSize, CHIP_ERROR_BUFFER_TOO_SMALL);
 
-            url[j++] = '%';
-            url[j++] = upperHexDigits[(c & 0xf0) >> 4];
-            url[j++] = upperHexDigits[(c & 0x0f)];
+            aUrl[j++] = '%';
+            aUrl[j++] = upperHexDigits[(c & 0xf0) >> 4];
+            aUrl[j++] = upperHexDigits[(c & 0x0f)];
         }
     }
 
-    url[j] = '\0';
+    aUrl[j] = '\0';
 
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }

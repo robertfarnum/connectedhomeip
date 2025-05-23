@@ -23,10 +23,6 @@
 
 #include "InetFaultInjection.h"
 
-#include <nlassert.h>
-
-#if INET_CONFIG_TEST
-
 namespace chip {
 namespace Inet {
 namespace FaultInjection {
@@ -55,5 +51,3 @@ nl::FaultInjection::Manager & GetManager()
 } // namespace FaultInjection
 } // namespace Inet
 } // namespace chip
-
-#endif // INET_CONFIG_TEST

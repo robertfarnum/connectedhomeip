@@ -27,12 +27,16 @@
 #include <string>
 #include <unistd.h>
 
+#include <lib/support/Base64.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/IniEscaping.h>
+#include <lib/support/TemporaryFileStream.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/Linux/CHIPLinuxStorageIni.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
-#include <support/Base64.h>
-#include <support/CHIPMem.h>
-#include <support/CodeUtils.h>
-#include <support/logging/CHIPLogging.h>
+
+using namespace chip::IniEscaping;
 
 namespace chip {
 namespace DeviceLayer {
@@ -88,35 +92,48 @@ CHIP_ERROR ChipLinuxStorageIni::AddConfig(const std::string & configFile)
 // 3. Using rename() to overwrite the existing file
 CHIP_ERROR ChipLinuxStorageIni::CommitConfig(const std::string & configFile)
 {
+    TemporaryFileStream tmpFile(configFile + "-XXXXXX");
+    VerifyOrReturnError(
+        tmpFile.IsOpen(), CHIP_ERROR_OPEN_FAILED,
+        ChipLogError(DeviceLayer, "Failed to create temp file %s: %s", tmpFile.GetFileName().c_str(), strerror(errno)));
+
+    mConfigStore.generate(tmpFile);
+    VerifyOrReturnError(
+        tmpFile.DataSync(), CHIP_ERROR_WRITE_FAILED,
+        ChipLogError(DeviceLayer, "Failed to sync temp file %s: %s", tmpFile.GetFileName().c_str(), strerror(errno)));
+
+    int rv = rename(tmpFile.GetFileName().c_str(), configFile.c_str());
+    VerifyOrReturnError(rv == 0, CHIP_ERROR_WRITE_FAILED,
+                        ChipLogError(DeviceLayer, "Failed to rename %s to %s: %s", tmpFile.GetFileName().c_str(),
+                                     configFile.c_str(), strerror(errno)));
+
+    ChipLogDetail(DeviceLayer, "Wrote settings to %s", configFile.c_str());
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR ChipLinuxStorageIni::GetUInt16Value(const char * key, uint16_t & val)
+{
     CHIP_ERROR retval = CHIP_NO_ERROR;
-    std::ofstream ofs;
-    std::string tmpPath = configFile;
+    std::map<std::string, std::string> section;
 
-    tmpPath.append(".tmp");
+    retval = GetDefaultSection(section);
 
-    ofs.open(tmpPath, std::ofstream::out | std::ofstream::trunc);
-
-    if (ofs.is_open())
+    if (retval == CHIP_NO_ERROR)
     {
-        ChipLogProgress(DeviceLayer, "writing settings to file (%s)", tmpPath.c_str());
+        std::string escapedKey = EscapeKey(key);
+        auto it                = section.find(escapedKey);
 
-        mConfigStore.generate(ofs);
-        ofs.close();
-
-        if (rename(tmpPath.c_str(), configFile.c_str()) == 0)
+        if (it != section.end())
         {
-            ChipLogError(DeviceLayer, "renamed tmp file to file (%s)", configFile.c_str());
+            if (!inipp::extract(section[escapedKey], val))
+            {
+                retval = CHIP_ERROR_INVALID_ARGUMENT;
+            }
         }
         else
         {
-            ChipLogError(DeviceLayer, "failed to rename (%s), %s (%d)", tmpPath.c_str(), strerror(errno), errno);
-            retval = CHIP_ERROR_WRITE_FAILED;
+            retval = CHIP_ERROR_KEY_NOT_FOUND;
         }
-    }
-    else
-    {
-        ChipLogError(DeviceLayer, "failed to open file (%s) for writing", tmpPath.c_str());
-        retval = CHIP_ERROR_OPEN_FAILED;
     }
 
     return retval;
@@ -131,11 +148,12 @@ CHIP_ERROR ChipLinuxStorageIni::GetUIntValue(const char * key, uint32_t & val)
 
     if (retval == CHIP_NO_ERROR)
     {
-        auto it = section.find(key);
+        std::string escapedKey = EscapeKey(key);
+        auto it                = section.find(escapedKey);
 
         if (it != section.end())
         {
-            if (!inipp::extract(section[key], val))
+            if (!inipp::extract(section[escapedKey], val))
             {
                 retval = CHIP_ERROR_INVALID_ARGUMENT;
             }
@@ -158,11 +176,12 @@ CHIP_ERROR ChipLinuxStorageIni::GetUInt64Value(const char * key, uint64_t & val)
 
     if (retval == CHIP_NO_ERROR)
     {
-        auto it = section.find(key);
+        std::string escapedKey = EscapeKey(key);
+        auto it                = section.find(escapedKey);
 
         if (it != section.end())
         {
-            if (!inipp::extract(section[key], val))
+            if (!inipp::extract(section[escapedKey], val))
             {
                 retval = CHIP_ERROR_INVALID_ARGUMENT;
             }
@@ -185,12 +204,13 @@ CHIP_ERROR ChipLinuxStorageIni::GetStringValue(const char * key, char * buf, siz
 
     if (retval == CHIP_NO_ERROR)
     {
-        auto it = section.find(key);
+        std::string escapedKey = EscapeKey(key);
+        auto it                = section.find(escapedKey);
 
         if (it != section.end())
         {
             std::string value;
-            if (inipp::extract(section[key], value))
+            if (inipp::extract(section[escapedKey], value))
             {
                 size_t len = value.size();
 
@@ -231,7 +251,8 @@ CHIP_ERROR ChipLinuxStorageIni::GetBinaryBlobDataAndLengths(const char * key,
         return err;
     }
 
-    auto it = section.find(key);
+    std::string escapedKey = EscapeKey(key);
+    auto it                = section.find(escapedKey);
     if (it == section.end())
     {
         return CHIP_ERROR_KEY_NOT_FOUND;
@@ -240,7 +261,7 @@ CHIP_ERROR ChipLinuxStorageIni::GetBinaryBlobDataAndLengths(const char * key,
     std::string value;
 
     // Compute the expectedDecodedLen
-    if (!inipp::extract(section[key], value))
+    if (!inipp::extract(section[escapedKey], value))
     {
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
@@ -311,7 +332,8 @@ bool ChipLinuxStorageIni::HasValue(const char * key)
     if (GetDefaultSection(section) != CHIP_NO_ERROR)
         return false;
 
-    auto it = section.find(key);
+    std::string escapedKey = EscapeKey(key);
+    auto it                = section.find(escapedKey);
 
     return it != section.end();
 }
@@ -322,8 +344,9 @@ CHIP_ERROR ChipLinuxStorageIni::AddEntry(const char * key, const char * value)
 
     if ((key != nullptr) && (value != nullptr))
     {
+        std::string escapedKey                       = EscapeKey(key);
         std::map<std::string, std::string> & section = mConfigStore.sections["DEFAULT"];
-        section[key]                                 = std::string(value);
+        section[escapedKey]                          = std::string(value);
     }
     else
     {
@@ -340,7 +363,8 @@ CHIP_ERROR ChipLinuxStorageIni::RemoveEntry(const char * key)
 
     std::map<std::string, std::string> & section = mConfigStore.sections["DEFAULT"];
 
-    auto it = section.find(key);
+    std::string escapedKey = EscapeKey(key);
+    auto it                = section.find(escapedKey);
 
     if (it != section.end())
     {
