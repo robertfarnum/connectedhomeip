@@ -1,6 +1,6 @@
 /**
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2024 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,209 +14,381 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-
-/**
- *
- *    Copyright (c) 2020 Silicon Labs
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- */
-/***************************************************************************/
-/**
- * @file
- * @brief Contains the per-endpoint configuration of
- *attribute tables.
- *******************************************************************************
- ******************************************************************************/
 
 #pragma once
 
-//#include PLATFORM_HEADER
-#include "af.h"
+#include <app/util/af-types.h>
+#include <app/util/att-storage.h>
+#include <app/util/attribute-metadata.h>
+#include <app/util/config.h>
+#include <app/util/endpoint-config-defines.h>
+#include <lib/support/CodeUtils.h>
 
-#if !defined(EMBER_SCRIPTED_TEST)
-#include "gen/att-storage.h"
-#endif
+#include <app-common/zap-generated/attribute-type.h>
+#include <app-common/zap-generated/cluster-objects.h>
 
-#if !defined(ATTRIBUTE_STORAGE_CONFIGURATION) && defined(EMBER_TEST)
-#define ATTRIBUTE_STORAGE_CONFIGURATION "attribute-storage-test.h"
-#endif
+// NOTE: direct include here even though app/util/config.h is the public header,
+//       because MAX_ENDPOINT_COUNT needs FIXED_ENDPOINT_COUNT definitions.
+#include <zap-generated/endpoint_config.h>
 
-// ATTRIBUTE_STORAGE_CONFIGURATION macro
-// contains the file that contains the initial set-up of the
-// attribute data structures. If it is missing
-// we use the provider sample.
-#ifndef ATTRIBUTE_STORAGE_CONFIGURATION
-//  #error "Must define ATTRIBUTE_STORAGE_CONFIGURATION to specify the App. Builder default attributes file."
-#include "gen/endpoint_config.h"
-#else
-#include ATTRIBUTE_STORAGE_CONFIGURATION
-#endif
+static constexpr uint16_t kEmberInvalidEndpointIndex = 0xFFFF;
 
 // If we have fixed number of endpoints, then max is the same.
 #ifdef FIXED_ENDPOINT_COUNT
-#define MAX_ENDPOINT_COUNT FIXED_ENDPOINT_COUNT
+#define MAX_ENDPOINT_COUNT (FIXED_ENDPOINT_COUNT + CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT)
 #endif
 
-#define CLUSTER_TICK_FREQ_ALL (0x00)
-#define CLUSTER_TICK_FREQ_QUARTER_SECOND (0x04)
-#define CLUSTER_TICK_FREQ_HALF_SECOND (0x08)
-#define CLUSTER_TICK_FREQ_SECOND (0x0C)
+#define DECLARE_DYNAMIC_ENDPOINT(endpointName, clusterList)                                                                        \
+    EmberAfEndpointType endpointName = { clusterList, ArraySize(clusterList), 0 }
 
-extern uint8_t attributeData[]; // main storage bucket for all attributes
+#define DECLARE_DYNAMIC_CLUSTER_LIST_BEGIN(clusterListName) EmberAfCluster clusterListName[] = {
 
-extern uint8_t attributeDefaults[]; // storage bucked for > 2b default values
+// The role argument should be used to determine whether cluster works as a server or a client.
+// It can be assigned with the ZAP_CLUSTER_MASK(SERVER) or ZAP_CLUSTER_MASK(CLUSTER) values.
+#define DECLARE_DYNAMIC_CLUSTER(clusterId, clusterAttrs, role, incomingCommands, outgoingCommands)                                 \
+    {                                                                                                                              \
+        clusterId, clusterAttrs, ArraySize(clusterAttrs), 0, role, NULL, incomingCommands, outgoingCommands                        \
+    }
 
-void emAfCallInits(void);
+#define DECLARE_DYNAMIC_CLUSTER_LIST_END }
 
-#define emberAfClusterIsClient(cluster) ((bool) (((cluster)->mask & CLUSTER_MASK_CLIENT) != 0))
-#define emberAfClusterIsServer(cluster) ((bool) (((cluster)->mask & CLUSTER_MASK_SERVER) != 0))
-#define emberAfDoesClusterHaveInitFunction(cluster) ((bool) (((cluster)->mask & CLUSTER_MASK_INIT_FUNCTION) != 0))
-#define emberAfDoesClusterHaveAttributeChangedFunction(cluster)                                                                    \
-    ((bool) (((cluster)->mask & CLUSTER_MASK_ATTRIBUTE_CHANGED_FUNCTION) != 0))
-#define emberAfDoesClusterHaveDefaultResponseFunction(cluster)                                                                     \
-    ((bool) (((cluster)->mask & CLUSTER_MASK_DEFAULT_RESPONSE_FUNCTION) != 0))
-#define emberAfDoesClusterHaveMessageSentFunction(cluster) ((bool) (((cluster)->mask & CLUSTER_MASK_MESSAGE_SENT_FUNCTION) != 0))
+#define DECLARE_DYNAMIC_ATTRIBUTE_LIST_BEGIN(attrListName) EmberAfAttributeMetadata attrListName[] = {
 
-// Initial configuration
-void emberAfEndpointConfigure(void);
-bool emberAfExtractCommandIds(bool outgoing, EmberAfClusterCommand * cmd, chip::ClusterId clusterId, uint8_t * buffer,
-                              uint16_t bufferLength, uint16_t * bufferIndex, uint8_t startId, uint8_t maxIdCount);
+#define DECLARE_DYNAMIC_ATTRIBUTE_LIST_END()                                                                                       \
+    {                                                                                                                              \
+        ZAP_EMPTY_DEFAULT(), 0xFFFD, 2, ZAP_TYPE(INT16U), ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE)                                     \
+    } /* cluster revision */                                                                                                       \
+    }
 
-EmberAfStatus emAfReadOrWriteAttribute(EmberAfAttributeSearchRecord * attRecord, EmberAfAttributeMetadata ** metadata,
-                                       uint8_t * buffer, uint16_t readLength, bool write);
+// The attrMask must contain the relevant ATTRIBUTE_MASK_* bits from
+// attribute-metadata.h.  Specifically:
+//
+// * Writable attributes must have ATTRIBUTE_MASK_WRITABLE
+// * Nullable attributes (have X in the quality column in the spec) must have ATTRIBUTE_MASK_NULLABLE
+// * Attributes that have T in the Access column in the spec must have ATTRIBUTE_MASK_MUST_USE_TIMED_WRITE
+#define DECLARE_DYNAMIC_ATTRIBUTE(attId, attType, attSizeBytes, attrMask)                                                          \
+    {                                                                                                                              \
+        ZAP_EMPTY_DEFAULT(), attId, attSizeBytes, ZAP_TYPE(attType), attrMask | ZAP_ATTRIBUTE_MASK(EXTERNAL_STORAGE)               \
+    }
 
-bool emAfMatchCluster(EmberAfCluster * cluster, EmberAfAttributeSearchRecord * attRecord);
-bool emAfMatchAttribute(EmberAfCluster * cluster, EmberAfAttributeMetadata * am, EmberAfAttributeSearchRecord * attRecord);
+/**
+ * @brief locate attribute metadata
+ *
+ * Function returns pointer to the attribute metadata structure,
+ * or NULL if attribute was not found.
+ *
+ * @param endpoint Zigbee endpoint number.
+ * @param clusterId Cluster ID of the sought cluster.
+ * @param attributeId Attribute ID of the sought attribute.
+ *
+ * @return Returns pointer to the attribute metadata location.
+ */
+const EmberAfAttributeMetadata * emberAfLocateAttributeMetadata(chip::EndpointId endpoint, chip::ClusterId clusterId,
+                                                                chip::AttributeId attributeId);
 
-EmberAfCluster * emberAfFindClusterInTypeWithMfgCode(EmberAfEndpointType * endpointType, chip::ClusterId clusterId,
-                                                     EmberAfClusterMask mask, uint16_t manufacturerCode);
+/**
+ * @brief Returns true if endpoint contains the ZCL server with specified id.
+ *
+ * This function returns true if
+ * the endpoint contains server of a given cluster.
+ */
+bool emberAfContainsServer(chip::EndpointId endpoint, chip::ClusterId clusterId);
 
-EmberAfCluster * emberAfFindClusterInType(EmberAfEndpointType * endpointType, chip::ClusterId clusterId, EmberAfClusterMask mask);
+/**
+ * @brief Returns true if endpoint of given index contains the ZCL server with specified id.
+ *
+ * This function returns true if
+ * the endpoint of given index contains server of a given cluster.
+ * If this function is used with a manufacturer specific clusterId
+ * then this will return the first cluster that it finds in the Cluster table.
+ * and will not return any other clusters that share that id.
+ */
+bool emberAfContainsServerFromIndex(uint16_t index, chip::ClusterId clusterId);
 
-// This function returns the index of cluster for the particular endpoint.
-// Mask is either CLUSTER_MASK_CLIENT or CLUSTER_MASK_SERVER
-// For example, if you have 3 endpoints, 10, 11, 12, and cluster X server is
-// located on 11 and 12, and cluster Y server is located only on 10 then
-//    clusterIndex(X,11,CLUSTER_MASK_SERVER) returns 0,
-//    clusterIndex(X,12,CLUSTER_MASK_SERVER) returns 1,
-//    clusterIndex(X,10,CLUSTER_MASK_SERVER) returns 0xFF
-//    clusterIndex(Y,10,CLUSTER_MASK_SERVER) returns 0
-//    clusterIndex(Y,11,CLUSTER_MASK_SERVER) returns 0xFF
-//    clusterIndex(Y,12,CLUSTER_MASK_SERVER) returns 0xFF
-uint8_t emberAfClusterIndex(chip::EndpointId endpoint, chip::ClusterId clusterId, EmberAfClusterMask mask);
+/**
+ * @brief Returns true if endpoint contains the ZCL client with specified id.
+ *
+ * This function returns true if
+ * the endpoint contains client of a given cluster.
+ */
+bool emberAfContainsClient(chip::EndpointId endpoint, chip::ClusterId clusterId);
 
-// If server == true, returns the number of server clusters,
-// otherwise number of client clusters on this endpoint
-uint8_t emberAfClusterCount(chip::EndpointId endpoint, bool server);
+/**
+ * @brief macro that returns size of attribute in bytes.
+ *
+ * @param metadata EmberAfAttributeMetadata* to consider.
+ */
+#define emberAfAttributeSize(metadata) ((metadata)->size)
 
-// Returns the clusterId of Nth server or client cluster,
-// depending on server toggle.
-EmberAfCluster * emberAfGetNthCluster(chip::EndpointId endpoint, uint8_t n, bool server);
+/**
+ * Returns the index of a given endpoint.  Will return 0xFFFF if this is not a
+ * valid endpoint id or if the endpoint is disabled.
+ */
+uint16_t emberAfIndexFromEndpoint(chip::EndpointId endpoint);
+
+/**
+ * @brief Returns parent endpoint for a given endpoint index
+ */
+chip::EndpointId emberAfParentEndpointFromIndex(uint16_t index);
+
+/**
+ *  @brief Returns the index of the given endpoint in the list of all endpoints that might support the given cluster server.
+ *
+ * Returns kEmberInvalidEndpointIndex if the given endpoint does not support the
+ * given cluster or if the given endpoint is disabled.
+ *
+ * This function always returns the same index for a given endpointId instance, fixed or dynamic.
+ *
+ * The return index for fixed endpoints will range from 0 to (fixedClusterServerEndpointCount - 1),
+ * For dynamic endpoints the indexing assumes that any dynamic endpoint could start supporting
+ * the given server cluster and their index will range from fixedClusterServerEndpointCount to
+ * (fixedClusterServerEndpointCount + CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT - 1).
+ *
+ * For example, if a device has 4 fixed endpoints (ids 0-3) and 2 dynamic
+ * endpoints, and cluster X is supported on endpoints 1 and 3, then
+ * fixedClusterServerEndpointCount should be 2 and
+ *
+ * 1) emberAfGetClusterServerEndpointIndex(0, X) returns kEmberInvalidEndpointIndex
+ * 2) emberAfGetClusterServerEndpointIndex(1, X) returns 0
+ * 3) emberAfGetClusterServerEndpointIndex(2, X) returns kEmberInvalidEndpointIndex
+ * 4) emberAfGetClusterServerEndpointIndex(3, X) returns 1
+
+ * The Dynamic endpoints are placed after the fixed ones;
+ * therefore their return index will always be >= to fixedClusterServerEndpointCount
+ *
+ * If a dynamic endpoint, supporting cluster X, is defined to dynamic index 1 with endpoint id 7,
+ * (via emberAfSetDynamicEndpoint(1, 7, ...))
+ * then emberAfGetClusterServerEndpointIndex(7, X) returns 3 (fixedClusterServerEndpointCount{2} + DynamicEndpointIndex {1}).
+ *
+ * If now a second dynamic endpoint, also supporting cluster X, is defined to dynamic index 0
+ * with endpoint id 9  (via emberAfSetDynamicEndpoint(0, 9, ...)),
+ * emberAfGetClusterServerEndpointIndex(9, X) returns 2. (fixedClusterServerEndpointCount{2} + DynamicEndpointIndex {0}).
+ * and emberAfGetClusterServerEndpointIndex(7, X) still returns 3
+ *
+ * @param endpoint Endpoint number
+ * @param cluster Id the of the Cluster server you are interrested on
+ * @param fixedClusterServerEndpointCount The number of fixed endpoints containing this cluster server.  Typically one of the
+ MATTER_DM_*_CLUSTER_SERVER_ENDPOINT_COUNT constants.
+ */
+uint16_t emberAfGetClusterServerEndpointIndex(chip::EndpointId endpoint, chip::ClusterId cluster,
+                                              uint16_t fixedClusterServerEndpointCount);
+
+/**
+ * Returns the pointer to the data version storage for the given endpoint and
+ * cluster.  Can return null in the following cases:
+ *
+ * 1) There is no such endpoint.
+ * 2) There is no such server cluster on the given endpoint.
+ * 3) No storage for a data version was provided for the endpoint.
+ */
+chip::DataVersion * emberAfDataVersionStorage(const chip::app::ConcreteClusterPath & aConcreteClusterPath);
+
+/**
+ * @brief Returns the number of pre-compiled endpoints.
+ */
+uint16_t emberAfFixedEndpointCount();
+
+/**
+ * Get the semantic tags of the endpoint.
+ * Fills in the provided SemanticTagStruct with tag at index `index` if there is one,
+ * or returns CHIP_ERROR_NOT_FOUND if the index is out of range for the list of tag,
+ * or returns CHIP_ERROR_NOT_FOUND if the endpoint is invalid.
+ * @param endpoint The target endpoint.
+ * @param index The index of the tag, with 0 representing the first tag.
+ * @param tag  The SemanticTagStruct is filled.
+ */
+CHIP_ERROR GetSemanticTagForEndpointAtIndex(chip::EndpointId endpoint, size_t index,
+                                            chip::app::Clusters::Descriptor::Structs::SemanticTagStruct::Type & tag);
+
+//
+// Override the tag list current associated with an endpoint with a user-provided list. The buffers backing
+// that list have to live as long as the endpoint is enabled.
+//
+// NOTE: It is the application's responsibility to free the existing list that is being replaced if needed.
+//
+CHIP_ERROR SetTagList(chip::EndpointId endpoint,
+                      chip::Span<const chip::app::Clusters::Descriptor::Structs::SemanticTagStruct::Type> tagList);
 
 // Returns number of clusters put into the passed cluster list
 // for the given endpoint and client/server polarity
 uint8_t emberAfGetClustersFromEndpoint(chip::EndpointId endpoint, chip::ClusterId * clusterList, uint8_t listLen, bool server);
 
-// Returns cluster within the endpoint, or NULL if it isn't there
-EmberAfCluster * emberAfFindClusterWithMfgCode(chip::EndpointId endpoint, chip::ClusterId clusterId, EmberAfClusterMask mask,
-                                               uint16_t manufacturerCode);
-
-// Returns cluster within the endpoint, or NULL if it isn't there
-// This wraps emberAfFindClusterWithMfgCode with EMBER_AF_NULL_MANUFACTURER_CODE
-EmberAfCluster * emberAfFindCluster(chip::EndpointId endpoint, chip::ClusterId clusterId, EmberAfClusterMask mask);
-
-// Returns cluster within the endpoint; Does not ignore disabled endpoints
-EmberAfCluster * emberAfFindClusterIncludingDisabledEndpointsWithMfgCode(chip::EndpointId endpoint, chip::ClusterId clusterId,
-                                                                         EmberAfClusterMask mask, uint16_t manufacturerCode);
-
-// Returns cluster within the endpoint; Does not ignore disabled endpoints
-// This wraps emberAfFindClusterIncludingDisabledEndpointsWithMfgCode with EMBER_AF_NULL_MANUFACTURER_CODE
-EmberAfCluster * emberAfFindClusterIncludingDisabledEndpoints(chip::EndpointId endpoint, chip::ClusterId clusterId,
-                                                              EmberAfClusterMask mask);
-
-// Function mask must contain one of the CLUSTER_MASK function macros,
-// then this method either returns the function pointer or null if
-// function doesn't exist. Before you call the function, you must
-// cast it.
-EmberAfGenericClusterFunction emberAfFindClusterFunction(EmberAfCluster * cluster, EmberAfClusterMask functionMask);
-
-// Public APIs for loading attributes
-void emberAfInitializeAttributes(chip::EndpointId endpoint);
-void emberAfResetAttributes(chip::EndpointId endpoint);
-
-// Loads the attributes from built-in default and / or tokens
-void emAfLoadAttributeDefaults(chip::EndpointId endpoint, bool writeTokens);
-
-// This function loads from tokens all the attributes that
-// are defined to be stored in tokens.
-void emAfLoadAttributesFromTokens(chip::EndpointId endpoint);
-
-// After the RAM value has changed, code should call this
-// function. If this attribute has been
-// tagged as stored-to-token, then code will store
-// the attribute to token.
-void emAfSaveAttributeToToken(uint8_t * data, chip::EndpointId endpoint, chip::ClusterId clusterId,
-                              EmberAfAttributeMetadata * metadata);
-
-// Calls the attribute changed callback
-void emAfClusterAttributeChangedCallback(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId,
-                                         uint8_t clientServerMask, uint16_t manufacturerCode);
-
-// Calls the attribute changed callback for a specific cluster.
-EmberAfStatus emAfClusterPreAttributeChangedCallback(chip::EndpointId endpoint, chip::ClusterId clusterId,
-                                                     chip::AttributeId attributeId, uint8_t clientServerMask,
-                                                     uint16_t manufacturerCode, EmberAfAttributeType attributeType, uint8_t size,
-                                                     uint8_t * value);
-
-// Calls the default response callback for a specific cluster, and wraps emberAfClusterDefaultResponseWithMfgCodeCallback
-// with the EMBER_NULL_MANUFACTURER_CODE
-void emberAfClusterDefaultResponseCallback(chip::EndpointId endpoint, chip::ClusterId clusterId, uint8_t commandId,
-                                           EmberAfStatus status, uint8_t clientServerMask);
-
-// Calls the default response callback for a specific cluster.
-void emberAfClusterDefaultResponseWithMfgCodeCallback(chip::EndpointId endpoint, chip::ClusterId clusterId, uint8_t commandId,
-                                                      EmberAfStatus status, uint8_t clientServerMask, uint16_t manufacturerCode);
-
-// Calls the message sent callback for a specific cluster, and wraps emberAfClusterMessageSentWithMfgCodeCallback
-void emberAfClusterMessageSentCallback(EmberOutgoingMessageType type, uint16_t indexOrDestination, EmberApsFrame * apsFrame,
-                                       uint16_t msgLen, uint8_t * message, EmberStatus status);
-
-// Calls the message sent callback for a specific cluster.
-void emberAfClusterMessageSentWithMfgCodeCallback(EmberOutgoingMessageType type, uint64_t indexOrDestination,
-                                                  EmberApsFrame * apsFrame, uint16_t msgLen, uint8_t * message, EmberStatus status,
-                                                  uint16_t manufacturerCode);
-
-// Used to retrieve a manufacturer code from an attribute metadata
-uint16_t emAfGetManufacturerCodeForCluster(EmberAfCluster * cluster);
-uint16_t emAfGetManufacturerCodeForAttribute(EmberAfCluster * cluster, EmberAfAttributeMetadata * attMetaData);
-
-// Checks a cluster mask byte against ticks passed bitmask
-// returns true if the mask matches a passed interval
-bool emberAfCheckTick(EmberAfClusterMask mask, uint8_t passedMask);
-
-bool emberAfEndpointIsEnabled(chip::EndpointId endpoint);
-
-// Note the difference in implementation from emberAfGetNthCluster().
-// emberAfGetClusterByIndex() retrieves the cluster by index regardless of server/client
-// and those indexes may be DIFFERENT than the indexes returned from
-// emberAfGetNthCluster().  In other words:
+// Note the difference in for server filtering.
+// This method will return the cluster count for BOTH client and server
+// and those do NOT work with NthCluster/NthClusterId
+//  - Use emberAfGetClustersFromEndpoint()  with emberAfGetNthCluster() emberAfGetNthClusterId()
 //
-//  - Use emberAfGetClustersFromEndpoint()  with emberAfGetNthCluster()
-//  - Use emberAfGetClusterCountForEndpoint() with emberAfGetClusterByIndex()
-//
-// Don't mix them.
 uint8_t emberAfGetClusterCountForEndpoint(chip::EndpointId endpoint);
-EmberAfCluster * emberAfGetClusterByIndex(chip::EndpointId endpoint, uint8_t clusterIndex);
 
-uint16_t emberAfGetDeviceIdForEndpoint(chip::EndpointId endpoint);
+// Check if a cluster is implemented or not. If yes, the cluster is returned.
+//
+// mask = 0 -> find either client or server
+// mask = CLUSTER_MASK_CLIENT -> find client
+// mask = CLUSTER_MASK_SERVER -> find server
+//
+// If a pointer to an index is provided, it will be updated to point to the relative index of the cluster
+// within the set of clusters that match the mask criteria.
+//
+const EmberAfCluster * emberAfFindClusterInType(const EmberAfEndpointType * endpointType, chip::ClusterId clusterId,
+                                                EmberAfClusterMask mask, uint8_t * index = nullptr);
+
+// Initial configuration
+void emberAfEndpointConfigure();
+
+// Register a dynamic endpoint. This involves registering descriptors that describe
+// the composition of the endpoint (encapsulated in the 'ep' argument) as well as providing
+// storage for data versions.
+//
+// dataVersionStorage.size() needs to be at least as large as the number of
+// server clusters on this endpoint.  If it's not, the endpoint will not be able
+// to store data versions, which may break consumers.
+//
+// The memory backing dataVersionStorage needs to remain allocated until this dynamic
+// endpoint is cleared.
+//
+// An optional device type list can be passed in as well. If provided, the memory
+// backing the list needs to remain allocated until this dynamic endpoint is cleared.
+//
+// An optional parent endpoint id should be passed for child endpoints of composed device.
+//
+// Returns  CHIP_NO_ERROR                   No error.
+//          CHIP_ERROR_NO_MEMORY            MAX_ENDPOINT_COUNT is reached or when no storage is left for clusters
+//          CHIP_ERROR_INVALID_ARGUMENT     The EndpointId value passed is kInvalidEndpointId
+//          CHIP_ERROR_ENDPOINT_EXISTS      If the EndpointId value passed already exists
+//
+CHIP_ERROR emberAfSetDynamicEndpoint(uint16_t index, chip::EndpointId id, const EmberAfEndpointType * ep,
+                                     const chip::Span<chip::DataVersion> & dataVersionStorage,
+                                     chip::Span<const EmberAfDeviceType> deviceTypeList = {},
+                                     chip::EndpointId parentEndpointId                  = chip::kInvalidEndpointId);
+chip::EndpointId emberAfClearDynamicEndpoint(uint16_t index);
+uint16_t emberAfGetDynamicIndexFromEndpoint(chip::EndpointId id);
+/**
+ * @brief Loads attribute defaults and any non-volatile attributes stored
+ *
+ * @param endpoint EnpointId. Use chip::kInvalidEndpointId to initialize all endpoints
+ */
+void emberAfInitializeAttributes(chip::EndpointId endpoint);
+
+// If server == true, returns the number of server clusters,
+// otherwise number of client clusters on this endpoint
+uint8_t emberAfClusterCount(chip::EndpointId endpoint, bool server);
+
+// Returns the cluster of Nth server or client cluster,
+// depending on server toggle.
+const EmberAfCluster * emberAfGetNthCluster(chip::EndpointId endpoint, uint8_t n, bool server);
+
+//
+// Retrieve the device type list associated with a specific endpoint.
+//
+chip::Span<const EmberAfDeviceType> emberAfDeviceTypeListFromEndpoint(chip::EndpointId endpoint, CHIP_ERROR & err);
+chip::Span<const EmberAfDeviceType> emberAfDeviceTypeListFromEndpointIndex(unsigned endpointIndex, CHIP_ERROR & err);
+
+//
+// Override the device type list current associated with an endpoint with a user-provided list. The buffers backing
+// that list have to live as long as the endpoint is enabled.
+//
+// NOTE: It is the application's responsibility to free the existing list that is being replaced if needed.
+//
+CHIP_ERROR emberAfSetDeviceTypeList(chip::EndpointId endpoint, chip::Span<const EmberAfDeviceType> deviceTypeList);
+
+/// Returns a change listener that uses the global InteractionModelEngine
+/// instance to report dirty paths
+chip::app::AttributesChangedListener * emberAfGlobalInteractionModelAttributesChangedListener();
+
+/// Mark the given attribute as having changed:
+///   - increases the cluster data version for the given cluster
+///   - uses `listener` to `MarkDirty` the given path. This is typically done to mark an
+///     attribute as dirty within the matter attribute reporting engine, so that subscriptions
+///     receive updated attribute values for a cluster.
+///
+/// This is a convenience function to make it clear when a `emberAfDataVersionStorage` increase
+/// and a `AttributesChangeListener::MarkDirty` always occur in lock-step.
+void emberAfAttributeChanged(chip::EndpointId endpoint, chip::ClusterId clusterId, chip::AttributeId attributeId,
+                             chip::app::AttributesChangedListener * listener);
+
+/// Mark attributes on the given endpoint as having changed.
+///
+/// Schedules reporting engine to consider the endpoint dirty, however does NOT increase/alter
+/// any cluster data versions.
+void emberAfEndpointChanged(chip::EndpointId endpoint, chip::app::AttributesChangedListener * listener);
+
+/// Maintains a increasing index of structural changes within ember
+/// that determine if existing "indexes" and metadata pointers within ember
+/// are still valid or not.
+///
+/// Changes to metadata structure (e.g. endpoint enable/disable and dynamic endpoint changes)
+/// are reflected in this generation count changing.
+unsigned emberAfMetadataStructureGeneration();
+
+namespace chip {
+namespace app {
+
+class EnabledEndpointsWithServerCluster
+{
+public:
+    EnabledEndpointsWithServerCluster(ClusterId clusterId);
+
+    // Instead of having a separate Iterator class, optimize for codesize by
+    // just reusing ourselves as our own iterator.  We could do a bit better
+    // here with C++17 and using a different type for the end iterator, but this
+    // is the best I've found with C++14 so far.
+    //
+    // This does mean that you can only iterate a given
+    // EnabledEndpointsWithServerCluster once, but that's OK given how we use it
+    // in practice.
+    EnabledEndpointsWithServerCluster & begin() { return *this; }
+    const EnabledEndpointsWithServerCluster & end() const { return *this; }
+
+    bool operator!=(const EnabledEndpointsWithServerCluster & other) const { return mEndpointIndex != mEndpointCount; }
+
+    EnabledEndpointsWithServerCluster & operator++();
+
+    EndpointId operator*() const;
+
+private:
+    void EnsureMatchingEndpoint();
+
+    uint16_t mEndpointIndex = 0;
+    uint16_t mEndpointCount = 0;
+    ClusterId mClusterId;
+};
+
+/**
+ * @brief Sets the parent endpoint for a given endpoint
+ */
+CHIP_ERROR SetParentEndpointForEndpoint(EndpointId childEndpoint, EndpointId parentEndpoint);
+
+/**
+ * @brief Sets an Endpoint to use Flat Composition
+ */
+CHIP_ERROR SetFlatCompositionForEndpoint(EndpointId endpoint);
+
+/**
+ * @brief Sets an Endpoint to use Tree Composition
+ */
+CHIP_ERROR SetTreeCompositionForEndpoint(EndpointId endpoint);
+
+/**
+ * @brief Returns true is an Endpoint has flat composition
+ */
+bool IsFlatCompositionForEndpoint(EndpointId endpoint);
+
+/**
+ * @brief Returns true is an Endpoint has tree composition
+ */
+bool IsTreeCompositionForEndpoint(EndpointId endpoint);
+
+enum class EndpointComposition : uint8_t
+{
+    kFullFamily,
+    kTree,
+    kInvalid,
+};
+
+/**
+ * @brief Returns the composition for a given endpoint index
+ */
+EndpointComposition GetCompositionForEndpointIndex(uint16_t index);
+
+} // namespace app
+} // namespace chip

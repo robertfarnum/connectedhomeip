@@ -22,8 +22,22 @@
  */
 
 #pragma once
+#include <memory>
 
-#include <support/CodeUtils.h>
+#include <app/icd/server/ICDServerConfig.h>
+#include <inet/UDPEndPoint.h>
+#include <lib/support/CodeUtils.h>
+#include <platform/CHIPDeviceConfig.h>
+#include <platform/CHIPDeviceEvent.h>
+
+#include <app/util/basic-types.h>
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+#include <inet/TCPEndPoint.h>
+#endif
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+#include <transport/raw/WiFiPAF.h>
+#endif
 
 namespace chip {
 
@@ -38,12 +52,31 @@ namespace Internal {
 template <class>
 class GenericPlatformManagerImpl;
 template <class>
+class GenericPlatformManagerImpl_CMSISOS;
+template <class>
 class GenericPlatformManagerImpl_FreeRTOS;
 template <class>
 class GenericPlatformManagerImpl_POSIX;
 } // namespace Internal
 
+class ConnectivityManager;
 class ConnectivityManagerImpl;
+
+/**
+ * Defines the delegate class of Connectivity Manager to notify connectivity updates.
+ */
+class ConnectivityManagerDelegate
+{
+public:
+    virtual ~ConnectivityManagerDelegate() {}
+
+    /**
+     * @brief
+     *   Called when any network interface on the Node is changed
+     *
+     */
+    virtual void OnNetworkInfoChanged() {}
+};
 
 /**
  * Provides control of network connectivity for a chip device.
@@ -73,14 +106,6 @@ public:
         kWiFiAPMode_OnDemand_NoStationProvision = 5,
     };
 
-    enum ThreadMode
-    {
-        kThreadMode_NotSupported          = 0,
-        kThreadMode_ApplicationControlled = 1,
-        kThreadMode_Disabled              = 2,
-        kThreadMode_Enabled               = 3,
-    };
-
     enum WiFiStationState
     {
         kWiFiStationState_NotConnected,
@@ -108,20 +133,37 @@ public:
 
     enum ThreadDeviceType
     {
-        kThreadDeviceType_NotSupported     = 0,
-        kThreadDeviceType_Router           = 1,
-        kThreadDeviceType_FullEndDevice    = 2,
-        kThreadDeviceType_MinimalEndDevice = 3,
-        kThreadDeviceType_SleepyEndDevice  = 4,
+        kThreadDeviceType_NotSupported                = 0,
+        kThreadDeviceType_Router                      = 1,
+        kThreadDeviceType_FullEndDevice               = 2,
+        kThreadDeviceType_MinimalEndDevice            = 3,
+        kThreadDeviceType_SleepyEndDevice             = 4,
+        kThreadDeviceType_SynchronizedSleepyEndDevice = 5,
     };
 
     enum BLEAdvertisingMode
     {
-        kFastAdvertising = 0,
-        kSlowAdvertising = 1,
+        kFastAdvertising     = 0,
+        kSlowAdvertising     = 1,
+        kExtendedAdvertising = 2,
     };
 
-    struct ThreadPollingConfig;
+    enum class SEDIntervalMode
+    {
+        Idle   = 0,
+        Active = 1,
+    };
+
+    struct SEDIntervalsConfig;
+
+    void SetDelegate(ConnectivityManagerDelegate * delegate) { mDelegate = delegate; }
+    ConnectivityManagerDelegate * GetDelegate() const { return mDelegate; }
+
+    chip::Inet::EndPointManager<Inet::UDPEndPoint> & UDPEndPointManager();
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    chip::Inet::EndPointManager<Inet::TCPEndPoint> & TCPEndPointManager();
+#endif
 
     // WiFi station methods
     WiFiStationMode GetWiFiStationMode();
@@ -129,11 +171,24 @@ public:
     bool IsWiFiStationEnabled();
     bool IsWiFiStationApplicationControlled();
     bool IsWiFiStationConnected();
-    uint32_t GetWiFiStationReconnectIntervalMS();
-    CHIP_ERROR SetWiFiStationReconnectIntervalMS(uint32_t val);
+    System::Clock::Timeout GetWiFiStationReconnectInterval();
+    CHIP_ERROR SetWiFiStationReconnectInterval(System::Clock::Timeout val);
     bool IsWiFiStationProvisioned();
     void ClearWiFiStationProvision();
-    CHIP_ERROR GetAndLogWifiStatsCounters();
+    CHIP_ERROR GetAndLogWiFiStatsCounters();
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+    struct WiFiPAFAdvertiseParam;
+
+    CHIP_ERROR SetWiFiPAFAdvertisingEnabled(WiFiPAFAdvertiseParam & args);
+    typedef void (*OnConnectionCompleteFunct)(void * appState);
+    typedef void (*OnConnectionErrorFunct)(void * appState, CHIP_ERROR err);
+    CHIP_ERROR WiFiPAFConnect(const SetupDiscriminator & connDiscriminator, void * appState, OnConnectionCompleteFunct onSuccess,
+                              OnConnectionErrorFunct onError);
+    CHIP_ERROR WiFiPAFCancelConnect();
+    CHIP_ERROR WiFiPAFSend(System::PacketBufferHandle && msgBuf);
+    Transport::WiFiPAFBase * GetWiFiPAF();
+    void SetWiFiPAF(Transport::WiFiPAFBase * pmWiFiPAF);
+#endif
 
     // WiFi AP methods
     WiFiAPMode GetWiFiAPMode();
@@ -143,35 +198,30 @@ public:
     void DemandStartWiFiAP();
     void StopOnDemandWiFiAP();
     void MaintainOnDemandWiFiAP();
-    uint32_t GetWiFiAPIdleTimeoutMS();
-    void SetWiFiAPIdleTimeoutMS(uint32_t val);
+    System::Clock::Timeout GetWiFiAPIdleTimeout();
+    void SetWiFiAPIdleTimeout(System::Clock::Timeout val);
+    CHIP_ERROR DisconnectNetwork();
 
     // Thread Methods
-    ThreadMode GetThreadMode();
-    CHIP_ERROR SetThreadMode(ThreadMode val);
     bool IsThreadEnabled();
-    bool IsThreadApplicationControlled();
     ThreadDeviceType GetThreadDeviceType();
     CHIP_ERROR SetThreadDeviceType(ThreadDeviceType deviceType);
-    void GetThreadPollingConfig(ThreadPollingConfig & pollingConfig);
-    CHIP_ERROR SetThreadPollingConfig(const ThreadPollingConfig & pollingConfig);
     bool IsThreadAttached();
     bool IsThreadProvisioned();
     void ErasePersistentInfo();
-    bool HaveServiceConnectivityViaThread();
+    void ResetThreadNetworkDiagnosticsCounts();
 
-    // Internet connectivity methods
-    bool HaveIPv4InternetConnectivity();
-    bool HaveIPv6InternetConnectivity();
-
-    // Service connectivity methods
-    bool HaveServiceConnectivity();
+    CHIP_ERROR SetPollingInterval(System::Clock::Milliseconds32 pollingInterval);
 
     // CHIPoBLE service methods
     Ble::BleLayer * GetBleLayer();
-    CHIPoBLEServiceMode GetCHIPoBLEServiceMode();
-    CHIP_ERROR SetCHIPoBLEServiceMode(CHIPoBLEServiceMode val);
     bool IsBLEAdvertisingEnabled();
+    /**
+     * Enable or disable BLE advertising.
+     *
+     * @return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE if BLE advertising is not
+     * supported or other error on other failures.
+     */
     CHIP_ERROR SetBLEAdvertisingEnabled(bool val);
     bool IsBLEAdvertising();
     CHIP_ERROR SetBLEAdvertisingMode(BLEAdvertisingMode mode);
@@ -193,11 +243,15 @@ public:
     static const char * CHIPoBLEServiceModeToStr(CHIPoBLEServiceMode mode);
 
 private:
+    ConnectivityManagerDelegate * mDelegate = nullptr;
+
     // ===== Members for internal use by the following friends.
 
     friend class PlatformManagerImpl;
     template <class>
     friend class Internal::GenericPlatformManagerImpl;
+    template <class>
+    friend class Internal::GenericPlatformManagerImpl_CMSISOS;
     template <class>
     friend class Internal::GenericPlatformManagerImpl_FreeRTOS;
     template <class>
@@ -215,26 +269,34 @@ protected:
     ~ConnectivityManager() = default;
 
     // No copy, move or assignment.
-    ConnectivityManager(const ConnectivityManager &)  = delete;
-    ConnectivityManager(const ConnectivityManager &&) = delete;
+    ConnectivityManager(const ConnectivityManager &)             = delete;
+    ConnectivityManager(const ConnectivityManager &&)            = delete;
     ConnectivityManager & operator=(const ConnectivityManager &) = delete;
 };
 
 /**
- * Information describing the desired Thread polling behavior of a device.
+ * Information describing the desired intervals for a sleepy end device (SED).
  */
-struct ConnectivityManager::ThreadPollingConfig
+struct ConnectivityManager::SEDIntervalsConfig
 {
-    uint32_t ActivePollingIntervalMS; /**< Interval at which the device polls its parent Thread router when
-                                           when there are active chip exchanges in progress. Only meaningful
-                                           when the device is acting as a sleepy end node. */
+    /** Interval at which the device is able to communicate with its parent when there are active chip exchanges in progress. Only
+     * meaningful when the device is acting as a sleepy end node.  */
+    System::Clock::Milliseconds32 ActiveIntervalMS;
 
-    uint32_t InactivePollingIntervalMS; /**< Interval at which the device polls its parent Thread router when
-                                             when there are NO active chip exchanges in progress. Only meaningful
-                                             when the device is acting as a sleepy end node. */
-
-    void Clear() { memset(this, 0, sizeof(*this)); }
+    /** Interval at which the device is able to communicate with its parent when there are NO active chip exchanges in progress.
+     * Only meaningful when the device is acting as a sleepy end node. */
+    System::Clock::Milliseconds32 IdleIntervalMS;
 };
+
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+struct ConnectivityManager::WiFiPAFAdvertiseParam
+{
+    /* To enable/disable WiFiPAF Commissioning */
+    bool enable;
+    /* The optional commands */
+    const char * ExtCmds;
+};
+#endif
 
 /**
  * Returns a reference to the public interface of the ConnectivityManager singleton object.
@@ -268,6 +330,18 @@ extern ConnectivityManagerImpl & ConnectivityMgrImpl();
 namespace chip {
 namespace DeviceLayer {
 
+inline chip::Inet::EndPointManager<Inet::UDPEndPoint> & ConnectivityManager::UDPEndPointManager()
+{
+    return static_cast<ImplClass *>(this)->_UDPEndPointManager();
+}
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+inline chip::Inet::EndPointManager<Inet::TCPEndPoint> & ConnectivityManager::TCPEndPointManager()
+{
+    return static_cast<ImplClass *>(this)->_TCPEndPointManager();
+}
+#endif
+
 inline ConnectivityManager::WiFiStationMode ConnectivityManager::GetWiFiStationMode()
 {
     return static_cast<ImplClass *>(this)->_GetWiFiStationMode();
@@ -293,14 +367,14 @@ inline bool ConnectivityManager::IsWiFiStationConnected()
     return static_cast<ImplClass *>(this)->_IsWiFiStationConnected();
 }
 
-inline uint32_t ConnectivityManager::GetWiFiStationReconnectIntervalMS()
+inline System::Clock::Timeout ConnectivityManager::GetWiFiStationReconnectInterval()
 {
-    return static_cast<ImplClass *>(this)->_GetWiFiStationReconnectIntervalMS();
+    return static_cast<ImplClass *>(this)->_GetWiFiStationReconnectInterval();
 }
 
-inline CHIP_ERROR ConnectivityManager::SetWiFiStationReconnectIntervalMS(uint32_t val)
+inline CHIP_ERROR ConnectivityManager::SetWiFiStationReconnectInterval(System::Clock::Timeout val)
 {
-    return static_cast<ImplClass *>(this)->_SetWiFiStationReconnectIntervalMS(val);
+    return static_cast<ImplClass *>(this)->_SetWiFiStationReconnectInterval(val);
 }
 
 inline bool ConnectivityManager::IsWiFiStationProvisioned()
@@ -348,54 +422,47 @@ inline void ConnectivityManager::MaintainOnDemandWiFiAP()
     static_cast<ImplClass *>(this)->_MaintainOnDemandWiFiAP();
 }
 
-inline uint32_t ConnectivityManager::GetWiFiAPIdleTimeoutMS()
+inline System::Clock::Timeout ConnectivityManager::GetWiFiAPIdleTimeout()
 {
-    return static_cast<ImplClass *>(this)->_GetWiFiAPIdleTimeoutMS();
+    return static_cast<ImplClass *>(this)->_GetWiFiAPIdleTimeout();
 }
 
-inline void ConnectivityManager::SetWiFiAPIdleTimeoutMS(uint32_t val)
+inline void ConnectivityManager::SetWiFiAPIdleTimeout(System::Clock::Timeout val)
 {
-    static_cast<ImplClass *>(this)->_SetWiFiAPIdleTimeoutMS(val);
+    static_cast<ImplClass *>(this)->_SetWiFiAPIdleTimeout(val);
 }
 
-inline CHIP_ERROR ConnectivityManager::GetAndLogWifiStatsCounters()
+inline CHIP_ERROR ConnectivityManager::GetAndLogWiFiStatsCounters()
 {
-    return static_cast<ImplClass *>(this)->_GetAndLogWifiStatsCounters();
+    return static_cast<ImplClass *>(this)->_GetAndLogWiFiStatsCounters();
 }
 
-inline bool ConnectivityManager::HaveIPv4InternetConnectivity()
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+inline CHIP_ERROR ConnectivityManager::SetWiFiPAFAdvertisingEnabled(WiFiPAFAdvertiseParam & args)
 {
-    return static_cast<ImplClass *>(this)->_HaveIPv4InternetConnectivity();
+    return static_cast<ImplClass *>(this)->_SetWiFiPAFAdvertisingEnabled(args);
 }
 
-inline bool ConnectivityManager::HaveIPv6InternetConnectivity()
+inline CHIP_ERROR ConnectivityManager::WiFiPAFConnect(const SetupDiscriminator & connDiscriminator, void * appState,
+                                                      OnConnectionCompleteFunct onSuccess, OnConnectionErrorFunct onError)
 {
-    return static_cast<ImplClass *>(this)->_HaveIPv6InternetConnectivity();
+    return static_cast<ImplClass *>(this)->_WiFiPAFConnect(connDiscriminator, appState, onSuccess, onError);
 }
 
-inline bool ConnectivityManager::HaveServiceConnectivity()
+inline CHIP_ERROR ConnectivityManager::WiFiPAFCancelConnect()
 {
-    return static_cast<ImplClass *>(this)->_HaveServiceConnectivity();
+    return static_cast<ImplClass *>(this)->_WiFiPAFCancelConnect();
 }
 
-inline ConnectivityManager::ThreadMode ConnectivityManager::GetThreadMode()
+inline CHIP_ERROR ConnectivityManager::WiFiPAFSend(chip::System::PacketBufferHandle && msgBuf)
 {
-    return static_cast<ImplClass *>(this)->_GetThreadMode();
+    return static_cast<ImplClass *>(this)->_WiFiPAFSend(std::move(msgBuf));
 }
-
-inline CHIP_ERROR ConnectivityManager::SetThreadMode(ThreadMode val)
-{
-    return static_cast<ImplClass *>(this)->_SetThreadMode(val);
-}
+#endif
 
 inline bool ConnectivityManager::IsThreadEnabled()
 {
     return static_cast<ImplClass *>(this)->_IsThreadEnabled();
-}
-
-inline bool ConnectivityManager::IsThreadApplicationControlled()
-{
-    return static_cast<ImplClass *>(this)->_IsThreadApplicationControlled();
 }
 
 inline ConnectivityManager::ThreadDeviceType ConnectivityManager::GetThreadDeviceType()
@@ -408,14 +475,13 @@ inline CHIP_ERROR ConnectivityManager::SetThreadDeviceType(ThreadDeviceType devi
     return static_cast<ImplClass *>(this)->_SetThreadDeviceType(deviceType);
 }
 
-inline void ConnectivityManager::GetThreadPollingConfig(ThreadPollingConfig & pollingConfig)
+inline CHIP_ERROR ConnectivityManager::SetPollingInterval(System::Clock::Milliseconds32 pollingInterval)
 {
-    return static_cast<ImplClass *>(this)->_GetThreadPollingConfig(pollingConfig);
-}
-
-inline CHIP_ERROR ConnectivityManager::SetThreadPollingConfig(const ThreadPollingConfig & pollingConfig)
-{
-    return static_cast<ImplClass *>(this)->_SetThreadPollingConfig(pollingConfig);
+#if CHIP_CONFIG_ENABLE_ICD_SERVER
+    return static_cast<ImplClass *>(this)->_SetPollingInterval(pollingInterval);
+#else
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
+#endif
 }
 
 inline bool ConnectivityManager::IsThreadAttached()
@@ -433,24 +499,26 @@ inline void ConnectivityManager::ErasePersistentInfo()
     static_cast<ImplClass *>(this)->_ErasePersistentInfo();
 }
 
-inline bool ConnectivityManager::HaveServiceConnectivityViaThread()
+inline void ConnectivityManager::ResetThreadNetworkDiagnosticsCounts()
 {
-    return static_cast<ImplClass *>(this)->_HaveServiceConnectivityViaThread();
+    static_cast<ImplClass *>(this)->_ResetThreadNetworkDiagnosticsCounts();
 }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+inline Transport::WiFiPAFBase * ConnectivityManager::GetWiFiPAF()
+{
+    return static_cast<ImplClass *>(this)->_GetWiFiPAF();
+}
+
+inline void ConnectivityManager::SetWiFiPAF(Transport::WiFiPAFBase * pWiFiPAF)
+{
+    return static_cast<ImplClass *>(this)->_SetWiFiPAF(pWiFiPAF);
+}
+#endif
 
 inline Ble::BleLayer * ConnectivityManager::GetBleLayer()
 {
     return static_cast<ImplClass *>(this)->_GetBleLayer();
-}
-
-inline ConnectivityManager::CHIPoBLEServiceMode ConnectivityManager::GetCHIPoBLEServiceMode()
-{
-    return static_cast<ImplClass *>(this)->_GetCHIPoBLEServiceMode();
-}
-
-inline CHIP_ERROR ConnectivityManager::SetCHIPoBLEServiceMode(CHIPoBLEServiceMode val)
-{
-    return static_cast<ImplClass *>(this)->_SetCHIPoBLEServiceMode(val);
 }
 
 inline bool ConnectivityManager::IsBLEAdvertisingEnabled()
@@ -556,6 +624,11 @@ inline void ConnectivityManager::OnWiFiScanDone()
 inline void ConnectivityManager::OnWiFiStationProvisionChange()
 {
     static_cast<ImplClass *>(this)->_OnWiFiStationProvisionChange();
+}
+
+inline CHIP_ERROR ConnectivityManager::DisconnectNetwork()
+{
+    return static_cast<ImplClass *>(this)->_DisconnectNetwork();
 }
 
 } // namespace DeviceLayer

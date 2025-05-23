@@ -12,75 +12,73 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Unit / Interation Tests
+name: Unit / Integration Tests
 
 on:
     push:
+        branches:
+            - master
+            - 'v*-branch'
     pull_request:
+    merge_group:
+
+concurrency:
+    group: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
+    cancel-in-progress: true
 
 jobs:
     unit_tests:
-        name: Unit / Interation Tests
+        name: Unit / Integration Tests
         if: github.actor != 'restyled-io[bot]'
 
         strategy:
             matrix:
-                type: [main, clang, mbedtls]
+                type: [main, clang, mbedtls, rotating_device_id, icd]
         env:
             BUILD_TYPE: ${{ matrix.type }}
-            BUILD_IMAGE: chip-build-openssl
-            BUILD_ORG: connectedhomeip
 
         runs-on: ubuntu-latest
 
         container:
-            image: connectedhomeip/chip-build:latest
+            image: ghcr.io/project-chip/chip-build:94
             volumes:
+                - "/:/runner-root-volume"
                 - "/tmp/log_output:/tmp/test_logs"
-                - "/tmp/happy_test_logs:/tmp/happy_test_logs"
-            options:
-                --privileged --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv4.conf.all.forwarding=1 net.ipv6.conf.all.forwarding=1"
+            options: --privileged --sysctl "net.ipv6.conf.all.disable_ipv6=0 net.ipv4.conf.all.forwarding=1 net.ipv6.conf.all.forwarding=1"
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
+            - name: Checkout submodules & Bootstrap
+              uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
-                  submodules: true
-            - name: Bootstrap
-              run: |
-                  mkdir -p /tmp/happy_test_logs ;
-                  mkdir -p /tmp/log_output ;
-                  scripts/tests/happy_tests.sh install_packages ;
-                  scripts/tests/happy_tests.sh bootstrap ;
-                  scripts/build/gn_bootstrap.sh ;
+                platform: linux
+                bootstrap-log-name: bootstrap-logs-unittest-${{ matrix.type }}
             - name: Artifact suffix
               id: outsuffix
-              uses: haya14busa/action-cond@v1.0.0
+              uses: haya14busa/action-cond@v1
+              if: ${{ !env.ACT }}
               with:
                   cond: ${{ github.event.pull_request.number == '' }}
                   if_true: "${{ github.sha }}"
                   if_false: "pull-${{ github.event.pull_request.number }}"
             - name: Setup Build
+              # TODO: If rotating_device_id is ever removed/combined, we have to cover boringssl otherwise
               run: |
                   case $BUILD_TYPE in
                      "main") GN_ARGS='';;
                      "clang") GN_ARGS='is_clang=true';;
                      "mbedtls") GN_ARGS='chip_crypto="mbedtls"';;
+                     "rotating_device_id") GN_ARGS='chip_crypto="boringssl" chip_enable_rotating_device_id=true';;
+                     "icd") GN_ARGS='chip_enable_icd_server=true chip_enable_icd_lit=true';;
                      *) ;;
                   esac
 
-                  scripts/build/gn_gen.sh --args="$GN_ARGS chip_enable_happy_tests=true"
+                  scripts/build/gn_gen.sh --args="$GN_ARGS"
             - name: Run Build
-              run: scripts/build/gn_build.sh
+              run: scripts/run_in_build_env.sh "ninja -C out/$BUILD_TYPE"
             - name: Run Tests
-              run: RUN_HAPPY_TESTS=1 scripts/tests/gn_tests.sh
-            - name: Uploading Happy Test Log
-              uses: actions/upload-artifact@v1
-              if: ${{ always() }}
-              with:
-                  name:
-                      happy_log-${{ steps.outsuffix.outputs.value }}-${{ matrix.type }}
-                  path: /tmp/happy_test_logs/
+              run: scripts/tests/gn_tests.sh
             # TODO Log Upload https://github.com/project-chip/connectedhomeip/issues/2227
             # TODO https://github.com/project-chip/connectedhomeip/issues/1512
             # - name: Run Code Coverage

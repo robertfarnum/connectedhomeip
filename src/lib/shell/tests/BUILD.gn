@@ -14,29 +14,22 @@
 
 import("//build_overrides/build.gni")
 import("//build_overrides/chip.gni")
-import("//build_overrides/nlunit_test.gni")
 
 import("${chip_root}/build/chip/chip_test_suite.gni")
 
 chip_test_suite("tests") {
   output_name = "libTestShell"
 
-  sources = [
-    "TestShell.cpp",
-    "TestShell.h",
-    "TestStreamerStdio.cpp",
+  test_sources = [
+    "TestShellStreamerStdio.cpp",
+    "TestShellTokenizeLine.cpp",
   ]
 
   cflags = [ "-Wconversion" ]
 
   public_deps = [
     "${chip_root}/src/lib/core",
+    "${chip_root}/src/lib/core:string-builder-adapters",
     "${chip_root}/src/lib/shell",
-    "${nlunit_test_root}:nlunit-test",
-  ]
-
-  tests = [
-    "TestShell",
-    "TestStreamerStdio",
   ]
 }

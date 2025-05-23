@@ -23,13 +23,6 @@
  *
  */
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-
 #include "CHIPArgParser.hpp"
 
 #if CHIP_CONFIG_ENABLE_ARG_PARSER
@@ -39,15 +32,18 @@
 #include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <lib/support/SafeInt.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
-#include <support/SafeInt.h>
+#include <unistd.h>
 
-#include <support/CHIPMem.h>
-#include <support/CHIPMemString.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/CHIPMemString.h>
+#include <lib/support/EnforceFormat.h>
+#include <lib/support/logging/Constants.h>
 
 /*
  * TODO: Revisit these if and when fabric ID and node ID support has
@@ -56,10 +52,6 @@
 #ifndef CHIP_ARG_PARSER_PARSE_FABRIC_ID
 #define CHIP_ARG_PARSER_PARSE_FABRIC_ID 0
 #endif // CHIP_ARG_PARSER_PARSE_FABRIC_ID
-
-#ifndef CHIP_ARG_PARSER_PARSE_NODE_ID
-#define CHIP_ARG_PARSER_PARSE_NODE_ID 0
-#endif // CHIP_ARG_PARSER_PARSE_NODE_ID
 
 namespace chip {
 namespace ArgParser {
@@ -77,11 +69,9 @@ static void FindOptionById(OptionSet ** optSets, int optId, OptionSet *& optSet,
 static const char ** MakeUniqueHelpGroupNamesList(OptionSet * optSets[]);
 static void PutStringWithNewLine(FILE * s, const char * str);
 static void PutStringWithBlankLine(FILE * s, const char * str);
-#if CHIP_CONFIG_ENABLE_ARG_PARSER_SANTIY_CHECK
+#if CHIP_CONFIG_ENABLE_ARG_PARSER_VALIDITY_CHECKS
 static bool SanityCheckOptions(OptionSet * optSets[]);
-static bool HelpTextContainsLongOption(const char * optName, const char * helpText);
-static bool HelpTextContainsShortOption(char optChar, const char * helpText);
-#endif // CHIP_CONFIG_ENABLE_ARG_PARSER_SANTIY_CHECK
+#endif // CHIP_CONFIG_ENABLE_ARG_PARSER_VALIDITY_CHECKS
 
 static inline bool IsShortOptionChar(int ch)
 {
@@ -111,8 +101,8 @@ OptionSet ** gActiveOptionSets = nullptr;
 void (*PrintArgError)(const char * msg, ...) = DefaultPrintArgError;
 
 /**
- * @fn bool ParseArgs(const char *progName, int argc, char *argv[], OptionSet *optSets[], NonOptionArgHandlerFunct nonOptArgHandler,
- * bool ignoreUnknown)
+ * @fn bool ParseArgs(const char *progName, int argc, char * const argv[], OptionSet *optSets[],
+ * NonOptionArgHandlerFunct nonOptArgHandler, bool ignoreUnknown)
  *
  * @brief
  * Parse a set of command line-style arguments, calling handling functions to process each
@@ -123,8 +113,9 @@ void (*PrintArgError)(const char * msg, ...) = DefaultPrintArgError;
  *                                  messages and warnings.
  * @param[in]  argc                 The number of arguments to be parsed, plus 1.
  * @param[in]  argv                 An array of argument strings to be parsed.  The array length must
- * 									be 1 greater than the value specified for argc, and
- * argv[argc] must be set to NULL.  Argument parsing begins with the *second* array element (argv[1]); element 0 is ignored.
+ *                                  be 1 greater than the value specified for argc, and
+ *                                  argv[argc] must be set to NULL.  Argument parsing begins with the
+ *                                  *second* array element (argv[1]); element 0 is ignored.
  * @param[in]  optSets              A list of pointers to `OptionSet` structures that define the legal
  *                                  options.  The supplied list must be terminated with a NULL.
  * @param[in]  nonOptArgHandler     A pointer to a function that will be called once option parsing
@@ -284,8 +275,8 @@ void (*PrintArgError)(const char * msg, ...) = DefaultPrintArgError;
  * a common section title.
  *
  */
-bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSets[], NonOptionArgHandlerFunct nonOptArgHandler,
-               bool ignoreUnknown)
+bool ParseArgs(const char * progName, int argc, char * const argv[], OptionSet * optSets[],
+               NonOptionArgHandlerFunct nonOptArgHandler, bool ignoreUnknown)
 {
     bool res = false;
     char optName[64];
@@ -295,6 +286,11 @@ bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSe
     OptionSet * curOptSet;
     OptionDef * curOpt;
     bool handlerRes;
+#if CHIP_CONFIG_NON_POSIX_LONG_OPT
+    int lastOptIndex    = 0;
+    int subOptIndex     = 0;
+    int currentOptIndex = 0;
+#endif // CHIP_CONFIG_NON_POSIX_LONG_OPT
 
     // The getopt() functions do not support recursion, so exit immediately with an
     // error if called recursively.
@@ -315,7 +311,7 @@ bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSe
     // Set gActiveOptionSets to the current option set list.
     gActiveOptionSets = optSets;
 
-#if CHIP_CONFIG_ENABLE_ARG_PARSER_SANTIY_CHECK
+#if CHIP_CONFIG_ENABLE_ARG_PARSER_VALIDITY_CHECKS
     if (!SanityCheckOptions(optSets))
         goto done;
 #endif
@@ -348,7 +344,36 @@ bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSe
         // Attempt to match the current option argument (argv[optind]) against the defined long and short options.
         optarg = nullptr;
         optopt = 0;
-        id     = getopt_long(argc, argv, shortOpts, longOpts, &optIndex);
+#if CHIP_CONFIG_NON_POSIX_LONG_OPT
+        // to check if index has changed
+        lastOptIndex = currentOptIndex;
+        // optind will not increment on error, this is why we need to keep track of the current option
+        // this is for use when getopt_long fails to find the option and we need to print the error
+        currentOptIndex = optind;
+        // if it's the first run, optind is not set and we need to find the first option ourselves
+        if (!currentOptIndex)
+        {
+            while (currentOptIndex < argc)
+            {
+                currentOptIndex++;
+                if (*argv[currentOptIndex] == '-')
+                {
+                    break;
+                }
+            }
+        }
+        // similarly we need to keep track of short opts index for groups like "-fba"
+        // if the index has not changed that means we are still analysing the same group
+        if (lastOptIndex != currentOptIndex)
+        {
+            subOptIndex = 0;
+        }
+        else
+        {
+            subOptIndex++;
+        }
+#endif // CHIP_CONFIG_NON_POSIX_LONG_OPT
+        id = getopt_long(argc, argv, shortOpts, longOpts, &optIndex);
 
         // Stop if there are no more options.
         if (id == -1)
@@ -359,10 +384,35 @@ bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSe
         {
             if (ignoreUnknown)
                 continue;
+#if CHIP_CONFIG_NON_POSIX_LONG_OPT
+            // getopt_long doesn't tell us if the option which failed to match is long or short so check
+            bool isLongOption = false;
+            if (strlen(argv[currentOptIndex]) > 2 && argv[currentOptIndex][1] == '-')
+            {
+                isLongOption = true;
+            }
+            if (optopt == 0 || isLongOption)
+            {
+                // getopt_long function incorrectly treats unknown long option as short opt group
+                if (subOptIndex == 0)
+                {
+                    PrintArgError("%s: Unknown option: %s\n", progName, argv[currentOptIndex]);
+                }
+            }
+            else if (optopt == '?')
+            {
+                PrintArgError("%s: Unknown option: -%c\n", progName, argv[currentOptIndex][subOptIndex + 1]);
+            }
+            else
+            {
+                PrintArgError("%s: Unknown option: -%c\n", progName, optopt);
+            }
+#else
             if (optopt != 0)
                 PrintArgError("%s: Unknown option: -%c\n", progName, optopt);
             else
                 PrintArgError("%s: Unknown option: %s\n", progName, argv[optind - 1]);
+#endif // CHIP_CONFIG_NON_POSIX_LONG_OPT
             goto done;
         }
 
@@ -372,7 +422,11 @@ bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSe
         {
             // NOTE: with the way getopt_long() works, it is impossible to tell whether the option that
             // was missing an argument was a long option or a short option.
+#if CHIP_CONFIG_NON_POSIX_LONG_OPT
+            PrintArgError("%s: Missing argument for %s option\n", progName, argv[currentOptIndex]);
+#else
             PrintArgError("%s: Missing argument for %s option\n", progName, argv[optind - 1]);
+#endif // CHIP_CONFIG_NON_POSIX_LONG_OPT
             goto done;
         }
 
@@ -437,12 +491,13 @@ done:
     return res;
 }
 
-bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSets[], NonOptionArgHandlerFunct nonOptArgHandler)
+bool ParseArgs(const char * progName, int argc, char * const argv[], OptionSet * optSets[],
+               NonOptionArgHandlerFunct nonOptArgHandler)
 {
     return ParseArgs(progName, argc, argv, optSets, nonOptArgHandler, false);
 }
 
-bool ParseArgs(const char * progName, int argc, char * argv[], OptionSet * optSets[])
+bool ParseArgs(const char * progName, int argc, char * const argv[], OptionSet * optSets[])
 {
     return ParseArgs(progName, argc, argv, optSets, nullptr, false);
 }
@@ -626,7 +681,7 @@ void PrintOptionHelp(OptionSet * optSets[], FILE * s)
  * Applications should call through the PrintArgError function pointer, rather
  * than calling this function directly.
  */
-void DefaultPrintArgError(const char * msg, ...)
+void ENFORCE_FORMAT(1, 2) DefaultPrintArgError(const char * msg, ...)
 {
     va_list ap;
 
@@ -758,6 +813,64 @@ bool ParseInt(const char * str, int32_t & output, int base)
 }
 
 /**
+ * Parse and attempt to convert a string to a 16-bit unsigned integer,
+ * applying the appropriate interpretation based on the base parameter.
+ *
+ * @param[in]  str    A pointer to a NULL-terminated C string representing
+ *                    the integer to parse.
+ * @param[out] output A reference to storage for a 16-bit unsigned integer
+ *                    to which the parsed value will be stored on success.
+ * @param[in]  base   The base according to which the string should be
+ *                    interpreted and parsed. If 0 or 16, the string may
+ *                    be hexadecimal and prefixed with "0x". Otherwise, a 0
+ *                    is implied as 10 unless a leading 0 is encountered in
+ *                    which 8 is implied.
+ *
+ * @return true on success; otherwise, false on failure.
+ */
+bool ParseInt(const char * str, uint16_t & output, int base)
+{
+    uint32_t v;
+
+    if (!ParseInt(str, v, base) || !CanCastTo<uint16_t>(v))
+    {
+        return false;
+    }
+    output = static_cast<uint16_t>(v);
+
+    return true;
+}
+
+/**
+ * Parse and attempt to convert a string to a 8-bit unsigned integer,
+ * applying the appropriate interpretation based on the base parameter.
+ *
+ * @param[in]  str    A pointer to a NULL-terminated C string representing
+ *                    the integer to parse.
+ * @param[out] output A reference to storage for a 8-bit unsigned integer
+ *                    to which the parsed value will be stored on success.
+ * @param[in]  base   The base according to which the string should be
+ *                    interpreted and parsed. If 0 or 16, the string may
+ *                    be hexadecimal and prefixed with "0x". Otherwise, a 0
+ *                    is implied as 10 unless a leading 0 is encountered in
+ *                    which 8 is implied.
+ *
+ * @return true on success; otherwise, false on failure.
+ */
+bool ParseInt(const char * str, uint8_t & output, int base)
+{
+    uint32_t v;
+
+    if (!ParseInt(str, v, base) || !CanCastTo<uint8_t>(v))
+    {
+        return false;
+    }
+    output = static_cast<uint8_t>(v);
+
+    return true;
+}
+
+/**
  * Parse and attempt to convert a string interpreted as a decimal
  * value to a 64-bit unsigned integer, applying the appropriate
  * interpretation based on the base parameter.
@@ -857,9 +970,9 @@ bool ParseInt(const char * str, int16_t & output)
     const int base   = 10;
     int32_t output32 = 0;
 
-    if ((ParseInt(str, output32, base)) && (output32 <= SHRT_MAX))
+    if ((ParseInt(str, output32, base)) && (output32 <= SHRT_MAX && output32 >= SHRT_MIN))
     {
-        output = static_cast<int16_t>(UINT16_MAX & output32);
+        output = static_cast<int16_t>(output32);
         return true;
     }
 
@@ -891,38 +1004,6 @@ bool ParseInt(const char * str, uint8_t & output)
 
     return false;
 }
-
-#if CHIP_ARG_PARSER_PARSE_NODE_ID
-/**
- * Parse a CHIP node id in text form.
- *
- * @param[in]  str    A pointer to a NULL-terminated C string containing
- *                    the node id to parse.
- * @param[out] output A reference to an uint64_t lvalue in which the parsed
- *                    value will be stored on success.
- *
- * @return true if the value was successfully parsed; false if not.
- *
- * @details
- * The ParseNodeId() function accepts either a 64-bit node id given in hex
- * format (with or without a leading '0x'), or the words 'any' or 'all' which
- * are interpreted as meaning the Any node id (0xFFFFFFFFFFFFFFFF).
- */
-bool ParseNodeId(const char * str, uint64_t & nodeId)
-{
-    char * parseEnd;
-
-    if (strcasecmp(str, "any") == 0 || strcasecmp(str, "all") == 0)
-    {
-        nodeId = kAnyNodeId;
-        return true;
-    }
-
-    errno  = 0;
-    nodeId = strtoull(str, &parseEnd, 16);
-    return parseEnd > str && *parseEnd == 0 && (nodeId != ULLONG_MAX || errno == 0);
-}
-#endif // CHIP_ARG_PARSER_PARSE_NODE_ID
 
 #if CHIP_ARG_PARSER_PARSE_FABRIC_ID
 /**
@@ -1117,7 +1198,7 @@ HelpOptions::HelpOptions(const char * appName, const char * appUsage, const char
 /**
  * Print a short description of the command's usage followed by instructions on how to get more help.
  */
-void HelpOptions::PrintBriefUsage(FILE * s)
+void HelpOptions::PrintBriefUsage(FILE * s) const
 {
     PutStringWithNewLine(s, AppUsage);
     fprintf(s, "Try `%s --help' for more information.\n", AppName);
@@ -1126,7 +1207,7 @@ void HelpOptions::PrintBriefUsage(FILE * s)
 /**
  * Print the full usage information, including information on all available options.
  */
-void HelpOptions::PrintLongUsage(OptionSet ** optSets, FILE * s)
+void HelpOptions::PrintLongUsage(OptionSet ** optSets, FILE * s) const
 {
     PutStringWithBlankLine(s, AppUsage);
     if (AppDesc != nullptr)
@@ -1136,7 +1217,7 @@ void HelpOptions::PrintLongUsage(OptionSet ** optSets, FILE * s)
     PrintOptionHelp(optSets, s);
 }
 
-void HelpOptions::PrintVersion(FILE * s)
+void HelpOptions::PrintVersion(FILE * s) const
 {
     fprintf(s, "%s ", AppName);
     PutStringWithNewLine(s, (AppVersion != nullptr) ? AppVersion : "(unknown version)");
@@ -1450,7 +1531,7 @@ static void PutStringWithBlankLine(FILE * s, const char * str)
         fputs("\n", s);
 }
 
-#if CHIP_CONFIG_ENABLE_ARG_PARSER_SANTIY_CHECK
+#if CHIP_CONFIG_ENABLE_ARG_PARSER_VALIDITY_CHECKS
 
 static bool SanityCheckOptions(OptionSet * optSets[])
 {
@@ -1487,54 +1568,10 @@ static bool SanityCheckOptions(OptionSet * optSets[])
                     }
             }
 
-    // Fail if the option help texts do not contain a description for each option, including both
-    // the option's long and short forms.
-    for (OptionSet ** optSetP = optSets; *optSetP != nullptr; optSetP++)
-        for (OptionDef * optionDef = (*optSetP)->OptionDefs; optionDef->Name != nullptr; optionDef++)
-        {
-            if (!HelpTextContainsLongOption(optionDef->Name, (*optSetP)->OptionHelp))
-            {
-                PrintArgError("INTERNAL ERROR: No help text defined for option: --%s\n", optionDef->Name);
-                res = false;
-            }
-
-            if (IsShortOptionChar(optionDef->Id) &&
-                !HelpTextContainsShortOption(static_cast<char>(optionDef->Id), (*optSetP)->OptionHelp))
-            {
-                PrintArgError("INTERNAL ERROR: No help text defined for option: -%c\n", optionDef->Id);
-                res = false;
-            }
-        }
-
     return res;
 }
 
-static bool HelpTextContainsLongOption(const char * optName, const char * helpText)
-{
-    size_t nameLen = strlen(optName);
-
-    for (const char * p = helpText; (p = strstr(p, optName)) != nullptr; p += nameLen)
-        if ((p - helpText) >= 2 && p[-1] == '-' && p[-2] == '-' && !isalnum(p[nameLen]) && p[nameLen] != '-')
-            return true;
-
-    return false;
-}
-
-static bool HelpTextContainsShortOption(char optChar, const char * helpText)
-{
-    char optStr[3];
-    optStr[0] = '-';
-    optStr[1] = optChar;
-    optStr[2] = 0;
-
-    for (const char * p = helpText; (p = strstr(p, optStr)) != nullptr; p += 2)
-        if ((p == helpText || (!isalnum(p[-1]) && p[-1] != '-')) && !isalnum(p[2]) && p[2] != '-')
-            return true;
-
-    return false;
-}
-
-#endif // CHIP_CONFIG_ENABLE_ARG_PARSER_SANTIY_CHECK
+#endif // CHIP_CONFIG_ENABLE_ARG_PARSER_VALIDITY_CHECKS
 
 } // namespace ArgParser
 } // namespace chip

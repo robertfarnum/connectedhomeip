@@ -18,10 +18,12 @@ import argparse
 import errno
 import locale
 import os
+import pathlib
 import stat
 import subprocess
 import sys
 import textwrap
+import traceback
 
 # Here are the options that can be use to configure a `Flasher`
 # object (as dictionary keys) and/or passed as command line options.
@@ -62,7 +64,8 @@ OPTIONS = {
             'help': 'Flash an image',
             'default': None,
             'argparse': {
-                'metavar': 'FILE'
+                'metavar': 'FILE',
+                'type': pathlib.Path,
             },
         },
         'verify_application': {
@@ -219,7 +222,15 @@ class Flasher:
                     capture_output=True)
             else:
                 result = self
-                self.err = subprocess.call(command)
+                self.error = subprocess.check_call(command)
+        except subprocess.CalledProcessError as exception:
+            self.err = exception.returncode
+            if capture_output:
+                self.log(fail_level, '--- stdout ---')
+                self.log(fail_level, exception.stdout)
+                self.log(fail_level, '--- stderr ---')
+                self.log(fail_level, exception.stderr)
+                self.log(fail_level, '---')
         except FileNotFoundError as exception:
             self.err = exception.errno
             if self.err == errno.ENOENT:
@@ -320,8 +331,8 @@ class Flasher:
                         ↦ ρᵢ if opt[name]==σᵢ
                           ρ otherwise
         """
-        if isinstance(template, str):
-            result = [template.format_map(opt)]
+        if isinstance(template, str) or isinstance(template, pathlib.Path):
+            result = [str(template).format_map(opt)]
         elif isinstance(template, list):
             result = []
             for i in template:
@@ -362,26 +373,6 @@ class Flasher:
             raise ValueError('Unknown: {}'.format(template))
         return result
 
-    def find_file(self, filename, dirs=None):
-        """Resolve a file name; also checks the script directory."""
-        if os.path.isabs(filename) or os.path.exists(filename):
-            return filename
-        dirs = dirs or []
-        if self.argv0:
-            dirs.append(os.path.dirname(self.argv0))
-        for directory in dirs:
-            name = os.path.join(directory, filename)
-            if os.path.exists(name):
-                return name
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
-                                filename)
-
-    def optional_file(self, filename, dirs=None):
-        """Resolve a file name, if present."""
-        if filename is None:
-            return None
-        return self.find_file(filename, dirs)
-
     def parse_argv(self, argv):
         """Handle command line options."""
         self.argv0 = argv[0]
@@ -419,17 +410,26 @@ class Flasher:
 
         # Give platform-specific code a chance to manipulate the arguments
         # for the wrapper script.
-        self._platform_wrapper_args(args)
+        try:
+            self._platform_wrapper_args(args)
+        except OSError:
+            traceback.print_last()
+            return 1
 
         # Find any option values that differ from the class defaults.
         # These will be inserted into the wrapper script.
         defaults = []
         for key, value in vars(args).items():
             if key in self.option and value != getattr(self.option, key):
-                defaults.append('  {}: {},'.format(repr(key), repr(value)))
+                if isinstance(value, pathlib.Path):
+                    defaults.append('  {}: os.path.join(os.path.dirname(sys.argv[0]), {}),'.format(
+                        repr(key), repr(str(value))))
+                else:
+                    defaults.append('  {}: {},'.format(repr(key), repr(value)))
 
         script = """
             import sys
+            import os.path
 
             DEFAULTS = {{
             {defaults}
@@ -448,9 +448,9 @@ class Flasher:
             with open(args.output, 'w') as script_file:
                 script_file.write(script)
             os.chmod(args.output, (stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR
-                                 | stat.S_IXGRP | stat.S_IRGRP
-                                 | stat.S_IXOTH | stat.S_IROTH))
-        except OSError as exception:
-            print(exception, sys.stderr)
+                                   | stat.S_IXGRP | stat.S_IRGRP
+                                   | stat.S_IXOTH | stat.S_IROTH))
+        except OSError:
+            traceback.print_last()
             return 1
         return 0

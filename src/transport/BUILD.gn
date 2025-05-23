@@ -13,59 +13,71 @@
 # limitations under the License.
 
 import("//build_overrides/chip.gni")
-import("//build_overrides/nlio.gni")
+import("//build_overrides/pigweed.gni")
 import("${chip_root}/src/ble/ble.gni")
+import("${chip_root}/src/lib/core/core.gni")
 
 static_library("transport") {
   output_name = "libTransportLayer"
 
   sources = [
-    "AdminPairingTable.cpp",
-    "AdminPairingTable.h",
-    "CASESession.cpp",
-    "CASESession.h",
-    "NetworkProvisioning.cpp",
-    "NetworkProvisioning.h",
-    "PASESession.cpp",
-    "PASESession.h",
-    "PeerConnectionState.h",
-    "PeerConnections.h",
-    "RendezvousParameters.h",
-    "RendezvousSession.cpp",
-    "RendezvousSession.h",
-    "RendezvousSessionDelegate.h",
+    "CryptoContext.cpp",
+    "CryptoContext.h",
+    "GroupPeerMessageCounter.cpp",
+    "GroupPeerMessageCounter.h",
+    "GroupSession.h",
+    "MessageCounter.h",
+    "MessageCounterManagerInterface.h",
+    "PeerMessageCounter.h",
     "SecureMessageCodec.cpp",
     "SecureMessageCodec.h",
     "SecureSession.cpp",
     "SecureSession.h",
-    "SecureSessionMgr.cpp",
-    "SecureSessionMgr.h",
-    "SessionEstablishmentDelegate.h",
-    "StorablePeerConnection.cpp",
-    "StorablePeerConnection.h",
+    "SecureSessionTable.cpp",
+    "SecureSessionTable.h",
+    "Session.cpp",
+    "Session.h",
+    "SessionConnectionDelegate.h",
+    "SessionDelegate.h",
+    "SessionHolder.cpp",
+    "SessionHolder.h",
+    "SessionManager.cpp",
+    "SessionManager.h",
+    "SessionMessageCounter.h",
+    "SessionMessageDelegate.h",
+    "SessionUpdateDelegate.h",
+    "TracingStructs.h",
     "TransportMgr.h",
     "TransportMgrBase.cpp",
     "TransportMgrBase.h",
+    "UnauthenticatedSessionTable.h",
   ]
-
-  if (chip_config_network_layer_ble) {
-    sources += [
-      "BLE.cpp",
-      "BLE.h",
-    ]
-  }
 
   cflags = [ "-Wconversion" ]
 
   public_deps = [
+    "${chip_root}/src/access",
+    "${chip_root}/src/credentials",
     "${chip_root}/src/crypto",
     "${chip_root}/src/inet",
     "${chip_root}/src/lib/core",
-    "${chip_root}/src/lib/mdns",
+    "${chip_root}/src/lib/dnssd",
     "${chip_root}/src/lib/support",
     "${chip_root}/src/platform",
+    "${chip_root}/src/protocols/secure_channel:type_definitions",
     "${chip_root}/src/setup_payload",
+    "${chip_root}/src/tracing",
+    "${chip_root}/src/tracing:macros",
     "${chip_root}/src/transport/raw",
-    "${nlio_root}:nlio",
   ]
+
+  if (chip_enable_transport_trace) {
+    sources += [
+      "TraceMessage.cpp",
+      "TraceMessage.h",
+    ]
+  }
+  if (chip_enable_transport_pw_trace) {
+    public_deps += [ "$dir_pw_trace" ]
+  }
 }

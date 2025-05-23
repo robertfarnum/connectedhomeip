@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import os
 from pathlib import Path
-import serial # type: ignore
-import importlib
 
+import serial  # type: ignore
 from pw_hdlc.rpc import HdlcRpcClient
 
 # Point the script to the .proto file with our RPC services.
@@ -31,7 +31,8 @@ class Error(Exception):
 
 class PigweedDevice:
     def __init__(self, device_tty, baud, platform_module=None, platform_args=None):
-        self.pw_rpc_client = HdlcRpcClient(serial.Serial(device_tty, baud), [PROTO])
+        self.pw_rpc_client = HdlcRpcClient(
+            serial.Serial(device_tty, baud), [PROTO])
         self._platform = None
         print("Platform args: %s" % platform_args)
         print("Platform module: %s" % platform_module)
@@ -86,4 +87,5 @@ def _validate_config(config):
     required_keys = ["device_tty", "baud"]  # A placeholder.
     for key in required_keys:
         if key not in config:
-            raise Error("Required key %s missing from config %s" % (key, config))
+            raise Error("Required key %s missing from config %s" %
+                        (key, config))

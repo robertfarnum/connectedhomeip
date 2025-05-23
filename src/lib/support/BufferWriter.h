@@ -21,20 +21,32 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <lib/support/Span.h>
+
 namespace chip {
 namespace Encoding {
 
 class BufferWriter
 {
 public:
-    BufferWriter(uint8_t * buf, size_t len) : mBuf(buf), mSize(len), mNeeded(0) {}
-    BufferWriter(const BufferWriter & other) = default;
+    BufferWriter(uint8_t * buf, size_t len) : mBuf(buf), mSize(len), mNeeded(0)
+    {
+        if (buf == nullptr)
+        {
+            mSize = 0;
+        }
+    }
+    BufferWriter(MutableByteSpan buf) : BufferWriter(buf.data(), buf.size()) {}
+    BufferWriter(const BufferWriter & other)             = default;
     BufferWriter & operator=(const BufferWriter & other) = default;
 
     /// Append a null terminated string, exclude the null terminator
     BufferWriter & Put(const char * s);
 
-    /// Raw append a buffer, regardless of endianess
+    /// Raw append a buffer, regardless of endianess.
+    /// This is memmove-safe: if `buf` points to the underlying buffer, where output
+    /// will be written, and the overlap is legal for a memmove to have worked properly,
+    /// then this method will properly copy data.
     BufferWriter & Put(const void * buf, size_t len);
 
     /// Append a single byte
@@ -47,7 +59,10 @@ public:
     }
 
     /// Number of bytes required to satisfy all calls to Put() so far
-    size_t Needed() const { return mNeeded; }
+    inline size_t Needed() const { return mNeeded; }
+
+    /// Alias to Needed() for code clarity: current writing position for the buffer.
+    inline size_t WritePos() const { return Needed(); }
 
     /// Number of bytes still available for writing
     size_t Available() const { return mSize < mNeeded ? 0 : mSize - mNeeded; }
@@ -72,6 +87,8 @@ public:
     uint8_t * Buffer() { return mBuf; }
     const uint8_t * Buffer() const { return mBuf; }
 
+    void Reset() { mNeeded = 0; }
+
 protected:
     uint8_t * mBuf;
     size_t mSize;
@@ -89,16 +106,22 @@ public:
     Derived & Put(uint8_t c) { return static_cast<Derived &>(BufferWriter::Put(c)); }
     Derived & Skip(size_t len) { return static_cast<Derived &>(BufferWriter::Skip(len)); }
 
-    // write an integer into a buffer, in an endian specific way
+    // write an integer into a buffer, in an endian-specific way
 
     Derived & Put8(uint8_t c) { return static_cast<Derived *>(this)->Put(c); }
     Derived & Put16(uint16_t x) { return static_cast<Derived *>(this)->EndianPut(x, sizeof(x)); }
     Derived & Put32(uint32_t x) { return static_cast<Derived *>(this)->EndianPut(x, sizeof(x)); }
     Derived & Put64(uint64_t x) { return static_cast<Derived *>(this)->EndianPut(x, sizeof(x)); }
 
+    Derived & PutSigned8(int8_t x) { return static_cast<Derived *>(this)->EndianPutSigned(x, sizeof(x)); }
+    Derived & PutSigned16(int16_t x) { return static_cast<Derived *>(this)->EndianPutSigned(x, sizeof(x)); }
+    Derived & PutSigned32(int32_t x) { return static_cast<Derived *>(this)->EndianPutSigned(x, sizeof(x)); }
+    Derived & PutSigned64(int64_t x) { return static_cast<Derived *>(this)->EndianPutSigned(x, sizeof(x)); }
+
 protected:
     EndianBufferWriterBase(uint8_t * buf, size_t len) : BufferWriter(buf, len) {}
-    EndianBufferWriterBase(const EndianBufferWriterBase & other) = default;
+    EndianBufferWriterBase(MutableByteSpan buf) : BufferWriter(buf.data(), buf.size()) {}
+    EndianBufferWriterBase(const EndianBufferWriterBase & other)             = default;
     EndianBufferWriterBase & operator=(const EndianBufferWriterBase & other) = default;
 };
 
@@ -107,10 +130,15 @@ namespace LittleEndian {
 class BufferWriter : public EndianBufferWriterBase<BufferWriter>
 {
 public:
-    BufferWriter(uint8_t * buf, size_t len) : EndianBufferWriterBase<BufferWriter>(buf, len) {}
-    BufferWriter(const BufferWriter & other) = default;
+    BufferWriter(uint8_t * buf, size_t len) : EndianBufferWriterBase<BufferWriter>(buf, len)
+    {
+        static_assert((-1 & 3) == 3, "LittleEndian::BufferWriter only works with 2's complement architectures.");
+    }
+    BufferWriter(MutableByteSpan buf) : EndianBufferWriterBase<BufferWriter>(buf) {}
+    BufferWriter(const BufferWriter & other)             = default;
     BufferWriter & operator=(const BufferWriter & other) = default;
     BufferWriter & EndianPut(uint64_t x, size_t size);
+    BufferWriter & EndianPutSigned(int64_t x, size_t size);
 };
 
 } // namespace LittleEndian
@@ -120,10 +148,15 @@ namespace BigEndian {
 class BufferWriter : public EndianBufferWriterBase<BufferWriter>
 {
 public:
-    BufferWriter(uint8_t * buf, size_t len) : EndianBufferWriterBase<BufferWriter>(buf, len) {}
-    BufferWriter(const BufferWriter & other) = default;
+    BufferWriter(uint8_t * buf, size_t len) : EndianBufferWriterBase<BufferWriter>(buf, len)
+    {
+        static_assert((-1 & 3) == 3, "BigEndian::BufferWriter only works with 2's complement architectures.");
+    }
+    BufferWriter(MutableByteSpan buf) : EndianBufferWriterBase<BufferWriter>(buf) {}
+    BufferWriter(const BufferWriter & other)             = default;
     BufferWriter & operator=(const BufferWriter & other) = default;
     BufferWriter & EndianPut(uint64_t x, size_t size);
+    BufferWriter & EndianPutSigned(int64_t x, size_t size);
 };
 
 } // namespace BigEndian

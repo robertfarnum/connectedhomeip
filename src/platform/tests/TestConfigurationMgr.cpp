@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -28,67 +28,109 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <nlunit-test.h>
-#include <support/CHIPMem.h>
-#include <support/CodeUtils.h>
-#include <support/UnitTestRegistration.h>
+#include <pw_unit_test/framework.h>
 
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/CodeUtils.h>
+#include <platform/BuildTime.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/DeviceInstanceInfoProvider.h>
 
 using namespace chip;
 using namespace chip::Logging;
 using namespace chip::Inet;
 using namespace chip::DeviceLayer;
 
+namespace {
+
 // =================================
 //      Unit tests
 // =================================
 
-static void TestPlatformMgr_Init(nlTestSuite * inSuite, void * inContext)
+struct TestConfigurationMgr : ::testing::Test
 {
-    // ConfigurationManager is initialized from PlatformManager indirectly
-    CHIP_ERROR err = PlatformMgr().InitChipStack();
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-}
+    static void SetUpTestSuite()
+    {
+        // ConfigurationManager is initialized from PlatformManager indirectly
+        CHIP_ERROR err = chip::Platform::MemoryInit();
+        EXPECT_EQ(err, CHIP_NO_ERROR);
+        err = PlatformMgr().InitChipStack();
+        EXPECT_EQ(err, CHIP_NO_ERROR);
+    }
 
-#if !defined(NDEBUG)
-static void TestPlatformMgr_RunUnitTest(nlTestSuite * inSuite, void * inContext)
+    static void TearDownTestSuite()
+    {
+        PlatformMgr().Shutdown();
+        chip::Platform::MemoryShutdown();
+    }
+};
+
+TEST_F(TestConfigurationMgr, RunUnitTest)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    err = ConfigurationMgr().RunUnitTests();
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-}
+#if CHIP_DEVICE_LAYER_TARGET_OPEN_IOT_SDK
+    // TODO: Fix RunUnitTests() for Open IOT SDK.
+    // Previously, TestPlatformMgr_RunUnitTest was only run if !NDEBUG while the Open IOT SDK
+    // test runner was built with NDEBUG set.
+    return;
 #endif
 
-static void TestConfigurationMgr_SerialNumber(nlTestSuite * inSuite, void * inContext)
+    ConfigurationMgr().RunUnitTests();
+}
+
+TEST_F(TestConfigurationMgr, SerialNumber)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     char buf[64];
-    size_t serialNumberLen    = 0;
     const char * serialNumber = "89051AAZZ236";
 
     err = ConfigurationMgr().StoreSerialNumber(serialNumber, strlen(serialNumber));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    err = ConfigurationMgr().GetSerialNumber(buf, 64, serialNumberLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = GetDeviceInstanceInfoProvider()->GetSerialNumber(buf, 64);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, serialNumberLen == strlen(serialNumber));
-    NL_TEST_ASSERT(inSuite, strcmp(buf, serialNumber) == 0);
+    EXPECT_EQ(strlen(buf), 12u);
+    EXPECT_STREQ(buf, serialNumber);
 
     err = ConfigurationMgr().StoreSerialNumber(serialNumber, 5);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    err = ConfigurationMgr().GetSerialNumber(buf, 64, serialNumberLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = GetDeviceInstanceInfoProvider()->GetSerialNumber(buf, 64);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, serialNumberLen == 5);
-    NL_TEST_ASSERT(inSuite, strcmp(buf, "89051") == 0);
+    EXPECT_EQ(strlen(buf), 5u);
+    EXPECT_STREQ(buf, "89051");
 }
 
-static void TestConfigurationMgr_ManufacturingDate(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestConfigurationMgr, UniqueId)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    char buf[64];
+    const char * uniqueId = "67MXAZ012RT8UE";
+
+    err = ConfigurationMgr().StoreUniqueId(uniqueId, strlen(uniqueId));
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+
+    err = ConfigurationMgr().GetUniqueId(buf, 64);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+
+    EXPECT_EQ(strlen(buf), 14u);
+    EXPECT_STREQ(buf, uniqueId);
+
+    err = ConfigurationMgr().StoreUniqueId(uniqueId, 7);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+
+    err = ConfigurationMgr().GetUniqueId(buf, 64);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+
+    EXPECT_EQ(strlen(buf), 7u);
+    EXPECT_STREQ(buf, "67MXAZ0");
+}
+
+TEST_F(TestConfigurationMgr, ManufacturingDate)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -98,356 +140,330 @@ static void TestConfigurationMgr_ManufacturingDate(nlTestSuite * inSuite, void *
     uint8_t dayOfMonth;
 
     err = ConfigurationMgr().StoreManufacturingDate(mfgDate, strlen(mfgDate));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    err = ConfigurationMgr().GetManufacturingDate(year, month, dayOfMonth);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = GetDeviceInstanceInfoProvider()->GetManufacturingDate(year, month, dayOfMonth);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, year == 2008);
-    NL_TEST_ASSERT(inSuite, month == 9);
-    NL_TEST_ASSERT(inSuite, dayOfMonth == 20);
+    EXPECT_EQ(year, 2008);
+    EXPECT_EQ(month, 9);
+    EXPECT_EQ(dayOfMonth, 20);
 }
 
-static void TestConfigurationMgr_ProductRevision(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestConfigurationMgr, HardwareVersion)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    uint16_t productRev;
+    uint16_t hardwareVer;
 
-    err = ConfigurationMgr().StoreProductRevision(1234);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = ConfigurationMgr().StoreHardwareVersion(1234);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    err = ConfigurationMgr().GetProductRevision(productRev);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = GetDeviceInstanceInfoProvider()->GetHardwareVersion(hardwareVer);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, productRev == 1234);
+    EXPECT_EQ(hardwareVer, 1234);
 }
 
-static void TestConfigurationMgr_ManufacturerDeviceId(nlTestSuite * inSuite, void * inContext)
+static int SnprintfBuildDate(char * s, size_t n, uint16_t year, uint8_t month, uint8_t day)
+{
+    // Print the calendar date to a human readable string as would
+    // given from the __DATE__ macro.
+    const char * monthString = nullptr;
+    switch (month)
+    {
+    case 1:
+        monthString = "Jan";
+        break;
+    case 2:
+        monthString = "Feb";
+        break;
+    case 3:
+        monthString = "Mar";
+        break;
+    case 4:
+        monthString = "Apr";
+        break;
+    case 5:
+        monthString = "May";
+        break;
+    case 6:
+        monthString = "Jun";
+        break;
+    case 7:
+        monthString = "Jul";
+        break;
+    case 8:
+        monthString = "Aug";
+        break;
+    case 9:
+        monthString = "Sep";
+        break;
+    case 10:
+        monthString = "Oct";
+        break;
+    case 11:
+        monthString = "Nov";
+        break;
+    case 12:
+        monthString = "Dec";
+        break;
+    }
+    if (monthString == nullptr)
+    {
+        return -1;
+    }
+    return snprintf(s, n, "%s %2u %u", monthString, day, year);
+}
+
+static int SnprintfBuildDate(char * s, size_t n, System::Clock::Seconds32 chipEpochBuildTime)
+{
+    // Convert to a calendar date-time.
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+    ChipEpochToCalendarTime(chipEpochBuildTime.count(), year, month, day, hour, minute, second);
+    return SnprintfBuildDate(s, n, year, month, day);
+}
+
+static int SnprintfBuildTimeOfDay(char * s, size_t n, uint8_t hour, uint8_t minute, uint8_t second)
+{
+    // Print the time of day to a human readable string as would
+    // given from the __TIME__ macro.
+    return snprintf(s, n, "%02u:%02u:%02u", hour, minute, second);
+}
+
+static int SnprintfBuildTimeOfDay(char * s, size_t n, System::Clock::Seconds32 chipEpochBuildTime)
+{
+    // Convert to a calendar date-time.
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+    ChipEpochToCalendarTime(chipEpochBuildTime.count(), year, month, day, hour, minute, second);
+    return SnprintfBuildTimeOfDay(s, n, hour, minute, second);
+}
+
+TEST_F(TestConfigurationMgr, FirmwareBuildTime)
+{
+    // Read the firmware build time from the configuration manager.
+    // This is referenced to the CHIP epoch.
+    System::Clock::Seconds32 chipEpochTime;
+    EXPECT_EQ(ConfigurationMgr().GetFirmwareBuildChipEpochTime(chipEpochTime), CHIP_NO_ERROR);
+
+    // Override the hard-coded build time with the setter and verify operation.
+    System::Clock::Seconds32 overrideValue = System::Clock::Seconds32(rand());
+    EXPECT_EQ(ConfigurationMgr().SetFirmwareBuildChipEpochTime(overrideValue), CHIP_NO_ERROR);
+    EXPECT_EQ(ConfigurationMgr().GetFirmwareBuildChipEpochTime(chipEpochTime), CHIP_NO_ERROR);
+    EXPECT_EQ(overrideValue, chipEpochTime);
+
+    // Verify that the BuildTime.h parser can parse current CHIP_DEVICE_CONFIG_FIRMWARE_BUILD_DATE / TIME.
+    do
+    {
+        const char * date      = CHIP_DEVICE_CONFIG_FIRMWARE_BUILD_DATE;
+        const char * timeOfDay = CHIP_DEVICE_CONFIG_FIRMWARE_BUILD_TIME;
+
+        // Check that strings look good.
+        EXPECT_FALSE(BUILD_DATE_IS_BAD(date));
+        EXPECT_FALSE(BUILD_TIME_IS_BAD(timeOfDay));
+        if (BUILD_DATE_IS_BAD(date) || BUILD_TIME_IS_BAD(timeOfDay))
+        {
+            break;
+        }
+
+        // Parse.
+        uint16_t year  = COMPUTE_BUILD_YEAR(date);
+        uint8_t month  = COMPUTE_BUILD_MONTH(date);
+        uint8_t day    = COMPUTE_BUILD_DAY(date);
+        uint8_t hour   = COMPUTE_BUILD_HOUR(timeOfDay);
+        uint8_t minute = COMPUTE_BUILD_MIN(timeOfDay);
+        uint8_t second = COMPUTE_BUILD_SEC(timeOfDay);
+
+        // Print the date to a string as would be given by the __DATE__ macro.
+        char parsedDate[14] = { 0 }; // strlen("Jan 000 00000") == 13
+        {
+            int printed;
+            printed = SnprintfBuildDate(parsedDate, sizeof(parsedDate), year, month, day);
+            EXPECT_GT(printed, 0);
+            EXPECT_LT(printed, static_cast<int>(sizeof(parsedDate)));
+        }
+
+        // Print the time of day to a straing as would be given by the __TIME__ macro.
+        char parsedTimeOfDay[12] = { 0 }; // strlen("000:000:000") == 11
+        {
+            int printed;
+            printed = SnprintfBuildTimeOfDay(parsedTimeOfDay, sizeof(parsedTimeOfDay), hour, minute, second);
+            EXPECT_GT(printed, 0);
+            EXPECT_LT(printed, static_cast<int>(sizeof(parsedTimeOfDay)));
+        }
+
+        // Verify match.
+        EXPECT_STREQ(date, parsedDate);
+        EXPECT_STREQ(timeOfDay, parsedTimeOfDay);
+    } while (false);
+
+    // Generate random chip epoch times and verify that our BuildTime.h parser
+    // macros also work for these.
+    for (int i = 0; i < 10000; ++i)
+    {
+        char date[14]      = { 0 }; // strlen("Jan 000 00000") == 13
+        char timeOfDay[12] = { 0 }; // strlen("000:000:000") == 11
+
+        chipEpochTime = System::Clock::Seconds32(rand());
+
+        // rand() will only give us [0, 0x7FFFFFFF].  Give us coverage for
+        // times in the upper half of the chip epoch time range as well.
+        chipEpochTime = i % 2 ? chipEpochTime : System::Clock::Seconds32(chipEpochTime.count() | 0x80000000);
+
+        // Print the date to a string as would be given by the __DATE__ macro.
+        {
+            int printed;
+            printed = SnprintfBuildDate(date, sizeof(date), chipEpochTime);
+            EXPECT_GT(printed, 0);
+            EXPECT_LT(printed, static_cast<int>(sizeof(date)));
+        }
+
+        // Print the time of day to a straing as would be given by the __TIME__ macro.
+        {
+            int printed;
+            printed = SnprintfBuildTimeOfDay(timeOfDay, sizeof(timeOfDay), chipEpochTime);
+            EXPECT_GT(printed, 0);
+            EXPECT_LT(printed, static_cast<int>(sizeof(timeOfDay)));
+        }
+
+        // Check that strings look good.
+        EXPECT_FALSE(BUILD_DATE_IS_BAD(date));
+        EXPECT_FALSE(BUILD_TIME_IS_BAD(timeOfDay));
+        if (BUILD_DATE_IS_BAD(date) || BUILD_TIME_IS_BAD(timeOfDay))
+        {
+            continue;
+        }
+
+        // Convert from chip epoch seconds to calendar time.
+        uint16_t year;
+        uint8_t month;
+        uint8_t day;
+        uint8_t hour;
+        uint8_t minute;
+        uint8_t second;
+        ChipEpochToCalendarTime(chipEpochTime.count(), year, month, day, hour, minute, second);
+
+        // Verify that our BuildTime.h macros can correctly parse the date / time strings.
+        EXPECT_EQ(year, COMPUTE_BUILD_YEAR(date));
+        EXPECT_EQ(month, COMPUTE_BUILD_MONTH(date));
+        EXPECT_EQ(day, COMPUTE_BUILD_DAY(date));
+        EXPECT_EQ(hour, COMPUTE_BUILD_HOUR(timeOfDay));
+        EXPECT_EQ(minute, COMPUTE_BUILD_MIN(timeOfDay));
+        EXPECT_EQ(second, COMPUTE_BUILD_SEC(timeOfDay));
+    }
+}
+
+TEST_F(TestConfigurationMgr, CountryCode)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    uint64_t deviceId;
 
-    err = ConfigurationMgr().StoreManufacturerDeviceId(7212064004600625234);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    char buf[8];
+    size_t countryCodeLen    = 0;
+    const char * countryCode = "US";
 
-    err = ConfigurationMgr().GetManufacturerDeviceId(deviceId);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = ConfigurationMgr().StoreCountryCode(countryCode, strlen(countryCode));
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    NL_TEST_ASSERT(inSuite, deviceId == 7212064004600625234);
+    err = ConfigurationMgr().GetCountryCode(buf, 8, countryCodeLen);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+
+    EXPECT_EQ(countryCodeLen, strlen(countryCode));
+    EXPECT_STREQ(buf, countryCode);
 }
 
-static void TestConfigurationMgr_ManufacturerDeviceCertificate(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err              = CHIP_NO_ERROR;
-    const static uint8_t cert[] = {
-        0xD5, 0x00, 0x00, 0x04, 0x00, 0x01, 0x00, 0x30, 0x01, 0x08, 0x79, 0x55, 0x9F, 0x15, 0x1F, 0x66, 0x3D, 0x8F, 0x24,
-        0x02, 0x05, 0x37, 0x03, 0x27, 0x13, 0x02, 0x00, 0x00, 0xEE, 0xEE, 0x30, 0xB4, 0x18, 0x18, 0x26, 0x04, 0x80, 0x41,
-        0x1B, 0x23, 0x26, 0x05, 0x7F, 0xFF, 0xFF, 0x52, 0x37, 0x06, 0x27, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x30, 0xB4,
-        0x18, 0x18, 0x24, 0x07, 0x02, 0x26, 0x08, 0x25, 0x00, 0x5A, 0x23, 0x30, 0x0A, 0x39, 0x04, 0x9E, 0xC7, 0x77, 0xC5,
-        0xA4, 0x13, 0x31, 0xF7, 0x72, 0x2E, 0x27, 0xC2, 0x86, 0x3D, 0xC5, 0x2E, 0xD5, 0xD2, 0x3C, 0xCF, 0x7E, 0x06, 0xE3,
-        0x48, 0x53, 0x87, 0xE8, 0x4D, 0xB0, 0x27, 0x07, 0x58, 0x4A, 0x38, 0xB4, 0xF3, 0xB2, 0x47, 0x94, 0x45, 0x58, 0x65,
-        0x80, 0x08, 0x17, 0x6B, 0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86, 0x35, 0x83, 0x29, 0x01, 0x18,
-        0x35, 0x82, 0x29, 0x01, 0x24, 0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04, 0x02, 0x04, 0x01, 0x18,
-        0x18, 0x35, 0x81, 0x30, 0x02, 0x08, 0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35, 0x80, 0x30, 0x02,
-        0x08, 0x44, 0xE3, 0x40, 0x38, 0xA9, 0xD4, 0xB5, 0xA7, 0x18, 0x35, 0x0C, 0x30, 0x01, 0x19, 0x00, 0xA6, 0x5D, 0x54,
-        0xF5, 0xAE, 0x5D, 0x63, 0xEB, 0x69, 0xD8, 0xDB, 0xCB, 0xE2, 0x20, 0x0C, 0xD5, 0x6F, 0x43, 0x5E, 0x96, 0xA8, 0x54,
-        0xB2, 0x74, 0x30, 0x02, 0x19, 0x00, 0xE0, 0x37, 0x02, 0x8B, 0xB3, 0x04, 0x06, 0xDD, 0xBD, 0x28, 0xAA, 0xC4, 0xF1,
-        0xFF, 0xFB, 0xB1, 0xD4, 0x1C, 0x78, 0x40, 0xDA, 0x2C, 0xD8, 0x40, 0x18, 0x18,
-    };
-    uint8_t buf[512];
-    size_t certLen;
-
-    err = ConfigurationMgr().StoreManufacturerDeviceCertificate(cert, sizeof(cert));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetManufacturerDeviceCertificate(buf, sizeof(buf), certLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, certLen == sizeof(cert));
-    NL_TEST_ASSERT(inSuite, memcmp(buf, cert, certLen) == 0);
-}
-
-static void TestConfigurationMgr_ManufacturerDeviceIntermediateCACerts(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err               = CHIP_NO_ERROR;
-    const static uint8_t certs[] = {
-        0xD5, 0x00, 0x00, 0x04, 0x00, 0x01, 0x00, 0x30, 0x01, 0x08, 0x79, 0x55, 0x9F, 0x15, 0x1F, 0x66, 0x3D, 0x8F, 0x24,
-        0x02, 0x05, 0x37, 0x03, 0x27, 0x13, 0x02, 0x00, 0x00, 0xEE, 0xEE, 0x30, 0xB4, 0x18, 0x18, 0x26, 0x04, 0x80, 0x41,
-        0x1B, 0x23, 0x26, 0x05, 0x7F, 0xFF, 0xFF, 0x52, 0x37, 0x06, 0x27, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x30, 0xB4,
-        0x18, 0x18, 0x24, 0x07, 0x02, 0x26, 0x08, 0x25, 0x00, 0x5A, 0x23, 0x30, 0x0A, 0x39, 0x04, 0x9E, 0xC7, 0x77, 0xC5,
-        0xA4, 0x13, 0x31, 0xF7, 0x72, 0x2E, 0x27, 0xC2, 0x86, 0x3D, 0xC5, 0x2E, 0xD5, 0xD2, 0x3C, 0xCF, 0x7E, 0x06, 0xE3,
-        0x48, 0x53, 0x87, 0xE8, 0x4D, 0xB0, 0x27, 0x07, 0x58, 0x4A, 0x38, 0xB4, 0xF3, 0xB2, 0x47, 0x94, 0x45, 0x58, 0x65,
-        0x80, 0x08, 0x17, 0x6B, 0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86, 0x35, 0x83, 0x29, 0x01, 0x18,
-        0x35, 0x82, 0x29, 0x01, 0x24, 0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04, 0x02, 0x04, 0x01, 0x18,
-        0x18, 0x35, 0x81, 0x30, 0x02, 0x08, 0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35, 0x80, 0x30, 0x02,
-        0x08, 0x44, 0xE3, 0x40, 0x38, 0xA9, 0xD4, 0xB5, 0xA7, 0x18, 0x35, 0x0C, 0x30, 0x01, 0x19, 0x00, 0xA6, 0x5D, 0x54,
-        0xF5, 0xAE, 0x5D, 0x63, 0xEB, 0x69, 0xD8, 0xDB, 0xCB, 0xE2, 0x20, 0x0C, 0xD5, 0x6F, 0x43, 0x5E, 0x96, 0xA8, 0x54,
-        0xB2, 0x74, 0x30, 0x02, 0x19, 0x00, 0xE0, 0x37, 0x02, 0x8B, 0xB3, 0x04, 0x06, 0xDD, 0xBD, 0x28, 0xAA, 0xC4, 0xF1,
-        0xFF, 0xFB, 0xB1, 0xD4, 0x1C, 0x78, 0x40, 0xDA, 0x2C, 0xD8, 0x40, 0x18, 0x18,
-    };
-    uint8_t buf[512];
-    size_t certsLen;
-
-    err = ConfigurationMgr().StoreManufacturerDeviceCertificate(certs, sizeof(certs));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetManufacturerDeviceCertificate(buf, sizeof(buf), certsLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, certsLen == sizeof(certs));
-    NL_TEST_ASSERT(inSuite, memcmp(buf, certs, certsLen) == 0);
-}
-
-static void TestConfigurationMgr_ManufacturerDevicePrivateKey(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err             = CHIP_NO_ERROR;
-    const static uint8_t key[] = {
-        0x80, 0x08, 0x17, 0x6B, 0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86, 0x35, 0x83, 0x29, 0x01, 0x18,
-        0x35, 0x82, 0x29, 0x01, 0x24, 0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04, 0x02, 0x04, 0x01, 0x18,
-        0x18, 0x35, 0x81, 0x30, 0x02, 0x08, 0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35, 0x80, 0x30, 0x02,
-    };
-    uint8_t buf[128];
-    size_t keyLen;
-
-    err = ConfigurationMgr().StoreManufacturerDevicePrivateKey(key, sizeof(key));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetManufacturerDevicePrivateKey(buf, sizeof(buf), keyLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, keyLen == sizeof(key));
-    NL_TEST_ASSERT(inSuite, memcmp(buf, key, keyLen) == 0);
-}
-
-static void TestConfigurationMgr_FabricId(nlTestSuite * inSuite, void * inContext)
-{
-#if CHIP_CONFIG_ENABLE_FABRIC_STATE
-    CHIP_ERROR err    = CHIP_NO_ERROR;
-    uint64_t fabricId = 0;
-
-    err = ConfigurationMgr().StoreFabricId(2006255910626445ULL);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetFabricId(fabricId);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, fabricId == 2006255910626445ULL);
-#endif
-}
-
-static void TestConfigurationMgr_ServiceConfig(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestConfigurationMgr, GetPrimaryMACAddress)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+    uint8_t macBuffer8Bytes[8];
+    uint8_t macBuffer6Bytes[6];
+    MutableByteSpan mac8Bytes(macBuffer8Bytes);
+    MutableByteSpan mac6Bytes(macBuffer6Bytes);
 
-    uint8_t buf[1024];
-    size_t serviceConfigLen              = 0;
-    const static uint8_t serviceConfig[] = {
-        0x1B, 0x23, 0x26, 0x05, 0x7F, 0xFF, 0xFF, 0x52, 0x37, 0x06, 0x27, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x30, 0xB4, 0x18,
-        0x18, 0x24, 0x07, 0x02, 0x26, 0x08, 0x25, 0x00, 0x5A, 0x23, 0x30, 0x0A, 0x39, 0x04, 0x9E, 0xC7, 0x77, 0xC5, 0xA4, 0x13,
-        0x31, 0xF7, 0x72, 0x2E, 0x27, 0xC2, 0x86, 0x3D, 0xC5, 0x2E, 0xD5, 0xD2, 0x3C, 0xCF, 0x7E, 0x06, 0xE3, 0x48, 0x53, 0x87,
-        0xE8, 0x4D, 0xB0, 0x27, 0x07, 0x58, 0x4A, 0x38, 0xB4, 0xF3, 0xB2, 0x47, 0x94, 0x45, 0x58, 0x65, 0x80, 0x08, 0x17, 0x6B,
-        0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86, 0x35, 0x83, 0x29, 0x01, 0x18, 0x35, 0x82, 0x29, 0x01, 0x24,
-        0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04, 0x02, 0x04, 0x01, 0x18, 0x18, 0x35, 0x81, 0x30, 0x02, 0x08,
-        0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35, 0x80, 0x30, 0x02, 0x08, 0x44, 0xE3, 0x40, 0x38, 0xA9, 0xD4,
-        0xB5, 0xA7, 0x18, 0x35, 0x0C, 0x30, 0x01, 0x19, 0x00, 0xA6, 0x5D, 0x54, 0xD5, 0x00, 0x00, 0x04, 0x00, 0x01, 0x00, 0x30,
-        0x01, 0x08, 0x79, 0x55, 0x9F, 0x15, 0x1F, 0x66, 0x3D, 0x8F, 0x24, 0x02, 0x05, 0x37, 0x03, 0x27, 0x13, 0x02, 0x00, 0x00,
-        0xEE, 0xEE, 0x30, 0xB4, 0x18, 0x18, 0x26, 0x04, 0x80, 0x41, 0x1B, 0x23, 0x26, 0x05, 0x7F, 0xFF, 0xFF, 0x52, 0x37, 0x06,
-        0x27, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x30, 0xB4, 0x18, 0x18, 0x24, 0x07, 0x02, 0x26, 0x08, 0x25, 0x00, 0x5A, 0x23,
-        0x30, 0x0A, 0x39, 0x04, 0x9E, 0xC7, 0x77, 0xC5, 0xA4, 0x13, 0x31, 0xF7, 0x72, 0x2E, 0x27, 0xC2, 0x86, 0x3D, 0xC5, 0x2E,
-        0xD5, 0xD2, 0x3C, 0xCF, 0x7E, 0x06, 0xE3, 0x48, 0x53, 0x87, 0xE8, 0x4D, 0xB0, 0x27, 0x07, 0x58, 0x4A, 0x38, 0xB4, 0xF3,
-        0xB2, 0x47, 0x94, 0x45, 0x58, 0x65, 0x80, 0x08, 0x17, 0x6B, 0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86,
-        0x35, 0x83, 0x29, 0x01, 0x18, 0x35, 0x82, 0x29, 0x01, 0x24, 0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04,
-        0x02, 0x04, 0x01, 0x18, 0x18, 0x35, 0x81, 0x30, 0x02, 0x08, 0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35,
-        0x80, 0x30, 0x02, 0x08, 0x44, 0xE3, 0x40, 0x38, 0xA9, 0xD4, 0xB5, 0xA7, 0x18, 0x35, 0x0C, 0x30, 0x01, 0x19, 0x00, 0xA6,
-        0x5D, 0x54, 0xF5, 0xAE, 0x5D, 0x63, 0xEB, 0x69, 0xD8, 0xDB, 0xCB, 0xE2, 0x20, 0x0C, 0xD5, 0x6F, 0x43, 0x5E, 0x96, 0xA8,
-        0x54, 0xB2, 0x74, 0x30, 0x02, 0x19, 0x00, 0xE0, 0x37, 0x02, 0x8B, 0xB3, 0x04, 0x06, 0xDD, 0xBD, 0x28, 0xAA, 0xC4, 0xF1,
-        0xFF, 0xFB, 0xB1, 0xD4, 0x1C, 0x78, 0x40, 0xDA, 0x2C, 0xD8, 0x40, 0x18, 0x18, 0x18, 0x02, 0x40
-    };
-    err = ConfigurationMgr().StoreServiceConfig(serviceConfig, sizeof(serviceConfig));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = ConfigurationMgr().GetPrimaryMACAddress(mac8Bytes);
+    if (mac8Bytes.size() != ConfigurationManager::kPrimaryMACAddressLength)
+    {
+        EXPECT_EQ(err, CHIP_ERROR_INVALID_ARGUMENT);
+    }
 
-    err = ConfigurationMgr().GetServiceConfig(buf, 1024, serviceConfigLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = ConfigurationMgr().GetPrimaryMACAddress(mac6Bytes);
+    if (mac6Bytes.size() != ConfigurationManager::kPrimaryMACAddressLength)
+    {
+        EXPECT_EQ(err, CHIP_ERROR_INVALID_ARGUMENT);
+    }
 
-    NL_TEST_ASSERT(inSuite, serviceConfigLen == sizeof(serviceConfig));
-    NL_TEST_ASSERT(inSuite, memcmp(buf, serviceConfig, serviceConfigLen) == 0);
+    // NOTICE for above:
+    //   no validation for CHIP_NO_ERROR:
+    //    - there is no guarantee in CI that a valid IP address exists,
+    //      expecially if running in emulators (zephyr and qemu)
 }
 
-static void TestConfigurationMgr_SetupPinCode(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestConfigurationMgr, GetFailSafeArmed)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
+    CHIP_ERROR err     = CHIP_NO_ERROR;
+    bool failSafeArmed = false;
 
-    const uint32_t setSetupPinCode = 34567890;
-    uint32_t getSetupPinCode       = 0;
+    err = ConfigurationMgr().SetFailSafeArmed(true);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 
-    err = ConfigurationMgr().StoreSetupPinCode(setSetupPinCode);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    err = ConfigurationMgr().GetFailSafeArmed(failSafeArmed);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+    EXPECT_EQ(failSafeArmed, true);
 
-    err = ConfigurationMgr().GetSetupPinCode(getSetupPinCode);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, getSetupPinCode == setSetupPinCode);
+    err = ConfigurationMgr().SetFailSafeArmed(false);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
 }
 
-static void TestConfigurationMgr_SetupDiscriminator(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestConfigurationMgr, GetVendorName)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-
-    const uint16_t setSetupDiscriminator = 0xBA0;
-    uint16_t getSetupDiscriminator       = 0;
-
-    err = ConfigurationMgr().StoreSetupDiscriminator(setSetupDiscriminator);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetSetupDiscriminator(getSetupDiscriminator);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, getSetupDiscriminator == setSetupDiscriminator);
-}
-
-static void TestConfigurationMgr_PairedAccountId(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
     char buf[64];
-    size_t accountIdLen    = 0;
-    const char * accountId = "USER_016CB664A86A888D";
 
-    err = ConfigurationMgr().StorePairedAccountId(accountId, strlen(accountId));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetPairedAccountId(buf, 64, accountIdLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    NL_TEST_ASSERT(inSuite, accountIdLen == strlen(accountId));
-    NL_TEST_ASSERT(inSuite, strcmp(buf, "USER_016CB664A86A888D") == 0);
+    err = GetDeviceInstanceInfoProvider()->GetVendorName(buf, 64);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+    EXPECT_GT(strlen(buf), 0u);
+    EXPECT_LE(strlen(buf), ConfigurationManager::kMaxVendorNameLength);
 }
 
-static void TestConfigurationMgr_ServiceProvisioningData(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestConfigurationMgr, GetVendorId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+    uint16_t vendorId;
 
-    uint64_t serviceId;
-
-    char account[64];
-    size_t accountIdLen    = 0;
-    const char * accountId = "USER_016CB664A86A888D";
-
-    uint8_t buf[1024];
-    size_t serviceConfigLen              = 0;
-    const static uint8_t serviceConfig[] = {
-        0x1B, 0x23, 0x26, 0x05, 0x7F, 0xFF, 0xFF, 0x52, 0x37, 0x06, 0x27, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x30, 0xB4, 0x18,
-        0x18, 0x24, 0x07, 0x02, 0x26, 0x08, 0x25, 0x00, 0x5A, 0x23, 0x30, 0x0A, 0x39, 0x04, 0x9E, 0xC7, 0x77, 0xC5, 0xA4, 0x13,
-        0x31, 0xF7, 0x72, 0x2E, 0x27, 0xC2, 0x86, 0x3D, 0xC5, 0x2E, 0xD5, 0xD2, 0x3C, 0xCF, 0x7E, 0x06, 0xE3, 0x48, 0x53, 0x87,
-        0xE8, 0x4D, 0xB0, 0x27, 0x07, 0x58, 0x4A, 0x38, 0xB4, 0xF3, 0xB2, 0x47, 0x94, 0x45, 0x58, 0x65, 0x80, 0x08, 0x17, 0x6B,
-        0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86, 0x35, 0x83, 0x29, 0x01, 0x18, 0x35, 0x82, 0x29, 0x01, 0x24,
-        0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04, 0x02, 0x04, 0x01, 0x18, 0x18, 0x35, 0x81, 0x30, 0x02, 0x08,
-        0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35, 0x80, 0x30, 0x02, 0x08, 0x44, 0xE3, 0x40, 0x38, 0xA9, 0xD4,
-        0xB5, 0xA7, 0x18, 0x35, 0x0C, 0x30, 0x01, 0x19, 0x00, 0xA6, 0x5D, 0x54, 0xD5, 0x00, 0x00, 0x04, 0x00, 0x01, 0x00, 0x30,
-        0x01, 0x08, 0x79, 0x55, 0x9F, 0x15, 0x1F, 0x66, 0x3D, 0x8F, 0x24, 0x02, 0x05, 0x37, 0x03, 0x27, 0x13, 0x02, 0x00, 0x00,
-        0xEE, 0xEE, 0x30, 0xB4, 0x18, 0x18, 0x26, 0x04, 0x80, 0x41, 0x1B, 0x23, 0x26, 0x05, 0x7F, 0xFF, 0xFF, 0x52, 0x37, 0x06,
-        0x27, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x30, 0xB4, 0x18, 0x18, 0x24, 0x07, 0x02, 0x26, 0x08, 0x25, 0x00, 0x5A, 0x23,
-        0x30, 0x0A, 0x39, 0x04, 0x9E, 0xC7, 0x77, 0xC5, 0xA4, 0x13, 0x31, 0xF7, 0x72, 0x2E, 0x27, 0xC2, 0x86, 0x3D, 0xC5, 0x2E,
-        0xD5, 0xD2, 0x3C, 0xCF, 0x7E, 0x06, 0xE3, 0x48, 0x53, 0x87, 0xE8, 0x4D, 0xB0, 0x27, 0x07, 0x58, 0x4A, 0x38, 0xB4, 0xF3,
-        0xB2, 0x47, 0x94, 0x45, 0x58, 0x65, 0x80, 0x08, 0x17, 0x6B, 0x8E, 0x4F, 0x07, 0x41, 0xA3, 0x3D, 0x5D, 0xCE, 0x76, 0x86,
-        0x35, 0x83, 0x29, 0x01, 0x18, 0x35, 0x82, 0x29, 0x01, 0x24, 0x02, 0x05, 0x18, 0x35, 0x84, 0x29, 0x01, 0x36, 0x02, 0x04,
-        0x02, 0x04, 0x01, 0x18, 0x18, 0x35, 0x81, 0x30, 0x02, 0x08, 0x42, 0xBD, 0x2C, 0x6B, 0x5B, 0x3A, 0x18, 0x16, 0x18, 0x35,
-        0x80, 0x30, 0x02, 0x08, 0x44, 0xE3, 0x40, 0x38, 0xA9, 0xD4, 0xB5, 0xA7, 0x18, 0x35, 0x0C, 0x30, 0x01, 0x19, 0x00, 0xA6,
-        0x5D, 0x54, 0xF5, 0xAE, 0x5D, 0x63, 0xEB, 0x69, 0xD8, 0xDB, 0xCB, 0xE2, 0x20, 0x0C, 0xD5, 0x6F, 0x43, 0x5E, 0x96, 0xA8,
-        0x54, 0xB2, 0x74, 0x30, 0x02, 0x19, 0x00, 0xE0, 0x37, 0x02, 0x8B, 0xB3, 0x04, 0x06, 0xDD, 0xBD, 0x28, 0xAA, 0xC4, 0xF1,
-        0xFF, 0xFB, 0xB1, 0xD4, 0x1C, 0x78, 0x40, 0xDA, 0x2C, 0xD8, 0x40, 0x18, 0x18, 0x18, 0x02, 0x40
-    };
-
-    // Test write/clear
-    err = ConfigurationMgr().StoreServiceProvisioningData(7212064004600625234, serviceConfig, sizeof(serviceConfig), accountId,
-                                                          strlen(accountId));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().ClearServiceProvisioningData();
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetServiceId(serviceId);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetPairedAccountId(account, 64, accountIdLen);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetServiceConfig(buf, 512, serviceConfigLen);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
-
-    // Test write/read
-    err = ConfigurationMgr().StoreServiceProvisioningData(7212064004600625234, serviceConfig, sizeof(serviceConfig), accountId,
-                                                          strlen(accountId));
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    err = ConfigurationMgr().GetServiceId(serviceId);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, serviceId == 7212064004600625234);
-
-    err = ConfigurationMgr().GetPairedAccountId(account, 64, accountIdLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, accountIdLen == strlen(accountId));
-    NL_TEST_ASSERT(inSuite, strcmp(account, "USER_016CB664A86A888D") == 0);
-
-    err = ConfigurationMgr().GetServiceConfig(buf, 512, serviceConfigLen);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, serviceConfigLen == sizeof(serviceConfig));
-    NL_TEST_ASSERT(inSuite, memcmp(buf, serviceConfig, serviceConfigLen) == 0);
+    err = GetDeviceInstanceInfoProvider()->GetVendorId(vendorId);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+    EXPECT_GE(vendorId, 0u);
+    EXPECT_LE(vendorId, 0xfff4);
 }
 
-/**
- *   Test Suite. It lists all the test functions.
- */
-static const nlTest sTests[] = {
-
-    NL_TEST_DEF("Test PlatformMgr::Init", TestPlatformMgr_Init),
-#if !defined(NDEBUG)
-    NL_TEST_DEF("Test PlatformMgr::RunUnitTest", TestPlatformMgr_RunUnitTest),
-#endif
-    NL_TEST_DEF("Test ConfigurationMgr::SerialNumber", TestConfigurationMgr_SerialNumber),
-    NL_TEST_DEF("Test ConfigurationMgr::ManufacturingDate", TestConfigurationMgr_ManufacturingDate),
-    NL_TEST_DEF("Test ConfigurationMgr::ProductRevision", TestConfigurationMgr_ProductRevision),
-    NL_TEST_DEF("Test ConfigurationMgr::ManufacturerDeviceId", TestConfigurationMgr_ManufacturerDeviceId),
-    NL_TEST_DEF("Test ConfigurationMgr::ManufacturerDeviceCertificate", TestConfigurationMgr_ManufacturerDeviceCertificate),
-    NL_TEST_DEF("Test ConfigurationMgr::ManufacturerDeviceIntermediateCACerts",
-                TestConfigurationMgr_ManufacturerDeviceIntermediateCACerts),
-    NL_TEST_DEF("Test ConfigurationMgr::ManufacturerDevicePrivateKey", TestConfigurationMgr_ManufacturerDevicePrivateKey),
-    NL_TEST_DEF("Test ConfigurationMgr::SetupPinCode", TestConfigurationMgr_SetupPinCode),
-    NL_TEST_DEF("Test ConfigurationMgr::SetupDiscriminator", TestConfigurationMgr_SetupDiscriminator),
-    NL_TEST_DEF("Test ConfigurationMgr::FabricId", TestConfigurationMgr_FabricId),
-    NL_TEST_DEF("Test ConfigurationMgr::ServiceConfig", TestConfigurationMgr_ServiceConfig),
-    NL_TEST_DEF("Test ConfigurationMgr::PairedAccountId", TestConfigurationMgr_PairedAccountId),
-    NL_TEST_DEF("Test ConfigurationMgr::ServiceProvisioningData", TestConfigurationMgr_ServiceProvisioningData),
-    NL_TEST_SENTINEL()
-};
-
-/**
- *  Set up the test suite.
- */
-int TestConfigurationMgr_Setup(void * inContext)
+TEST_F(TestConfigurationMgr, GetProductName)
 {
-    CHIP_ERROR error = chip::Platform::MemoryInit();
-    if (error != CHIP_NO_ERROR)
-        return FAILURE;
-    return SUCCESS;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    char buf[64];
+
+    err = GetDeviceInstanceInfoProvider()->GetProductName(buf, 64);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+    EXPECT_GT(strlen(buf), 0u);
+    EXPECT_LE(strlen(buf), ConfigurationManager::kMaxProductNameLength);
 }
 
-/**
- *  Tear down the test suite.
- */
-int TestConfigurationMgr_Teardown(void * inContext)
+TEST_F(TestConfigurationMgr, GetProductId)
 {
-    chip::Platform::MemoryShutdown();
-    return SUCCESS;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    uint16_t productId;
+
+    err = GetDeviceInstanceInfoProvider()->GetProductId(productId);
+    EXPECT_EQ(err, CHIP_NO_ERROR);
+    EXPECT_GE(productId, 1u);
+    EXPECT_LE(productId, 0xffff);
 }
 
-int TestConfigurationMgr()
-{
-    nlTestSuite theSuite = { "ConfigurationMgr tests", &sTests[0], TestConfigurationMgr_Setup, TestConfigurationMgr_Teardown };
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestConfigurationMgr)
+} // namespace

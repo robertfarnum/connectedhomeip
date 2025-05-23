@@ -22,11 +22,11 @@
 #      This file is utility for Chip BLE
 #
 
-from __future__ import absolute_import
-from __future__ import print_function
-from ctypes import *
-from .ChipUtility import ChipUtility
+from __future__ import absolute_import, print_function
 
+from ctypes import Structure, c_bool, c_int32, c_uint16, c_void_p
+
+from .ChipUtility import ChipUtility
 
 # Duplicates of BLE definitions in ChipDeviceController-ScriptBinding.cpp
 BLE_EVENT_TYPE_RX = 1
@@ -41,6 +41,9 @@ BLE_SUBSCRIBE_OPERATION_UNSUBSCRIBE = 2
 BLE_ERROR_REMOTE_DEVICE_DISCONNECTED = 12
 
 FAKE_CONN_OBJ_VALUE = 12121212
+
+# Number of bytes in service data payload
+SERVICE_DATA_LEN = 8
 
 
 def VoidPtrToUUIDString(ptr, len):
@@ -59,7 +62,7 @@ def VoidPtrToUUIDString(ptr, len):
             + ptr[20:]
         )
         ptr = str(ptr)
-    except Exception as ex:
+    except Exception:
         print("ERROR: failed to convert void * to UUID")
         ptr = None
 
@@ -195,7 +198,8 @@ class BleSubscribeEvent:
             "%sBleEvent Type: %s"
             % (
                 prefix,
-                ("SUBSCRIBE" if self.EventType == BLE_EVENT_TYPE_SUBSCRIBE else "ERROR"),
+                ("SUBSCRIBE" if self.EventType ==
+                 BLE_EVENT_TYPE_SUBSCRIBE else "ERROR"),
             )
         )
         print("%sStatus: %s" % (prefix, str(self.Status)))
@@ -238,7 +242,8 @@ class BleSubscribeEvent:
 class BleTxEventStruct(Structure):
     _fields_ = [
         ("EventType", c_int32),  # The type of event.
-        ("ConnObj", c_void_p),  # a Handle back to the connection object or None.
+        # a Handle back to the connection object or None.
+        ("ConnObj", c_void_p),
         ("SvcId", c_void_p),  # the byte array of the service UUID.
         ("CharId", c_void_p),  # the byte array of the characteristic UUID.
         ("Status", c_bool),  # The status of the previous Tx request
@@ -256,8 +261,10 @@ class BleTxEventStruct(Structure):
         bleTxEventStruct = cls()
         bleTxEventStruct.EventType = bleTxEvent.EventType
         bleTxEventStruct.ConnObj = c_void_p(FAKE_CONN_OBJ_VALUE)
-        bleTxEventStruct.SvcId = ChipUtility.ByteArrayToVoidPtr(bleTxEvent.SvcId)
-        bleTxEventStruct.CharId = ChipUtility.ByteArrayToVoidPtr(bleTxEvent.CharId)
+        bleTxEventStruct.SvcId = ChipUtility.ByteArrayToVoidPtr(
+            bleTxEvent.SvcId)
+        bleTxEventStruct.CharId = ChipUtility.ByteArrayToVoidPtr(
+            bleTxEvent.CharId)
         bleTxEventStruct.Status = bleTxEvent.Status
         return bleTxEventStruct
 
@@ -265,7 +272,8 @@ class BleTxEventStruct(Structure):
 class BleDisconnectEventStruct(Structure):
     _fields_ = [
         ("EventType", c_int32),  # The type of event.
-        ("ConnObj", c_void_p),  # a Handle back to the connection object or None.
+        # a Handle back to the connection object or None.
+        ("ConnObj", c_void_p),
         ("Error", c_int32),  # The disconnect error code.
     ]
 
@@ -284,7 +292,8 @@ class BleDisconnectEventStruct(Structure):
 class BleRxEventStruct(Structure):
     _fields_ = [
         ("EventType", c_int32),  # The type of event.
-        ("ConnObj", c_void_p),  # a Handle back to the connection object or None.
+        # a Handle back to the connection object or None.
+        ("ConnObj", c_void_p),
         ("SvcId", c_void_p),  # the byte array of the service UUID.
         ("CharId", c_void_p),  # the byte array of the characteristic UUID.
         ("Buffer", c_void_p),  # the byte array of the Rx packet.
@@ -303,11 +312,14 @@ class BleRxEventStruct(Structure):
         bleRxEventStruct = cls()
         bleRxEventStruct.EventType = bleRxEvent.EventType
         bleRxEventStruct.ConnObj = c_void_p(FAKE_CONN_OBJ_VALUE)
-        bleRxEventStruct.SvcId = ChipUtility.ByteArrayToVoidPtr(bleRxEvent.SvcId)
-        bleRxEventStruct.CharId = ChipUtility.ByteArrayToVoidPtr(bleRxEvent.CharId)
-        bleRxEventStruct.Buffer = ChipUtility.ByteArrayToVoidPtr(bleRxEvent.Buffer)
+        bleRxEventStruct.SvcId = ChipUtility.ByteArrayToVoidPtr(
+            bleRxEvent.SvcId)
+        bleRxEventStruct.CharId = ChipUtility.ByteArrayToVoidPtr(
+            bleRxEvent.CharId)
+        bleRxEventStruct.Buffer = ChipUtility.ByteArrayToVoidPtr(
+            bleRxEvent.Buffer)
         bleRxEventStruct.Length = (
-            len(bleRxEvent.Buffer) if (bleRxEvent.Buffer != None) else 0
+            len(bleRxEvent.Buffer) if (bleRxEvent.Buffer is not None) else 0
         )
         return bleRxEventStruct
 
@@ -315,7 +327,8 @@ class BleRxEventStruct(Structure):
 class BleSubscribeEventStruct(Structure):
     _fields_ = [
         ("EventType", c_int32),  # The type of event.
-        ("ConnObj", c_void_p),  # a Handle back to the connection object or None.
+        # a Handle back to the connection object or None.
+        ("ConnObj", c_void_p),
         ("SvcId", c_void_p),  # the byte array of the service UUID.
         ("CharId", c_void_p),  # the byte array of the characteristic UUID.
         ("Operation", c_int32),  # The subscribe operation.
@@ -345,6 +358,7 @@ class BleSubscribeEventStruct(Structure):
         bleSubscribeEventStruct.Status = bleSubscribeEvent.Status
         return bleSubscribeEventStruct
 
+
 class BleDeviceIdentificationInfo:
     def __init__(self, pairingState, discriminator, vendorId, productId):
         self.pairingState = pairingState
@@ -352,8 +366,9 @@ class BleDeviceIdentificationInfo:
         self.vendorId = vendorId
         self.productId = productId
 
+
 def ParseServiceData(data):
-    if len(data) != 7:
+    if len(data) != SERVICE_DATA_LEN:
         return None
     return BleDeviceIdentificationInfo(
         int(data[0]),

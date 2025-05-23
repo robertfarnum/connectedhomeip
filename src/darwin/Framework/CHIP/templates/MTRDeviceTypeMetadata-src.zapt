@@ -1,0 +1,33 @@
+{{> header excludeZapComment=true}}
+
+#import "MTRDeviceTypeMetadata.h"
+
+using namespace chip;
+
+namespace {
+
+constexpr MTRDeviceTypeData knownDeviceTypes[] = {
+  {{#zcl_device_types}}
+  {{#if class}}
+  { {{asHex code 8}}, MTRDeviceTypeClass::{{class}}, "{{caption}}" },
+  {{/if}}
+  {{/zcl_device_types}}
+};
+
+{{#zcl_device_types}}
+{{#unless class}}
+static_assert(ExtractVendorFromMEI({{asHex code 8}}) != 0, "Must have class defined for \"{{caption}}\" if it's a standard device type");
+{{/unless}}
+{{/zcl_device_types}}
+
+} // anonymous namespace
+
+const MTRDeviceTypeData * _Nullable MTRDeviceTypeDataForID(chip::DeviceTypeId aDeviceTypeId)
+{
+    for (auto & deviceType : knownDeviceTypes) {
+        if (deviceType.id == aDeviceTypeId) {
+            return &deviceType;
+        }
+    }
+    return nullptr;
+}

@@ -17,20 +17,22 @@
 
 #include <cstdio>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include <TracingCommandLineArgument.h>
 #include <inet/InetInterface.h>
 #include <inet/UDPEndPoint.h>
-#include <mdns/minimal/QueryBuilder.h>
-#include <mdns/minimal/Server.h>
-#include <mdns/minimal/core/QName.h>
+#include <lib/dnssd/MinimalMdnsServer.h>
+#include <lib/dnssd/minimal_mdns/AddressPolicy.h>
+#include <lib/dnssd/minimal_mdns/QueryBuilder.h>
+#include <lib/dnssd/minimal_mdns/Server.h>
+#include <lib/dnssd/minimal_mdns/core/QName.h>
+#include <lib/support/CHIPArgParser.hpp>
+#include <lib/support/CHIPMem.h>
 #include <platform/CHIPDeviceLayer.h>
-#include <support/CHIPArgParser.hpp>
-#include <support/CHIPMem.h>
 #include <system/SystemPacketBuffer.h>
-#include <system/SystemTimer.h>
 
-#include "AllInterfaceListener.h"
 #include "PacketReporter.h"
 
 using namespace chip;
@@ -39,7 +41,6 @@ namespace {
 
 struct Options
 {
-    bool enableIpV4           = false;
     bool unicastAnswers       = true;
     uint32_t runtimeMs        = 500;
     uint16_t querySendPort    = 5353;
@@ -48,29 +49,28 @@ struct Options
     mdns::Minimal::QType type = mdns::Minimal::QType::ANY;
 } gOptions;
 
-constexpr uint32_t kTestMessageId   = 0x1234;
+constexpr uint32_t kTestMessageId   = 0;
 constexpr size_t kMdnsMaxPacketSize = 1'024;
 
 using namespace chip::ArgParser;
 
-constexpr uint16_t kOptionEnableIpV4 = '4';
-constexpr uint16_t kOptionQuery      = 'q';
-constexpr uint16_t kOptionType       = 't';
+constexpr uint16_t kOptionQuery = 'q';
+constexpr uint16_t kOptionType  = 't';
 
 // non-ascii options have no short option version
 constexpr uint16_t kOptionListenPort       = 0x100;
 constexpr uint16_t kOptionQueryPort        = 0x101;
 constexpr uint16_t kOptionRuntimeMs        = 0x102;
 constexpr uint16_t kOptionMulticastReplies = 0x103;
+constexpr uint16_t kOptionTraceTo          = 0x104;
+
+// Only used for argument parsing. Tracing setup owned by the main loop.
+chip::CommandLineApp::TracingSetup * tracing_setup_for_argparse = nullptr;
 
 bool HandleOptions(const char * aProgram, OptionSet * aOptions, int aIdentifier, const char * aName, const char * aValue)
 {
     switch (aIdentifier)
     {
-    case kOptionEnableIpV4:
-        gOptions.enableIpV4 = true;
-        return true;
-
     case kOptionListenPort:
         if (!ParseInt(aValue, gOptions.listenPort))
         {
@@ -80,6 +80,9 @@ bool HandleOptions(const char * aProgram, OptionSet * aOptions, int aIdentifier,
         return true;
     case kOptionQuery:
         gOptions.query = aValue;
+        return true;
+    case kOptionTraceTo:
+        tracing_setup_for_argparse->EnableTracingFor(aValue);
         return true;
     case kOptionType:
         if (strcasecmp(aValue, "ANY") == 0)
@@ -145,21 +148,18 @@ bool HandleOptions(const char * aProgram, OptionSet * aOptions, int aIdentifier,
 
 OptionDef cmdLineOptionsDef[] = {
     { "listen-port", kArgumentRequired, kOptionListenPort },
-    { "enable-ip-v4", kNoArgument, kOptionEnableIpV4 },
     { "query", kArgumentRequired, kOptionQuery },
     { "type", kArgumentRequired, kOptionType },
     { "query-port", kArgumentRequired, kOptionQueryPort },
     { "timeout-ms", kArgumentRequired, kOptionRuntimeMs },
     { "multicast-reply", kNoArgument, kOptionMulticastReplies },
-    nullptr,
+    { "trace-to", kArgumentRequired, kOptionTraceTo },
+    {},
 };
 
 OptionSet cmdLineOptions = { HandleOptions, cmdLineOptionsDef, "PROGRAM OPTIONS",
                              "  --listen-port <number>\n"
                              "        The port number to listen on\n"
-                             "  -4\n"
-                             "  --enable-ip-v4\n"
-                             "        enable listening on IPv4\n"
                              "  -q\n"
                              "  --query\n"
                              "        The query to send\n"
@@ -172,6 +172,8 @@ OptionSet cmdLineOptions = { HandleOptions, cmdLineOptionsDef, "PROGRAM OPTIONS"
                              "        How long to wait for replies\n"
                              "  --multicast-reply\n"
                              "        Do not request unicast replies\n"
+                             "  --trace-to <dest>\n"
+                             "        trace to the given destination (supported: " SUPPORTED_COMMAND_LINE_TRACING_TARGETS ").\n"
                              "\n" };
 
 HelpOptions helpOptions("minimal-mdns-client", "Usage: minimal-mdns-client [options]", "1.0");
@@ -183,19 +185,25 @@ class ReportDelegate : public mdns::Minimal::ServerDelegate
 public:
     void OnQuery(const mdns::Minimal::BytesRange & data, const chip::Inet::IPPacketInfo * info) override
     {
-        char addr[32];
+        char addr[Inet::IPAddress::kMaxStringLength];
         info->SrcAddress.ToString(addr, sizeof(addr));
 
-        printf("QUERY from: %-15s on port %d, via interface %d\n", addr, info->SrcPort, info->Interface);
+        char ifName[Inet::InterfaceId::kMaxIfNameLength];
+        VerifyOrDie(info->Interface.GetInterfaceName(ifName, sizeof(ifName)) == CHIP_NO_ERROR);
+
+        printf("QUERY from: %-15s on port %d, via interface %s\n", addr, info->SrcPort, ifName);
         Report("QUERY: ", data);
     }
 
     void OnResponse(const mdns::Minimal::BytesRange & data, const chip::Inet::IPPacketInfo * info) override
     {
-        char addr[32];
+        char addr[Inet::IPAddress::kMaxStringLength];
         info->SrcAddress.ToString(addr, sizeof(addr));
 
-        printf("RESPONSE from: %-15s on port %d, via interface %d\n", addr, info->SrcPort, info->Interface);
+        char ifName[Inet::InterfaceId::kMaxIfNameLength];
+        VerifyOrDie(info->Interface.GetInterfaceName(ifName, sizeof(ifName)) == CHIP_NO_ERROR);
+
+        printf("RESPONSE from: %-15s on port %d, via interface %s\n", addr, info->SrcPort, ifName);
         Report("RESPONSE: ", data);
     }
 
@@ -251,12 +259,7 @@ private:
 void BroadcastPacket(mdns::Minimal::ServerBase * server)
 {
     System::PacketBufferHandle buffer = System::PacketBufferHandle::New(kMdnsMaxPacketSize);
-    if (buffer.IsNull())
-    {
-        printf("Buffer allocation failure.");
-        abort();
-        return;
-    }
+    VerifyOrDie(!buffer.IsNull());
 
     QuerySplitter query;
     query.Split(gOptions.query);
@@ -277,12 +280,25 @@ void BroadcastPacket(mdns::Minimal::ServerBase * server)
         return;
     }
 
-    if (server->BroadcastSend(builder.ReleasePacket(), gOptions.querySendPort) != CHIP_NO_ERROR)
+    if (gOptions.unicastAnswers)
     {
-        printf("Error sending\n");
-        return;
+        if (server->BroadcastUnicastQuery(builder.ReleasePacket(), gOptions.querySendPort) != CHIP_NO_ERROR)
+        {
+            printf("Error sending\n");
+            return;
+        }
+    }
+    else
+    {
+        if (server->BroadcastSend(builder.ReleasePacket(), gOptions.querySendPort) != CHIP_NO_ERROR)
+        {
+            printf("Error sending\n");
+            return;
+        }
     }
 }
+
+mdns::Minimal::Server<20> gMdnsServer;
 
 } // namespace
 
@@ -300,44 +316,59 @@ int main(int argc, char ** args)
         return 1;
     }
 
+    chip::CommandLineApp::TracingSetup tracing_setup;
+
+    tracing_setup_for_argparse = &tracing_setup;
     if (!chip::ArgParser::ParseArgs(args[0], argc, args, allOptions))
     {
         return 1;
     }
+    tracing_setup_for_argparse = nullptr;
 
     printf("Running...\n");
 
-    mdns::Minimal::Server<10> mdnsServer;
     ReportDelegate reporter;
+    CHIP_ERROR err;
 
-    mdnsServer.SetDelegate(&reporter);
+    // This forces the global MDNS instance to be loaded in, effectively setting
+    // built in policies for addresses.
+    (void) chip::Dnssd::GlobalMinimalMdnsServer::Instance();
+
+    gMdnsServer.SetDelegate(&reporter);
 
     {
-        MdnsExample::AllInterfaces allInterfaces(gOptions.enableIpV4);
+        auto endpoints = mdns::Minimal::GetAddressPolicy()->GetListenEndpoints();
 
-        if (mdnsServer.Listen(&chip::DeviceLayer::InetLayer, &allInterfaces, gOptions.listenPort) != CHIP_NO_ERROR)
+        err = gMdnsServer.Listen(chip::DeviceLayer::UDPEndPointManager(), endpoints.get(), gOptions.listenPort);
+        if (err != CHIP_NO_ERROR)
         {
-            printf("Server failed to listen on all interfaces\n");
+            printf("Server failed to listen on all interfaces: %s\n", chip::ErrorStr(err));
             return 1;
         }
     }
 
-    BroadcastPacket(&mdnsServer);
+    BroadcastPacket(&gMdnsServer);
 
-    System::Timer * timer = nullptr;
+    err = DeviceLayer::SystemLayer().StartTimer(
+        chip::System::Clock::Milliseconds32(gOptions.runtimeMs),
+        [](System::Layer *, void *) {
+            // Close all sockets BEFORE system layer is shut down, otherwise
+            // attempts to free UDP sockets with system layer down will segfault
+            gMdnsServer.Shutdown();
 
-    if (DeviceLayer::SystemLayer.NewTimer(timer) == CHIP_NO_ERROR)
+            DeviceLayer::PlatformMgr().StopEventLoopTask();
+        },
+        nullptr);
+    if (err != CHIP_NO_ERROR)
     {
-        timer->Start(
-            gOptions.runtimeMs, [](System::Layer *, void *, System::Error err) { DeviceLayer::PlatformMgr().Shutdown(); }, nullptr);
-    }
-    else
-    {
-
-        printf("Failed to create the shutdown timer. Kill with ^C.\n");
+        printf("Failed to create the shutdown timer. Kill with ^C. %" CHIP_ERROR_FORMAT "\n", err.Format());
     }
 
     DeviceLayer::PlatformMgr().RunEventLoop();
+
+    tracing_setup.StopTracing();
+    DeviceLayer::PlatformMgr().Shutdown();
+    Platform::MemoryShutdown();
 
     printf("Done...\n");
     return 0;

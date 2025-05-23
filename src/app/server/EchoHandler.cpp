@@ -22,8 +22,8 @@
 
 #include <app/server/EchoHandler.h>
 
+#include <lib/core/ErrorStr.h>
 #include <protocols/echo/Echo.h>
-#include <support/ErrorStr.h>
 
 namespace {
 
@@ -38,9 +38,10 @@ chip::Protocols::Echo::EchoServer gEchoServer;
  *                     that it will free the buffer before returning.
  *
  */
-void HandleEchoRequestReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle payload)
+void HandleEchoRequestReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle && payload)
 {
-    ChipLogProgress(AppServer, "Echo Request, len=%u ... sending response.\n", payload->DataLength());
+    ChipLogProgress(AppServer, "Echo Request, len=%" PRIu32 "... sending response.\n",
+                    static_cast<uint32_t>(payload->DataLength()));
 }
 
 } // namespace

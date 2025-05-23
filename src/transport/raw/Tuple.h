@@ -81,14 +81,32 @@ template <typename... TransportTypes>
 class Tuple : public Base
 {
 public:
-    CHIP_ERROR SendMessage(const PacketHeader & header, const PeerAddress & address, System::PacketBufferHandle msgBuf) override
+    CHIP_ERROR SendMessage(const PeerAddress & address, System::PacketBufferHandle && msgBuf) override
     {
-        return SendMessageImpl<0>(header, address, std::move(msgBuf));
+        return SendMessageImpl<0>(address, std::move(msgBuf));
+    }
+
+    CHIP_ERROR MulticastGroupJoinLeave(const Transport::PeerAddress & address, bool join) override
+    {
+        return MulticastGroupJoinLeaveImpl<0>(address, join);
     }
 
     bool CanSendToPeer(const PeerAddress & address) override { return CanSendToPeerImpl<0>(address); }
 
-    void Disconnect(const PeerAddress & address) override { return DisconnectImpl<0>(address); }
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    CHIP_ERROR TCPConnect(const PeerAddress & address, Transport::AppTCPConnectionCallbackCtxt * appState,
+                          Transport::ActiveTCPConnectionState ** peerConnState) override
+    {
+        return TCPConnectImpl<0>(address, appState, peerConnState);
+    }
+
+    void TCPDisconnect(const PeerAddress & address) override { return TCPDisconnectImpl<0>(address); }
+
+    void TCPDisconnect(Transport::ActiveTCPConnectionState * conn, bool shouldAbort = 0) override
+    {
+        return TCPDisconnectImpl<0>(conn, shouldAbort);
+    }
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
     void Close() override { return CloseImpl<0>(); }
 
@@ -133,26 +151,78 @@ private:
         return false;
     }
 
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    /**
+     * Recursive TCPConnect implementation iterating through transport members.
+     *
+     * @tparam N the index of the underlying transport to send disconnect to
+     *
+     * @param address what address to connect to.
+     */
+    template <size_t N, typename std::enable_if<(N < sizeof...(TransportTypes))>::type * = nullptr>
+    CHIP_ERROR TCPConnectImpl(const PeerAddress & address, Transport::AppTCPConnectionCallbackCtxt * appState,
+                              Transport::ActiveTCPConnectionState ** peerConnState)
+    {
+        Base * base = &std::get<N>(mTransports);
+        if (base->CanSendToPeer(address))
+        {
+            return base->TCPConnect(address, appState, peerConnState);
+        }
+        return TCPConnectImpl<N + 1>(address, appState, peerConnState);
+    }
+
+    /**
+     * TCPConnectImpl template for out of range N.
+     */
+    template <size_t N, typename std::enable_if<(N >= sizeof...(TransportTypes))>::type * = nullptr>
+    CHIP_ERROR TCPConnectImpl(const PeerAddress & address, Transport::AppTCPConnectionCallbackCtxt * appState,
+                              Transport::ActiveTCPConnectionState ** peerConnState)
+    {
+        return CHIP_ERROR_NO_MESSAGE_HANDLER;
+    }
+
     /**
      * Recursive disconnect implementation iterating through transport members.
      *
      * @tparam N the index of the underlying transport to send disconnect to
      *
-     * @param address what address to check.
+     * @param address what address to disconnect from.
      */
     template <size_t N, typename std::enable_if<(N < sizeof...(TransportTypes))>::type * = nullptr>
-    void DisconnectImpl(const PeerAddress & address)
+    void TCPDisconnectImpl(const PeerAddress & address)
     {
-        std::get<N>(mTransports).Disconnect(address);
-        DisconnectImpl<N + 1>(address);
+        std::get<N>(mTransports).TCPDisconnect(address);
+        TCPDisconnectImpl<N + 1>(address);
     }
 
     /**
-     * DisconnectImpl template for out of range N.
+     * TCPDisconnectImpl template for out of range N.
      */
     template <size_t N, typename std::enable_if<(N >= sizeof...(TransportTypes))>::type * = nullptr>
-    void DisconnectImpl(const PeerAddress & address)
+    void TCPDisconnectImpl(const PeerAddress & address)
     {}
+
+    /**
+     * Recursive disconnect implementation iterating through transport members.
+     *
+     * @tparam N the index of the underlying transport to send disconnect to
+     *
+     * @param conn pointer to the connection to the peer.
+     */
+    template <size_t N, typename std::enable_if<(N < sizeof...(TransportTypes))>::type * = nullptr>
+    void TCPDisconnectImpl(Transport::ActiveTCPConnectionState * conn, bool shouldAbort = 0)
+    {
+        std::get<N>(mTransports).TCPDisconnect(conn, shouldAbort);
+        TCPDisconnectImpl<N + 1>(conn, shouldAbort);
+    }
+
+    /**
+     * TCPDisconnectImpl template for out of range N.
+     */
+    template <size_t N, typename std::enable_if<(N >= sizeof...(TransportTypes))>::type * = nullptr>
+    void TCPDisconnectImpl(Transport::ActiveTCPConnectionState * conn, bool shouldAbort = 0)
+    {}
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
     /**
      * Recursive disconnect implementation iterating through transport members.
@@ -180,26 +250,55 @@ private:
      *
      * @tparam N the index of the underlying transport to run SendMessage throug.
      *
-     * @param header the message header to send
      * @param address where to send the message
-     * @param msgBuf the data to send.
+     * @param msgBuf the message to send.  Includes all CHIP message fields except optional length.
      */
     template <size_t N, typename std::enable_if<(N < sizeof...(TransportTypes))>::type * = nullptr>
-    CHIP_ERROR SendMessageImpl(const PacketHeader & header, const PeerAddress & address, System::PacketBufferHandle && msgBuf)
+    CHIP_ERROR SendMessageImpl(const PeerAddress & address, System::PacketBufferHandle && msgBuf)
     {
         Base * base = &std::get<N>(mTransports);
         if (base->CanSendToPeer(address))
         {
-            return base->SendMessage(header, address, std::move(msgBuf));
+            return base->SendMessage(address, std::move(msgBuf));
         }
-        return SendMessageImpl<N + 1>(header, address, std::move(msgBuf));
+        return SendMessageImpl<N + 1>(address, std::move(msgBuf));
     }
 
     /**
      * SendMessageImpl when N is out of range. Always returns an error code.
      */
     template <size_t N, typename std::enable_if<(N >= sizeof...(TransportTypes))>::type * = nullptr>
-    CHIP_ERROR SendMessageImpl(const PacketHeader & header, const PeerAddress & address, System::PacketBufferHandle msgBuf)
+    CHIP_ERROR SendMessageImpl(const PeerAddress & address, System::PacketBufferHandle msgBuf)
+    {
+        return CHIP_ERROR_NO_MESSAGE_HANDLER;
+    }
+
+    /**
+     * Recursive GroupJoinLeave implementation iterating through transport members.
+     *
+     * Listener is activated through the first transport from index N or above, which returns 'CanListenMulticast'
+     *
+     * @tparam N the index of the underlying transport to run GroupJoinLeave through.
+     *
+     * @param address where to send the message
+     * @param join a boolean indicating if the transport should join or leave the group
+     */
+    template <size_t N, typename std::enable_if<(N < sizeof...(TransportTypes))>::type * = nullptr>
+    CHIP_ERROR MulticastGroupJoinLeaveImpl(const Transport::PeerAddress & address, bool join)
+    {
+        Base * base = &std::get<N>(mTransports);
+        if (base->CanListenMulticast())
+        {
+            return base->MulticastGroupJoinLeave(address, join);
+        }
+        return MulticastGroupJoinLeaveImpl<N + 1>(address, join);
+    }
+
+    /**
+     * GroupJoinLeave when N is out of range. Always returns an error code.
+     */
+    template <size_t N, typename std::enable_if<(N >= sizeof...(TransportTypes))>::type * = nullptr>
+    CHIP_ERROR MulticastGroupJoinLeaveImpl(const Transport::PeerAddress & address, bool join)
     {
         return CHIP_ERROR_NO_MESSAGE_HANDLER;
     }
@@ -240,6 +339,15 @@ private:
     CHIP_ERROR InitImpl(RawTransportDelegate * delegate) { return CHIP_NO_ERROR; }
 
     std::tuple<TransportTypes...> mTransports;
+
+public:
+    template <size_t i>
+    auto GetImplAtIndex() -> decltype(std::get<i>(mTransports)) &
+    {
+        return std::get<i>(mTransports);
+    }
+
+    std::tuple<TransportTypes...> & GetTransports() { return mTransports; }
 };
 
 } // namespace Transport

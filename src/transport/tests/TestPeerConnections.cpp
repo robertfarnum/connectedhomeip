@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2021 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,20 +19,22 @@
 /**
  *    @file
  *      This file implements a process to effect a functional test for
- *      the PeerConnections class within the transport layer
+ *      the SecureSessionTable class within the transport layer
  *
  */
-#include <support/CodeUtils.h>
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
-#include <transport/PeerConnections.h>
 
-#include <nlunit-test.h>
+#include <pw_unit_test/framework.h>
+
+#include <lib/core/ErrorStr.h>
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/CodeUtils.h>
+#include <transport/SecureSessionTable.h>
 
 namespace {
 
 using namespace chip;
 using namespace chip::Transport;
+using namespace chip::System::Clock::Literals;
 
 PeerAddress AddressFromString(const char * str)
 {
@@ -43,153 +45,99 @@ PeerAddress AddressFromString(const char * str)
     return PeerAddress::UDP(addr);
 }
 
-const PeerAddress kPeer1Addr = AddressFromString("10.1.2.3");
-const PeerAddress kPeer2Addr = AddressFromString("10.0.0.32");
-const PeerAddress kPeer3Addr = AddressFromString("100.200.0.1");
+const PeerAddress kPeer1Addr    = AddressFromString("fe80::1");
+const PeerAddress kPeer2Addr    = AddressFromString("fe80::2");
+const PeerAddress kPasePeerAddr = AddressFromString("fe80::3");
 
-const NodeId kPeer1NodeId = 123;
-const NodeId kPeer2NodeId = 6;
-const NodeId kPeer3NodeId = 81;
+const NodeId kLocalNodeId      = 0xC439A991071292DB;
+const NodeId kCasePeer1NodeId  = 123;
+const NodeId kCasePeer2NodeId  = 6;
+const FabricIndex kFabricIndex = 8;
 
-void TestBasicFunctionality(nlTestSuite * inSuite, void * inContext)
+const CATValues kPeer1CATs = { { 0xABCD0001, 0xABCE0100, 0xABCD0020 } };
+const CATValues kPeer2CATs = { { 0xABCD0012, kUndefinedCAT, kUndefinedCAT } };
+
+class TestPeerConnections : public ::testing::Test
 {
-    CHIP_ERROR err;
-    PeerConnectionState * statePtr;
-    PeerConnections<2, Time::Source::kTest> connections;
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(100);
+public:
+    static void SetUpTestSuite() { ASSERT_EQ(chip::Platform::MemoryInit(), CHIP_NO_ERROR); }
+    static void TearDownTestSuite() { chip::Platform::MemoryShutdown(); }
+};
 
-    err = connections.CreateNewPeerConnectionState(kPeer1Addr, nullptr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+TEST_F(TestPeerConnections, TestBasicFunctionality)
+{
+    SecureSessionTable connections;
+    System::Clock::Internal::MockClock clock;
+    System::Clock::ClockBase * realClock = &System::SystemClock();
+    System::Clock::Internal::SetSystemClockForTesting(&clock);
+    clock.SetMonotonic(100_ms64);
+    CATValues peerCATs;
+    Optional<SessionHandle> sessions[CHIP_CONFIG_SECURE_SESSION_POOL_SIZE];
 
-    err = connections.CreateNewPeerConnectionState(kPeer2Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, statePtr != nullptr);
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer2Addr);
-    NL_TEST_ASSERT(inSuite, statePtr->GetLastActivityTimeMs() == 100);
+    // First node, peer session id 1, local session id 2
+    auto optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 2, kLocalNodeId, kCasePeer1NodeId,
+                                                                     kPeer1CATs, 1, kFabricIndex, GetDefaultMRPConfig());
+    EXPECT_TRUE(optionalSession.HasValue());
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetSecureSessionType(), SecureSession::Type::kCASE);
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetPeerNodeId(), kCasePeer1NodeId);
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetLocalNodeId(), kLocalNodeId);
+    EXPECT_EQ(optionalSession.Value()->GetPeer(), ScopedNodeId(kCasePeer1NodeId, kFabricIndex));
+    EXPECT_EQ(optionalSession.Value()->GetLocalScopedNodeId(), ScopedNodeId(kLocalNodeId, kFabricIndex));
+    peerCATs = optionalSession.Value()->AsSecureSession()->GetPeerCATs();
+    EXPECT_EQ(memcmp(&peerCATs, &kPeer1CATs, sizeof(CATValues)), 0);
 
-    // Insufficient space for new connections. Object is max size 2
-    err = connections.CreateNewPeerConnectionState(kPeer3Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
+    // Second node, peer session id 3, local session id 4
+    optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 4, kLocalNodeId, kCasePeer2NodeId,
+                                                                kPeer2CATs, 3, kFabricIndex, GetDefaultMRPConfig());
+    EXPECT_TRUE(optionalSession.HasValue());
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetSecureSessionType(), SecureSession::Type::kCASE);
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetPeerNodeId(), kCasePeer2NodeId);
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetLocalNodeId(), kLocalNodeId);
+    EXPECT_EQ(optionalSession.Value()->GetPeer(), ScopedNodeId(kCasePeer2NodeId, kFabricIndex));
+    EXPECT_EQ(optionalSession.Value()->GetLocalScopedNodeId(), ScopedNodeId(kLocalNodeId, kFabricIndex));
+    EXPECT_EQ(optionalSession.Value()->AsSecureSession()->GetLastActivityTime(), 100_ms64);
+    peerCATs = optionalSession.Value()->AsSecureSession()->GetPeerCATs();
+    EXPECT_EQ(memcmp(&peerCATs, &kPeer2CATs, sizeof(CATValues)), 0);
+
+    //
+    // Fill up the session table.
+    //
+    for (int i = 2; i < CHIP_CONFIG_SECURE_SESSION_POOL_SIZE; ++i)
+    {
+        sessions[i] = connections.CreateNewSecureSessionForTest(
+            SecureSession::Type::kCASE, static_cast<uint16_t>(static_cast<uint16_t>(i) + 6u), kLocalNodeId, kCasePeer2NodeId,
+            kPeer2CATs, 3, kFabricIndex, GetDefaultMRPConfig());
+        EXPECT_TRUE(sessions[i].HasValue());
+    }
+
+    // #endif
+    System::Clock::Internal::SetSystemClockForTesting(realClock);
 }
 
-void TestFindByAddress(nlTestSuite * inSuite, void * inContext)
+TEST_F(TestPeerConnections, TestFindByKeyId)
 {
-    CHIP_ERROR err;
-    PeerConnectionState * statePtr;
-    PeerConnections<3, Time::Source::kTest> connections;
+    SecureSessionTable connections;
+    System::Clock::Internal::MockClock clock;
+    System::Clock::ClockBase * realClock = &System::SystemClock();
+    System::Clock::Internal::SetSystemClockForTesting(&clock);
 
-    PeerConnectionState * state1 = nullptr;
-    PeerConnectionState * state2 = nullptr;
-    PeerConnectionState * state3 = nullptr;
+    // First node, peer session id 1, local session id 2
+    auto optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 2, kLocalNodeId, kCasePeer1NodeId,
+                                                                     kPeer1CATs, 1, kFabricIndex, GetDefaultMRPConfig());
+    EXPECT_TRUE(optionalSession.HasValue());
 
-    err = connections.CreateNewPeerConnectionState(kPeer1Addr, &state1);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_FALSE(connections.FindSecureSessionByLocalKey(1).HasValue());
+    EXPECT_TRUE(connections.FindSecureSessionByLocalKey(2).HasValue());
 
-    err = connections.CreateNewPeerConnectionState(kPeer1Addr, &state2);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    // Second node, peer session id 3, local session id 4
+    optionalSession = connections.CreateNewSecureSessionForTest(SecureSession::Type::kCASE, 4, kLocalNodeId, kCasePeer2NodeId,
+                                                                kPeer2CATs, 3, kFabricIndex, GetDefaultMRPConfig());
+    EXPECT_TRUE(optionalSession.HasValue());
 
-    err = connections.CreateNewPeerConnectionState(kPeer2Addr, &state3);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
+    EXPECT_FALSE(connections.FindSecureSessionByLocalKey(3).HasValue());
+    EXPECT_TRUE(connections.FindSecureSessionByLocalKey(4).HasValue());
 
-    NL_TEST_ASSERT(inSuite, state1 != state2);
-    NL_TEST_ASSERT(inSuite, state1 != state3);
-    NL_TEST_ASSERT(inSuite, state2 != state3);
-
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer1Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer1Addr);
-
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer1Addr, statePtr));
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer1Addr);
-
-    NL_TEST_ASSERT(inSuite, (statePtr = connections.FindPeerConnectionState(kPeer1Addr, statePtr)) == nullptr);
-
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer2Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer2Addr);
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer3Addr, nullptr));
-}
-
-void TestFindByNodeId(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err;
-    PeerConnectionState * statePtr;
-    PeerConnections<3, Time::Source::kTest> connections;
-
-    err = connections.CreateNewPeerConnectionState(kPeer1Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    statePtr->SetPeerNodeId(kPeer1NodeId);
-
-    err = connections.CreateNewPeerConnectionState(kPeer2Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    statePtr->SetPeerNodeId(kPeer2NodeId);
-
-    err = connections.CreateNewPeerConnectionState(kPeer2Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    statePtr->SetPeerNodeId(kPeer1NodeId);
-
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer1NodeId, nullptr));
-    char buf[100];
-    statePtr->GetPeerAddress().ToString(buf);
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer1Addr);
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerNodeId() == kPeer1NodeId);
-
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer1NodeId, statePtr));
-    statePtr->GetPeerAddress().ToString(buf);
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer2Addr);
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerNodeId() == kPeer1NodeId);
-
-    NL_TEST_ASSERT(inSuite, (statePtr = connections.FindPeerConnectionState(kPeer1NodeId, statePtr)) == nullptr);
-
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer2NodeId, nullptr));
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerAddress() == kPeer2Addr);
-    NL_TEST_ASSERT(inSuite, statePtr->GetPeerNodeId() == kPeer2NodeId);
-
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer3NodeId, nullptr));
-}
-
-void TestFindByKeyId(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err;
-    PeerConnectionState * statePtr;
-    PeerConnections<2, Time::Source::kTest> connections;
-
-    // No Node ID, peer key 1, local key 2
-    err = connections.CreateNewPeerConnectionState(Optional<NodeId>::Missing(), 1, 2, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    // Lookup using no node, and peer key
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(Optional<NodeId>::Missing(), 1, nullptr));
-    // Lookup using no node, and local key
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Missing(), 2, nullptr));
-
-    // Lookup using no node, and incorrect peer key
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(Optional<NodeId>::Missing(), 2, nullptr));
-
-    // Lookup using no node, and incorrect local key
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Missing(), 1, nullptr));
-
-    // Lookup using a node ID, and peer key
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(Optional<NodeId>::Value(kPeer1NodeId), 1, nullptr));
-
-    // Lookup using a node ID, and local key
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Value(kPeer1NodeId), 2, nullptr));
-
-    // Some Node ID, peer key 3, local key 4
-    err = connections.CreateNewPeerConnectionState(Optional<NodeId>::Value(kPeer1NodeId), 3, 4, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    // Lookup using correct node (or no node), and correct keys
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(Optional<NodeId>::Value(kPeer1NodeId), 3, nullptr));
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Value(kPeer1NodeId), 4, nullptr));
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(Optional<NodeId>::Missing(), 3, nullptr));
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Missing(), 4, nullptr));
-
-    // Lookup using incorrect keys
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(Optional<NodeId>::Value(kPeer1NodeId), 4, nullptr));
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Value(kPeer1NodeId), 3, nullptr));
-
-    // Lookup using incorrect node, but correct keys
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(Optional<NodeId>::Value(kPeer2NodeId), 3, nullptr));
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionStateByLocalKey(Optional<NodeId>::Value(kPeer2NodeId), 4, nullptr));
+    System::Clock::Internal::SetSystemClockForTesting(realClock);
 }
 
 struct ExpiredCallInfo
@@ -199,110 +147,4 @@ struct ExpiredCallInfo
     PeerAddress lastCallPeerAddress = PeerAddress::Uninitialized();
 };
 
-void TestExpireConnections(nlTestSuite * inSuite, void * inContext)
-{
-    CHIP_ERROR err;
-    ExpiredCallInfo callInfo;
-    PeerConnectionState * statePtr;
-    PeerConnections<2, Time::Source::kTest> connections;
-
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(100);
-
-    err = connections.CreateNewPeerConnectionState(kPeer1Addr, nullptr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(200);
-    err = connections.CreateNewPeerConnectionState(kPeer2Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    statePtr->SetPeerNodeId(kPeer2NodeId);
-
-    // cannot add before expiry
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(300);
-    err = connections.CreateNewPeerConnectionState(kPeer3Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err != CHIP_NO_ERROR);
-
-    // at time 300, this expires ip addr 1
-    connections.ExpireInactiveConnections(150, [&callInfo](const PeerConnectionState & state) {
-        callInfo.callCount++;
-        callInfo.lastCallNodeId      = state.GetPeerNodeId();
-        callInfo.lastCallPeerAddress = state.GetPeerAddress();
-    });
-    NL_TEST_ASSERT(inSuite, callInfo.callCount == 1);
-    NL_TEST_ASSERT(inSuite, callInfo.lastCallNodeId == kUndefinedNodeId);
-    NL_TEST_ASSERT(inSuite, callInfo.lastCallPeerAddress == kPeer1Addr);
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer1NodeId, nullptr));
-
-    // now that the connections were expired, we can add peer3
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(300);
-    err = connections.CreateNewPeerConnectionState(kPeer3Addr, &statePtr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    statePtr->SetPeerNodeId(kPeer3NodeId);
-
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(400);
-    NL_TEST_ASSERT(inSuite, statePtr = connections.FindPeerConnectionState(kPeer2NodeId, nullptr));
-
-    connections.MarkConnectionActive(statePtr);
-    NL_TEST_ASSERT(inSuite, statePtr->GetLastActivityTimeMs() == connections.GetTimeSource().GetCurrentMonotonicTimeMs());
-
-    // At this time:
-    //   Peer 3 active at time 300
-    //   Peer 2 active at time 400
-
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(500);
-    callInfo.callCount = 0;
-    connections.ExpireInactiveConnections(150, [&callInfo](const PeerConnectionState & state) {
-        callInfo.callCount++;
-        callInfo.lastCallNodeId      = state.GetPeerNodeId();
-        callInfo.lastCallPeerAddress = state.GetPeerAddress();
-    });
-
-    // peer 2 stays active
-    NL_TEST_ASSERT(inSuite, callInfo.callCount == 1);
-    NL_TEST_ASSERT(inSuite, callInfo.lastCallNodeId == kPeer3NodeId);
-    NL_TEST_ASSERT(inSuite, callInfo.lastCallPeerAddress == kPeer3Addr);
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer1Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(kPeer2Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer3Addr, nullptr));
-
-    err = connections.CreateNewPeerConnectionState(kPeer1Addr, nullptr);
-    NL_TEST_ASSERT(inSuite, err == CHIP_NO_ERROR);
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(kPeer1Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, connections.FindPeerConnectionState(kPeer2Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer3Addr, nullptr));
-
-    // peer 1 and 2 are active
-    connections.GetTimeSource().SetCurrentMonotonicTimeMs(1000);
-    callInfo.callCount = 0;
-    connections.ExpireInactiveConnections(100, [&callInfo](const PeerConnectionState & state) {
-        callInfo.callCount++;
-        callInfo.lastCallNodeId      = state.GetPeerNodeId();
-        callInfo.lastCallPeerAddress = state.GetPeerAddress();
-    });
-    NL_TEST_ASSERT(inSuite, callInfo.callCount == 2); // everything expired
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer1Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer2Addr, nullptr));
-    NL_TEST_ASSERT(inSuite, !connections.FindPeerConnectionState(kPeer3Addr, nullptr));
-}
-
 } // namespace
-
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("BasicFunctionality", TestBasicFunctionality),
-    NL_TEST_DEF("FindByPeerAddress", TestFindByAddress),
-    NL_TEST_DEF("FindByNodeId", TestFindByNodeId),
-    NL_TEST_DEF("FindByKeyId", TestFindByKeyId),
-    NL_TEST_DEF("ExpireConnections", TestExpireConnections),
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestPeerConnectionsFn(void)
-{
-    nlTestSuite theSuite = { "Transport-PeerConnections", &sTests[0], nullptr, nullptr };
-    nlTestRunner(&theSuite, nullptr);
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestPeerConnectionsFn)

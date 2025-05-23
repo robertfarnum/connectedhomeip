@@ -2,11 +2,11 @@
     "name": "CHIP Tool templates",
     "version": "chip-v1",
     "helpers": [
-        "../../../src/app/zap-templates/partials/helper.js",
-        "../../../src/app/zap-templates/common/StringHelper.js",
-        "../../../src/app/zap-templates/templates/app/helper.js",
-        "../../../src/app/zap-templates/templates/chip/helper.js",
-        "helper.js"
+        "partials/helper.js",
+        "common/StringHelper.js",
+        "templates/app/helper.js",
+        "templates/chip/helper.js",
+        "chip-tool/templates/helper.js"
     ],
     "override": "../../../src/app/zap-templates/common/override.js",
     "partials": [
@@ -21,18 +21,59 @@
         {
             "name": "cluster_header",
             "path": "../../../src/app/zap-templates/partials/cluster_header.zapt"
+        },
+        {
+            "name": "struct_parser_decl",
+            "path": "partials/StructParserDecl.zapt"
+        },
+        {
+            "name": "struct_parser_impl",
+            "path": "partials/StructParserImpl.zapt"
+        },
+        {
+            "name": "struct_logger_decl",
+            "path": "partials/StructLoggerDecl.zapt"
+        },
+        {
+            "name": "struct_logger_impl",
+            "path": "partials/StructLoggerImpl.zapt"
         }
     ],
     "templates": [
         {
             "path": "commands.zapt",
             "name": "Cluster Commands header",
-            "output": "examples/chip-tool/commands/clusters/Commands.h"
+            "output": "cluster/Commands.h"
         },
         {
-            "path": "reporting-commands.zapt",
-            "name": "Reporting Commands header",
-            "output": "examples/chip-tool/commands/reporting/Commands.h"
+            "path": "logging/DataModelLogger.zapt",
+            "name": "Data Model Logger header",
+            "output": "cluster/logging/DataModelLogger.h"
+        },
+        {
+            "path": "logging/DataModelLogger-src.zapt",
+            "name": "Data Model Logger",
+            "output": "cluster/logging/DataModelLogger.cpp"
+        },
+        {
+            "path": "ComplexArgumentParser.zapt",
+            "name": "Complex Argument Parser header",
+            "output": "cluster/ComplexArgumentParser.h"
+        },
+        {
+            "path": "ComplexArgumentParser-src.zapt",
+            "name": "Complex Argument Parser",
+            "output": "cluster/ComplexArgumentParser.cpp"
+        },
+        {
+            "path": "logging/EntryToText.zapt",
+            "name": "Entry To Text header",
+            "output": "cluster/logging/EntryToText.h"
+        },
+        {
+            "path": "logging/EntryToText-src.zapt",
+            "name": "Entry To Text",
+            "output": "cluster/logging/EntryToText.cpp"
         }
     ]
 }

@@ -33,9 +33,9 @@
 
 #include <nlbyteorder.hpp>
 
-#include <inet/InetLayer.h>
-
-#include <support/CodeUtils.h>
+#include <inet/IPPacketInfo.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/SafeInt.h>
 
 #include "TestInetCommon.h"
 
@@ -85,7 +85,7 @@ uint32_t gSendIntervalMs = 1000;
 
 const char * gInterfaceName = nullptr;
 
-InterfaceId gInterfaceId = INET_NULL_INTERFACEID;
+InterfaceId gInterfaceId = InterfaceId::Null();
 
 uint16_t gSendSize = 59;
 
@@ -124,9 +124,9 @@ bool WasSuccessful(const TestStatus & aTestStatus)
     return (lStatus);
 }
 
-static void FillDataBufferPattern(uint8_t * aBuffer, uint16_t aLength, uint16_t aPatternStartOffset, uint8_t aFirstValue)
+static void FillDataBufferPattern(uint8_t * aBuffer, size_t aLength, size_t aPatternStartOffset, uint8_t aFirstValue)
 {
-    for (uint16_t i = aPatternStartOffset; i < aLength; i++)
+    for (size_t i = aPatternStartOffset; i < aLength; i++)
     {
         const uint8_t lValue = static_cast<uint8_t>(aFirstValue & 0xFF);
 
@@ -136,64 +136,51 @@ static void FillDataBufferPattern(uint8_t * aBuffer, uint16_t aLength, uint16_t 
     }
 }
 
-static bool CheckDataBufferPattern(const uint8_t * aBuffer, uint16_t aLength, uint16_t aPatternStartOffset, uint8_t aFirstValue)
+static bool CheckDataBufferPattern(const uint8_t * aBuffer, size_t aLength, size_t aPatternStartOffset, size_t aFirstValue)
 {
-    bool lStatus = true;
-
-    for (uint16_t i = aPatternStartOffset; i < aLength; i++)
+    for (size_t i = aPatternStartOffset; i < aLength; i++)
     {
         const uint8_t lValue = aBuffer[i];
 
-        // clang-format off
-        VerifyOrExit(lValue == static_cast<uint8_t>(aFirstValue),
-                     printf("Bad data value at offset %u (0x%04x): "
-                            "expected 0x%02x, found 0x%02x\n",
-                            i, i, aFirstValue, lValue);
-                     lStatus = false;
-                     DumpMemory(aBuffer + aPatternStartOffset,
-                                aLength - aPatternStartOffset,
-                                "0x",
-                                16));
-        // clang-format on
+        if (lValue != static_cast<uint8_t>(aFirstValue))
+        {
+            printf("Bad data value at offset %u (0x%04x): "
+                   "expected 0x%02x, found 0x%02x\n",
+                   static_cast<unsigned>(i), static_cast<unsigned>(i), static_cast<unsigned>(aFirstValue), lValue);
+            DumpMemory(aBuffer + aPatternStartOffset, static_cast<uint32_t>(aLength - aPatternStartOffset), "0x", 16);
+            return false;
+        }
 
         aFirstValue++;
     }
 
-exit:
-    return (lStatus);
+    return true;
 }
 
-static PacketBufferHandle MakeDataBuffer(uint16_t aDesiredLength, uint16_t aPatternStartOffset, uint8_t aFirstValue)
+static PacketBufferHandle MakeDataBuffer(size_t aDesiredLength, size_t aPatternStartOffset, uint8_t aFirstValue)
 {
-    PacketBufferHandle lBuffer;
+    VerifyOrReturnError(aPatternStartOffset <= aDesiredLength, PacketBufferHandle());
 
-    VerifyOrExit(aPatternStartOffset <= aDesiredLength, );
+    PacketBufferHandle lBuffer = PacketBufferHandle::New(aDesiredLength);
+    VerifyOrReturnError(!lBuffer.IsNull(), lBuffer);
 
-    lBuffer = PacketBufferHandle::New(aDesiredLength);
-    VerifyOrExit(!lBuffer.IsNull(), );
-
-    aDesiredLength = min(lBuffer->MaxDataLength(), aDesiredLength);
+    aDesiredLength = std::min(lBuffer->MaxDataLength(), aDesiredLength);
 
     FillDataBufferPattern(lBuffer->Start(), aDesiredLength, aPatternStartOffset, aFirstValue);
 
     lBuffer->SetDataLength(aDesiredLength);
 
-exit:
     return lBuffer;
 }
 
-static PacketBufferHandle MakeDataBuffer(uint16_t aDesiredLength, uint16_t aPatternStartOffset)
+static PacketBufferHandle MakeDataBuffer(size_t aDesiredLength, size_t aPatternStartOffset)
 {
     constexpr uint8_t lFirstValue = 0;
-    PacketBufferHandle lBuffer    = MakeDataBuffer(aDesiredLength, aPatternStartOffset, lFirstValue);
-    VerifyOrExit(!lBuffer.IsNull(), );
-
-exit:
-    return (lBuffer);
+    return MakeDataBuffer(aDesiredLength, aPatternStartOffset, lFirstValue);
 }
 
 template <typename tType>
-static PacketBufferHandle MakeICMPDataBuffer(uint16_t aDesiredUserLength, uint16_t aHeaderLength, uint16_t aPatternStartOffset,
+static PacketBufferHandle MakeICMPDataBuffer(size_t aDesiredUserLength, uint16_t aHeaderLength, size_t aPatternStartOffset,
                                              uint8_t aType)
 {
     static uint16_t lSequenceNumber = 0;
@@ -202,7 +189,7 @@ static PacketBufferHandle MakeICMPDataBuffer(uint16_t aDesiredUserLength, uint16
     // To ensure there is enough room for the user data and the ICMP
     // header, include both the user data size and the ICMP header length.
 
-    lBuffer = MakeDataBuffer(static_cast<uint16_t>(aDesiredUserLength + aHeaderLength), aPatternStartOffset);
+    lBuffer = MakeDataBuffer(aDesiredUserLength + aHeaderLength, aPatternStartOffset);
 
     if (!lBuffer.IsNull())
     {
@@ -218,7 +205,7 @@ static PacketBufferHandle MakeICMPDataBuffer(uint16_t aDesiredUserLength, uint16
     return (lBuffer);
 }
 
-PacketBufferHandle MakeICMPv4DataBuffer(uint16_t aDesiredUserLength)
+PacketBufferHandle MakeICMPv4DataBuffer(size_t aDesiredUserLength)
 {
     constexpr uint16_t lICMPHeaderLength   = sizeof(ICMPv4EchoHeader);
     constexpr uint16_t lPatternStartOffset = lICMPHeaderLength;
@@ -227,7 +214,7 @@ PacketBufferHandle MakeICMPv4DataBuffer(uint16_t aDesiredUserLength)
     return MakeICMPDataBuffer<ICMPv4EchoHeader>(aDesiredUserLength, lICMPHeaderLength, lPatternStartOffset, lType);
 }
 
-PacketBufferHandle MakeICMPv6DataBuffer(uint16_t aDesiredUserLength)
+PacketBufferHandle MakeICMPv6DataBuffer(size_t aDesiredUserLength)
 {
     constexpr uint16_t lICMPHeaderLength   = sizeof(ICMPv6EchoHeader);
     constexpr uint16_t lPatternStartOffset = lICMPHeaderLength;
@@ -236,50 +223,47 @@ PacketBufferHandle MakeICMPv6DataBuffer(uint16_t aDesiredUserLength)
     return MakeICMPDataBuffer<ICMPv6EchoHeader>(aDesiredUserLength, lICMPHeaderLength, lPatternStartOffset, lType);
 }
 
-PacketBufferHandle MakeDataBuffer(uint16_t aDesiredLength, uint8_t aFirstValue)
+PacketBufferHandle MakeDataBuffer(size_t aDesiredLength, uint8_t aFirstValue)
 {
-    constexpr uint16_t lPatternStartOffset = 0;
+    constexpr size_t lPatternStartOffset = 0;
     return MakeDataBuffer(aDesiredLength, lPatternStartOffset, aFirstValue);
 }
 
-PacketBufferHandle MakeDataBuffer(uint16_t aDesiredLength)
+PacketBufferHandle MakeDataBuffer(size_t aDesiredLength)
 {
-    constexpr uint16_t lPatternStartOffset = 0;
+    constexpr size_t lPatternStartOffset = 0;
     return MakeDataBuffer(aDesiredLength, lPatternStartOffset);
 }
 
 static bool HandleDataReceived(const PacketBufferHandle & aBuffer, TransferStats & aStats, bool aStatsByPacket, bool aCheckBuffer,
-                               uint16_t aPatternStartOffset, uint8_t aFirstValue)
+                               size_t aPatternStartOffset, size_t aFirstValue)
 {
-    bool lStatus              = true;
-    uint16_t lTotalDataLength = 0;
+    size_t lTotalDataLength = 0;
 
     // Walk through each buffer in the packet chain, checking the
     // buffer for the expected pattern, if requested.
 
     for (PacketBufferHandle lBuffer = aBuffer.Retain(); !lBuffer.IsNull(); lBuffer.Advance())
     {
-        const uint16_t lDataLength = lBuffer->DataLength();
+        const size_t lDataLength = lBuffer->DataLength();
+        const uint8_t * const p  = lBuffer->Start();
 
-        if (aCheckBuffer)
+        if (aCheckBuffer && !CheckDataBufferPattern(p, lDataLength, aPatternStartOffset, aFirstValue))
         {
-            const uint8_t * p = lBuffer->Start();
-
-            lStatus = CheckDataBufferPattern(p, lDataLength, aPatternStartOffset, aFirstValue);
-            VerifyOrExit(lStatus == true, );
+            return false;
         }
 
-        lTotalDataLength = static_cast<uint16_t>(lTotalDataLength + lBuffer->DataLength());
-        aFirstValue      = static_cast<uint8_t>(aFirstValue + lBuffer->DataLength());
+        lTotalDataLength = lTotalDataLength + lDataLength;
+        aFirstValue      = aFirstValue + lDataLength;
     }
 
     // If we are accumulating stats by packet rather than by size,
     // then increment by one (1) rather than the total buffer length.
 
-    aStats.mReceive.mActual += ((aStatsByPacket) ? 1 : lTotalDataLength);
+    VerifyOrReturnError(CanCastTo<uint32_t>(lTotalDataLength), false);
+    aStats.mReceive.mActual += ((aStatsByPacket) ? 1 : static_cast<uint32_t>(lTotalDataLength));
 
-exit:
-    return (lStatus);
+    return true;
 }
 
 static bool HandleICMPDataReceived(PacketBufferHandle aBuffer, uint16_t aHeaderLength, TransferStats & aStats, bool aStatsByPacket,
@@ -357,10 +341,8 @@ bool HandleTCPDataReceived(const PacketBufferHandle & aBuffer, TransferStats & a
 
 // Timer Callback Handler
 
-void HandleSendTimerComplete(System::Layer * aSystemLayer, void * aAppState, System::Error aError)
+void HandleSendTimerComplete(System::Layer * aSystemLayer, void * aAppState)
 {
-    INET_FAIL_ERROR(aError, "Send timer completed with error");
-
     gSendIntervalExpired = true;
 
     DriveSend();
@@ -368,8 +350,7 @@ void HandleSendTimerComplete(System::Layer * aSystemLayer, void * aAppState, Sys
 
 // Raw Endpoint Callback Handlers
 
-void HandleRawMessageReceived(const IPEndPointBasis * aEndPoint, const PacketBufferHandle & aBuffer,
-                              const IPPacketInfo * aPacketInfo)
+void HandleRawMessageReceived(const UDPEndPoint * aEndPoint, const PacketBufferHandle & aBuffer, const IPPacketInfo * aPacketInfo)
 {
     char lSourceAddressBuffer[INET6_ADDRSTRLEN];
     char lDestinationAddressBuffer[INET6_ADDRSTRLEN];
@@ -377,11 +358,11 @@ void HandleRawMessageReceived(const IPEndPointBasis * aEndPoint, const PacketBuf
     aPacketInfo->SrcAddress.ToString(lSourceAddressBuffer);
     aPacketInfo->DestAddress.ToString(lDestinationAddressBuffer);
 
-    printf("Raw message received from %s to %s (%zu bytes)\n", lSourceAddressBuffer, lDestinationAddressBuffer,
-           static_cast<size_t>(aBuffer->DataLength()));
+    printf("Raw message received from %s to %s (%u bytes)\n", lSourceAddressBuffer, lDestinationAddressBuffer,
+           static_cast<unsigned int>(aBuffer->DataLength()));
 }
 
-void HandleRawReceiveError(const IPEndPointBasis * aEndPoint, const INET_ERROR & aError, const IPPacketInfo * aPacketInfo)
+void HandleRawReceiveError(const UDPEndPoint * aEndPoint, const CHIP_ERROR & aError, const IPPacketInfo * aPacketInfo)
 {
     char lAddressBuffer[INET6_ADDRSTRLEN];
 
@@ -399,8 +380,7 @@ void HandleRawReceiveError(const IPEndPointBasis * aEndPoint, const INET_ERROR &
 
 // UDP Endpoint Callback Handlers
 
-void HandleUDPMessageReceived(const IPEndPointBasis * aEndPoint, const PacketBufferHandle & aBuffer,
-                              const IPPacketInfo * aPacketInfo)
+void HandleUDPMessageReceived(const UDPEndPoint * aEndPoint, const PacketBufferHandle & aBuffer, const IPPacketInfo * aPacketInfo)
 {
     char lSourceAddressBuffer[INET6_ADDRSTRLEN];
     char lDestinationAddressBuffer[INET6_ADDRSTRLEN];
@@ -408,11 +388,11 @@ void HandleUDPMessageReceived(const IPEndPointBasis * aEndPoint, const PacketBuf
     aPacketInfo->SrcAddress.ToString(lSourceAddressBuffer);
     aPacketInfo->DestAddress.ToString(lDestinationAddressBuffer);
 
-    printf("UDP packet received from %s:%u to %s:%u (%zu bytes)\n", lSourceAddressBuffer, aPacketInfo->SrcPort,
-           lDestinationAddressBuffer, aPacketInfo->DestPort, static_cast<size_t>(aBuffer->DataLength()));
+    printf("UDP packet received from %s:%u to %s:%u (%u bytes)\n", lSourceAddressBuffer, aPacketInfo->SrcPort,
+           lDestinationAddressBuffer, aPacketInfo->DestPort, static_cast<unsigned int>(aBuffer->DataLength()));
 }
 
-void HandleUDPReceiveError(const IPEndPointBasis * aEndPoint, const INET_ERROR & aError, const IPPacketInfo * aPacketInfo)
+void HandleUDPReceiveError(const UDPEndPoint * aEndPoint, const CHIP_ERROR & aError, const IPPacketInfo * aPacketInfo)
 {
     char lAddressBuffer[INET6_ADDRSTRLEN];
     uint16_t lSourcePort;

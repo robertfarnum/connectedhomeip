@@ -38,6 +38,7 @@
 
 /* Platform include headers */
 #if CHIP_HAVE_CONFIG_H
+#include <platform/CHIPDeviceBuildConfig.h>
 #include <system/SystemBuildConfig.h>
 #endif
 
@@ -68,7 +69,7 @@
 #include CHIP_PLATFORM_CONFIG_INCLUDE
 #endif
 
-/* Include a SystemLayer project-specific configuration file, if defined.
+/* Include a System::Layer project-specific configuration file, if defined.
  *
  * An application or module that incorporates CHIP can define a project configuration
  * file to override standard System Layer configuration with application-specific values.
@@ -79,7 +80,7 @@
 #include SYSTEM_PROJECT_CONFIG_INCLUDE
 #endif // SYSTEM_PROJECT_CONFIG_INCLUDE
 
-/* Include a SystemLayer platform-specific configuration file, if defined.
+/* Include a System::Layer platform-specific configuration file, if defined.
  *
  * A platform configuration file contains overrides to standard System Layer configuration
  * that are specific to the platform or OS on which CHIP is running.  It is typically
@@ -93,7 +94,8 @@
 
 /*--- Sanity check on the build configuration logic. ---*/
 
-#if !(CHIP_SYSTEM_CONFIG_USE_LWIP || CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK)
+#if !(CHIP_SYSTEM_CONFIG_USE_LWIP || CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK ||                 \
+      CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT)
 #error "REQUIRED: CHIP_SYSTEM_CONFIG_USE_LWIP || CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK"
 #endif // !(CHIP_SYSTEM_CONFIG_USE_LWIP || CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_USE_NETWORK_FRAMEWORK)
 
@@ -108,6 +110,20 @@
 #if CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK && CHIP_SYSTEM_CONFIG_USE_SOCKETS
 #error "FORBIDDEN: CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK && CHIP_SYSTEM_CONFIG_USE_SOCKETS"
 #endif // CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK && CHIP_SYSTEM_CONFIG_USE_SOCKETS
+
+#if CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT &&                                                                                 \
+    (CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK || CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_LWIP)
+#error                                                                                                                             \
+    "FORBIDDEN: CHIP_SYSTEM_CONFIG_USE_OPEN_THREAD_ENDPOINT && ( CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK || CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_LWIP )"
+#endif
+
+#if CHIP_SYSTEM_CONFIG_MULTICAST_HOMING && !CHIP_SYSTEM_CONFIG_USE_SOCKETS
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_MULTICAST_HOMING CAN ONLY BE USED WITH SOCKET IMPL"
+#endif
+
+#if CHIP_SYSTEM_CONFIG_MULTICAST_HOMING && CHIP_SYSTEM_CONFIG_USE_SOCKETS && defined(__ZEPHYR__)
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_MULTICAST_HOMING WAS NOT TESTED WITH ZEPHYR"
+#endif
 
 // clang-format off
 
@@ -135,38 +151,49 @@
 #define CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING INET_CONFIG_FREERTOS_LOCKING
 #endif // !defined(CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING) && defined(INET_CONFIG_FREERTOS_LOCKING)
 
+#if !defined(CHIP_SYSTEM_CONFIG_MBED_LOCKING) && defined(INET_CONFIG_MBED_LOCKING)
+#define CHIP_SYSTEM_CONFIG_MBED_LOCKING INET_CONFIG_MBED_LOCKING
+#endif // !defined(CHIP_SYSTEM_CONFIG_MBED_LOCKING) && defined(INET_CONFIG_MBED_LOCKING)
+
+#if !defined(CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING) && defined(INET_CONFIG_CMSIS_RTOS_LOCKING)
+#define CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING INET_CONFIG_CMSIS_RTOS_LOCKING
+#endif // !defined(CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING) && defined(INET_CONFIG_CMSIS_RTOS_LOCKING)
+
 #if !defined(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE) && defined(INET_CONFIG_NUM_BUFS)
 #define CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE INET_CONFIG_NUM_BUFS
 #endif // !defined(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE) && defined(INET_CONFIG_NUM_BUFS)
 
-#if !defined(CHIP_SYSTEM_CONFIG_NUM_TIMERS) && defined(INET_CONFIG_NUM_TIMERS)
-#define CHIP_SYSTEM_CONFIG_NUM_TIMERS INET_CONFIG_NUM_TIMERS
-#endif // !defined(CHIP_SYSTEM_CONFIG_NUM_TIMERS) && defined(INET_CONFIG_NUM_TIMERS)
-
 #endif // CHIP_SYSTEM_CONFIG_TRANSFER_INETLAYER_PROJECT_CONFIGURATION
 
-/* Standard include headers */
-#ifndef CHIP_SYSTEM_CONFIG_ERROR_TYPE
-#include <stdint.h>
-#endif /* CHIP_SYSTEM_CONFIG_ERROR_TYPE */
-
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
+#ifdef TARGET_MCU_STM32L4
+// [ MBED HACK ]
+// We have to undefine |SUCCESS| here to prevent compilation error due to
+// conflict with |ErrorStatus| enum type values defined in CMSIS/stm32l4xx.h.
+// This problem is only related for when tests are build and nlunit-test.h is used.
+#undef SUCCESS
+#endif
 #include <lwip/opt.h>
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 /* Configuration option variables defined below */
 
 /**
- *  @def CHIP_SYSTEM_CONFIG_NO_LOCKING
+ * @def CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL
  *
- *  @brief
- *      Disable the use of locking within the system layer.
+ * @brief
+ *     Enable the use of lwIP pbufs from a custom pool
  *
- *      Unless you are simulating an LwIP-based system on a Unix-style host, this value should be left at its default.
+ * This config option exist because not all platforms defines LWIP_PBUF_FROM_CUSTOM_POOLS in lwip/opt.h
+ * Defaults to LWIP_PBUF_FROM_CUSTOM_POOLS if defined, otherwise 0
  */
-#ifndef CHIP_SYSTEM_CONFIG_NO_LOCKING
-#define CHIP_SYSTEM_CONFIG_NO_LOCKING 0
-#endif /* CHIP_SYSTEM_CONFIG_NO_LOCKING */
+#ifndef CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL
+#if CHIP_SYSTEM_CONFIG_USE_LWIP && defined(LWIP_PBUF_FROM_CUSTOM_POOLS)
+#define CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL LWIP_PBUF_FROM_CUSTOM_POOLS
+#else
+#define CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL 0
+#endif // CHIP_SYSTEM_CONFIG_USE_LWIP && defined(LWIP_PBUF_FROM_CUSTOM_POOLS)
+#endif // CHIP_SYSTEM_CONFIG_LWIP_PBUF_FROM_CUSTOM_POOL
 
 /**
  *  @def CHIP_SYSTEM_CONFIG_POSIX_LOCKING
@@ -195,100 +222,105 @@
 #endif /* CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING */
 
 /**
+ *  @def CHIP_SYSTEM_CONFIG_MBED_LOCKING
+ *
+ *  @brief
+ *      Use Mbed OS locking.
+ *
+ *      This should be generally asserted (1) for Mbed OS.
+ *
+ *      However, if you are simulating an LwIP-based system atop POSIX threads and BSD sockets, this should also be deasserted (0).
+ */
+#ifndef CHIP_SYSTEM_CONFIG_MBED_LOCKING
+#define CHIP_SYSTEM_CONFIG_MBED_LOCKING 0
+#endif /* CHIP_SYSTEM_CONFIG_MBED_LOCKING */
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING
+ *
+ *  @brief
+ *      Use CMSIS-RTOS locking.
+ *
+ *      This should be generally asserted (1) for CMSIS-RTOS.
+ *
+ *      However, if you are simulating an LwIP-based system atop POSIX threads and BSD sockets, this should also be deasserted (0).
+ */
+#ifndef CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING
+#define CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING 0
+#endif /* CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING */
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
+ *
+ *  @brief
+ *      Use Zephyr native locking primitives.
+ *
+ *      This is recommended and enabled by default for Zephyr RTOS.
+ *      Alternatively, you can use CHIP_SYSTEM_CONFIG_POSIX_LOCKING and Zephyr POSIX compatibility
+ *      layer, but that solution has higher memory overhead.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING
+#define CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING 0
+#endif /* CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING */
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
+ *
+ *  @brief
+ *      Allocate Pool from Heap for large systems (e.g. Linux).
+ */
+#ifndef CHIP_SYSTEM_CONFIG_POOL_USE_HEAP
+#define CHIP_SYSTEM_CONFIG_POOL_USE_HEAP 0
+#endif /* CHIP_SYSTEM_CONFIG_POOL_USE_HEAP */
+
+/**
  *  @def CHIP_SYSTEM_CONFIG_NO_LOCKING
  *
  *  @brief
  *      Disable the use of locking within the system layer.
  *
- *      This value is mutually exclusive with CHIP_SYSTEM_CONFIG_POSIX_LOCKING and CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING.
+ *      This value is mutually exclusive with CHIP_SYSTEM_CONFIG_POSIX_LOCKING and CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING and CHIP_SYSTEM_CONFIG_MBED_LOCKING.
  */
 #ifndef CHIP_SYSTEM_CONFIG_NO_LOCKING
 #define CHIP_SYSTEM_CONFIG_NO_LOCKING 0
 #endif /* CHIP_SYSTEM_CONFIG_NO_LOCKING */
 
-#if !(CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
-#error "REQUIRED: CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING"
-#endif // !(CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
+#if !(CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
+#error "REQUIRED: CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING"
+#endif // !(CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
 
-#if CHIP_SYSTEM_CONFIG_NO_LOCKING && (CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING)
-#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_NO_LOCKING && (CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING)"
-#endif // CHIP_SYSTEM_CONFIG_NO_LOCKING && (CHIP_SYSTEM_CONFIG_POSIX_LOCKING || CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING)
+#if CHIP_SYSTEM_CONFIG_POSIX_LOCKING && (CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_POSIX_LOCKING && (CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)"
+#endif // CHIP_SYSTEM_CONFIG_POSIX_LOCKING && (CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING || CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
 
-#if CHIP_SYSTEM_CONFIG_POSIX_LOCKING && CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
-#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_POSIX_LOCKING && CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING"
-#endif // CHIP_SYSTEM_CONFIG_POSIX_LOCKING && CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING
+#if CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING && (CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING && (CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)"
+#endif // CHIP_SYSTEM_CONFIG_FREERTOS_LOCKING && (CHIP_SYSTEM_CONFIG_MBED_LOCKING || CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
 
-#ifndef CHIP_SYSTEM_CONFIG_ERROR_TYPE
+#if CHIP_SYSTEM_CONFIG_MBED_LOCKING && (CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_MBED_LOCKING && (CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)"
+#endif // CHIP_SYSTEM_CONFIG_MBED_LOCKING && (CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING || CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
 
-/**
- *  @def CHIP_SYSTEM_CONFIG_ERROR_TYPE
- *
- *  @brief
- *      This defines the data type used to represent errors for the CHIP System Layer subsystem.
- */
-#define CHIP_SYSTEM_CONFIG_ERROR_TYPE int32_t
+#if CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING && (CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING && (CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)"
+#endif // CHIP_SYSTEM_CONFIG_CMSIS_RTOS_LOCKING && (CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING || CHIP_SYSTEM_CONFIG_NO_LOCKING)
 
-/**
- *  @def CHIP_SYSTEM_CONFIG_NO_ERROR
- *
- *  @brief
- *      This defines the CHIP System Layer error code for no error or success.
- */
-#ifndef CHIP_SYSTEM_CONFIG_NO_ERROR
-#define CHIP_SYSTEM_CONFIG_NO_ERROR 0
-#endif /* CHIP_SYSTEM_CONFIG_NO_ERROR */
+#if CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING && CHIP_SYSTEM_CONFIG_NO_LOCKING
+#error "FORBIDDEN: CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING && CHIP_SYSTEM_CONFIG_NO_LOCKING"
+#endif // CHIP_SYSTEM_CONFIG_ZEPHYR_LOCKING && CHIP_SYSTEM_CONFIG_NO_LOCKING
 
 /**
- *  @def CHIP_SYSTEM_CONFIG_ERROR_MIN
- *
- *  @brief
- *      This defines the base or minimum CHIP System Layer error number range.
- */
-#ifndef CHIP_SYSTEM_CONFIG_ERROR_MIN
-#define CHIP_SYSTEM_CONFIG_ERROR_MIN 7000
-#endif /* CHIP_SYSTEM_CONFIG_ERROR_MIN */
-
-/**
- *  @def CHIP_SYSTEM_CONFIG_ERROR_MAX
- *
- *  @brief
- *      This defines the top or maximum CHIP System Layer error number range.
- */
-#ifndef CHIP_SYSTEM_CONFIG_ERROR_MAX
-#define CHIP_SYSTEM_CONFIG_ERROR_MAX 7999
-#endif /* CHIP_SYSTEM_CONFIG_ERROR_MAX */
-
-/**
- *  @def _CHIP_SYSTEM_CONFIG_ERROR
- *
- *  @brief
- *      This defines a mapping function for CHIP System Layer errors that allows mapping such errors into a platform- or
- *      system-specific range.
- */
-#ifndef _CHIP_SYSTEM_CONFIG_ERROR
-#define _CHIP_SYSTEM_CONFIG_ERROR(e) (CHIP_SYSTEM_CONFIG_ERROR_MIN + (e))
-#endif /* _CHIP_SYSTEM_CONFIG_ERROR */
-
-#endif /* CHIP_SYSTEM_CONFIG_ERROR_TYPE */
-
-/**
- *  @def CHIP_SYSTEM_HEADER_RESERVE_SIZE
+ *  @def CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE
  *
  *  @brief
  *      The number of bytes to reserve in a network packet buffer to contain
- *      the CHIP message and exchange headers.
+ *      the Matter crypto headers.
  *
- *      This number was calculated as follows:
- *
- *      CHIP Crypto Header:
- *
- *          4 -- Length of encrypted block
- *          4 -- Reserve
- *          8 -- Initialization Vector
- *          8 -- Encryption Tag
+ *      This is 0, because Matter does not have any crypto headers.  This define
+ *      is still here only for backwards compatibility.
  */
 #ifndef CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE
-#define CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE 24
+#define CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE 0
 #endif
 
 /**
@@ -296,31 +328,39 @@
  *
  *  @brief
  *      The number of bytes to reserve in a network packet buffer to contain
- *      the CHIP message and exchange headers.
+ *      the CHIP message and payload headers.
  *
  *      This number was calculated as follows:
  *
- *      CHIP Message Header:
+ *      Matter Message Header:
  *
  *          2 -- Frame Length
- *          2 -- Message Header
- *          4 -- Message Id
- *          8 -- Source Node Id
- *          8 -- Destination Node Id
- *          2 -- Key Id
+ *          1 -- Message Flags
+ *          2 -- Session ID
+ *          1 -- Security Flags
+ *          4 -- Message Counter
+ *          8 -- Source Node ID
+ *          8 -- Destination Node ID
  *
- *      CHIP Exchange Header:
+ *      Total: 26 bytes.
  *
- *          1 -- Application Version
- *          1 -- Message Type
- *          2 -- Exchange Id
- *          4 -- Profile Id
- *          4 -- Acknowleged Message Id
+ *      Matter Payload Header:
  *
- *    @note A number of these fields are optional or not presently used. So most headers will be considerably smaller than this.
+ *          1 -- Exhange Flags
+ *          1 -- Protocol Opcode
+ *          2 -- Exchange ID
+ *          2 -- Protocol Vendor ID
+ *          2 -- Protocol ID
+ *          4 -- Acknowledged MEssage Counter
+ *
+ *      Total: 12 bytes.
+ *
+ *    @note A number of these fields are optional or not presently used. So most
+ *          headers will be considerably smaller than this.
+ *    @note This calculation assumes ther are no Message Extensions or Secured Extensions.
  */
 #ifndef CHIP_SYSTEM_HEADER_RESERVE_SIZE
-#define CHIP_SYSTEM_HEADER_RESERVE_SIZE (38 + CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE)
+#define CHIP_SYSTEM_HEADER_RESERVE_SIZE (26 + 12 + CHIP_SYSTEM_CRYPTO_HEADER_RESERVE_SIZE)
 #endif /* CHIP_SYSTEM_HEADER_RESERVE_SIZE */
 
 /**
@@ -336,6 +376,24 @@
 #endif /* CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE */
 
 /**
+ *  @def CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_RAM
+ *
+ *  @brief
+ *      In LwIP builds, this selects whether to use LwIP @pbuf_type @PBUF_RAM (1)
+ *      or @PBUF_POOL (0) for System::PacketBuffer allocations.
+ *
+ *      Note that this does not affect allocations by LwIP itself, e.g. the normal receive path.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_RAM
+#define CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_RAM 0
+#endif /* CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_RAM */
+
+// Catch configurations attempting to use the former method (see issue #29208).
+#ifdef CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_TYPE
+#error "See CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_RAM"
+#endif /* CHIP_SYSTEM_CONFIG_PACKETBUFFER_LWIP_PBUF_TYPE */
+
+/**
  *  @def CHIP_SYSTEM_CONFIG_PACKETBUFFER_CAPACITY_MAX
  *
  *  @brief
@@ -346,8 +404,8 @@
  *      Only socket platforms can override the default value. On LwIP-based platforms, the size is derived from the PBUF size
  *      and overriding the value will result in a compile-time error.
  *
- *      This value should be set large enough to accomodate the usage of PacketBuffer in the system. In particular, for the use
- *      in CHIP, the value should be set to accomodate the desired path MTU (i.e. the largest IP packet that can be sent over
+ *      This value should be set large enough to accommodate the usage of PacketBuffer in the system. In particular, for the use
+ *      in CHIP, the value should be set to accommodate the desired path MTU (i.e. the largest IP packet that can be sent over
  *      the network interface) plus any protocol overhead.
  *
  *      For example, sending an IP packet over the tunnel requires additional overheads that depend on platform's network
@@ -375,30 +433,6 @@
 #ifndef CHIP_SYSTEM_CONFIG_PACKETBUFFER_CAPACITY_MAX
 #define CHIP_SYSTEM_CONFIG_PACKETBUFFER_CAPACITY_MAX 1583
 #endif /* CHIP_SYSTEM_CONFIG_PACKETBUFFER_CAPACITY_MAX */
-#endif /* !CHIP_SYSTEM_CONFIG_USE_LWIP */
-
-#if CHIP_SYSTEM_CONFIG_USE_LWIP
-
-/**
- *  @def CHIP_SYSTEM_CONFIG_LWIP_EVENT_TYPE
- *
- *  @brief
- *      This defines the type for CHIP System Layer event types, typically an integral type.
- */
-#ifndef CHIP_SYSTEM_CONFIG_LWIP_EVENT_TYPE
-#define CHIP_SYSTEM_CONFIG_LWIP_EVENT_TYPE int
-#endif /* CHIP_SYSTEM_CONFIG_LWIP_EVENT_TYPE */
-
-/**
- *  @def CHIP_SYSTEM_CONFIG_LWIP_EVENT_UNRESERVED_CODE
- *
- *  @brief
- *      This defines the first number in the default event code space not reserved for use by the CHIP System Layer.
- *      Event codes used by each layer must not overlap.
- */
-#ifndef CHIP_SYSTEM_CONFIG_LWIP_EVENT_UNRESERVED_CODE
-#define CHIP_SYSTEM_CONFIG_LWIP_EVENT_UNRESERVED_CODE  32
-#endif /* CHIP_SYSTEM_CONFIG_LWIP_EVENT_UNRESERVED_CODE */
 
 /**
  *  @def _CHIP_SYSTEM_CONFIG_LWIP_EVENT
@@ -411,16 +445,30 @@
 #define _CHIP_SYSTEM_CONFIG_LWIP_EVENT(e) (e)
 #endif /* _CHIP_SYSTEM_CONFIG_LWIP_EVENT */
 
+#endif /* !CHIP_SYSTEM_CONFIG_USE_LWIP */
+
 /**
- *  @def CHIP_SYSTEM_CONFIG_LWIP_EVENT_OBJECT_TYPE
+ *  @def CHIP_SYSTEM_CONFIG_EVENT_TYPE
  *
  *  @brief
- *      This defines the type of CHIP System Layer event objects or "messages" for the LwIP dispatcher.
+ *      This defines the type for CHIP System Layer event types, typically an integral type.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_EVENT_TYPE
+#define CHIP_SYSTEM_CONFIG_EVENT_TYPE int
+#endif /* CHIP_SYSTEM_CONFIG_EVENT_TYPE */
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_EVENT_OBJECT_TYPE
+ *
+ *  @brief
+ *      This defines the type of CHIP System Layer event objects or "messages".
  *
  *      Such types are not directly used by the CHIP System Layer but are "passed through". Consequently a forward declaration and
  *      a const pointer or reference are appropriate.
  */
-#ifndef CHIP_SYSTEM_CONFIG_LWIP_EVENT_OBJECT_TYPE
+#ifndef CHIP_SYSTEM_CONFIG_EVENT_OBJECT_TYPE
+
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
 namespace chip {
 namespace System {
 
@@ -429,70 +477,36 @@ struct LwIPEvent;
 } // namespace System
 } // namespace chip
 
-#define CHIP_SYSTEM_CONFIG_LWIP_EVENT_OBJECT_TYPE const struct chip::System::LwIPEvent*
-#endif /* CHIP_SYSTEM_CONFIG_LWIP_EVENT_OBJECT_TYPE */
+#define CHIP_SYSTEM_CONFIG_EVENT_OBJECT_TYPE const struct chip::System::LwIPEvent*
+
+#else /* CHIP_SYSTEM_CONFIG_USE_LWIP */
+
+#define CHIP_SYSTEM_CONFIG_EVENT_OBJECT_TYPE const struct ::chip::DeviceLayer::ChipDeviceEvent *
 
 #endif /* CHIP_SYSTEM_CONFIG_USE_LWIP */
 
-/**
- *  @def CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_POSIX_ERROR_FUNCTIONS
- *
- *  @brief
- *      This defines whether (1) or not (0) your platform will provide the following platform- and system-specific functions:
- *      - chip::System::MapErrorPOSIX
- *      - chip::System::DescribeErrorPOSIX
- *      - chip::System::IsErrorPOSIX
- */
-#ifndef CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_POSIX_ERROR_FUNCTIONS
-#define CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_POSIX_ERROR_FUNCTIONS 0
-#endif /* CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_POSIX_ERROR_FUNCTIONS */
+#endif /* CHIP_SYSTEM_CONFIG_EVENT_OBJECT_TYPE */
+
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
 
 /**
- *  @def CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_LWIP_ERROR_FUNCTIONS
+ *  @def _CHIP_SYSTEM_CONFIG_LWIP_EVENT
  *
  *  @brief
- *      This defines whether (1) or not (0) your platform will provide the following system-specific functions:
- *      - chip::System::MapErrorLwIP
- *      - chip::System::DescribeErrorLwIP
- *      - chip::System::IsErrorLwIP
+ *      This defines a mapping function for CHIP System Layer codes for describing the types of events for the LwIP dispatcher,
+ *      which allows mapping such event types into a platform- or system-specific range.
  */
-#ifndef CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_LWIP_ERROR_FUNCTIONS
-#define CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_LWIP_ERROR_FUNCTIONS 0
-#endif /* CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_LWIP_ERROR_FUNCTIONS */
+#ifndef _CHIP_SYSTEM_CONFIG_LWIP_EVENT
+#define _CHIP_SYSTEM_CONFIG_LWIP_EVENT(e) (e)
+#endif /* _CHIP_SYSTEM_CONFIG_LWIP_EVENT */
 
-/**
- *  @def CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_XTOR_FUNCTIONS
- *
- *  @brief
- *      This defines whether (1) or not (0) your platform will provide the following platform-specific functions:
- *      - chip::System::Platform::Layer::WillInit
- *      - chip::System::Platform::Layer::WillShutdown
- *      - chip::System::Platform::Layer::DidInit
- *      - chip::System::Platform::Layer::DidShutdown
- */
-#ifndef CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_XTOR_FUNCTIONS
-#define CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_XTOR_FUNCTIONS 0
-#endif /* CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_XTOR_FUNCTIONS */
-
-/**
- *  @def CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_EVENT_FUNCTIONS
- *
- *  @brief
- *      This defines whether (1) or not (0) your platform will provide the following platform-specific functions:
- *      - chip::System::Platform::Layer::PostEvent
- *      - chip::System::Platform::Layer::DispatchEvents
- *      - chip::System::Platform::Layer::DispatchEvent
- *      - chip::System::Platform::Layer::StartTimer
- */
-#ifndef CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_EVENT_FUNCTIONS
-#define CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_EVENT_FUNCTIONS 0
-#endif /* CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_EVENT_FUNCTIONS */
+#endif /* CHIP_SYSTEM_CONFIG_USE_LWIP */
 
 /**
  *  @def CHIP_SYSTEM_CONFIG_NUM_TIMERS
  *
  *  @brief
- *      This is the total number of available timers.
+ *      This is the total number of available timers, for configurations that use a fixed timer pool.
  */
 #ifndef CHIP_SYSTEM_CONFIG_NUM_TIMERS
 #define CHIP_SYSTEM_CONFIG_NUM_TIMERS 32
@@ -541,6 +555,20 @@ struct LwIPEvent;
 #endif /* CHIP_SYSTEM_CONFIG_HEADER_RESERVE_SIZE */
 
 /**
+ *  @def CHIP_SYSTEM_CONFIG_PLATFORM_LOG
+ *
+ *  @brief
+ *      Defines whether (1) or not (0) the system uses a platform-specific implementation of
+ *      ChipLog* macros. Most platforms do not use this option and simply provide a logging
+ *      backend that implements LogV.
+ *
+ *  See CHIPLogging.h for details.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_PLATFORM_LOG
+#define CHIP_SYSTEM_CONFIG_PLATFORM_LOG 0
+#endif // CHIP_SYSTEM_CONFIG_PLATFORM_LOG
+
+/**
  *  @def CHIP_SYSTEM_CONFIG_PLATFORM_PROVIDES_TIME
  *
  *  @brief
@@ -580,7 +608,7 @@ struct LwIPEvent;
  *  @brief
  *      Use LwIP time function for System Layer monotonic clock functions.
  *
- *  Use the LwIP sys_now() function to implement the System Layer GetClock_Monotonic... functions.
+ *  Use the LwIP sys_now() function to implement the System Clock functions.
  *
  *  Defaults to enabled if the system is using LwIP and not sockets.
  *
@@ -593,6 +621,23 @@ struct LwIPEvent;
 #define CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME 0
 #endif
 #endif // CHIP_SYSTEM_CONFIG_USE_LWIP_MONOTONIC_TIME
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_LWIP_SKIP_INIT
+ *
+ *  @brief
+ *      Skip LwIP initalization during network setup.
+ *
+ *  The platform can provide its own LwIP initialization.
+ *  This option allows skipping initialization steps in network setup e.g. in unit tests.
+ *
+ *  This configuration is overridden if CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT is set.
+ */
+#if CHIP_SYSTEM_CONFIG_USE_LWIP
+#ifndef CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT
+#define CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT 0
+#endif // CHIP_SYSTEM_CONFIG_LWIP_SKIP_INIT
+#endif // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 /**
  *  @def CHIP_SYSTEM_CONFIG_VALID_REAL_TIME_THRESHOLD
@@ -619,30 +664,53 @@ struct LwIPEvent;
  *  Defaults to enabled if the system is using sockets (except for Zephyr RTOS).
  */
 #ifndef CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE
-#if (CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK) && !__ZEPHYR__
+#if (CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK) && !defined(__ZEPHYR__) && !defined(__MBED__)
 #define CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE 0
 #endif
 #endif // CHIP_SYSTEM_CONFIG_USE_POSIX_PIPE
 
-#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKET_EXTENSIONS
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && __ZEPHYR__
 /**
  *  @def CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKET_EXTENSIONS
  *
  *  @brief
  *      Include missing functions for Zephyr sockets
  *
- *  Zephyr socket API lacks some of the functions required by CHIP, e.g. getsockname, recvmsg.
+ *  Zephyr socket API lacks some of the functions required by CHIP.
  *  If this value is set CHIP will provide the missing functions.
  *
  *  Defaults to enabled on Zephyr platforms using sockets
  */
+#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKET_EXTENSIONS
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && defined(__ZEPHYR__)
 #define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKET_EXTENSIONS 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKET_EXTENSIONS 0
 #endif
 #endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKET_EXTENSIONS
 
-#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
-#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && __ZEPHYR__
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
+ *
+ *  @brief
+ *      Use platform API to join and leave multicast groups.
+ *
+ *  In case a given platform does not support adding and removing multicast
+ *  addresses to a network interface using the generic network API like LWIP
+ *  or sockets, this setting allows the platform layer to inject handlers
+ *  which achieve the goal by other means.
+ *
+ *  Defaults to enabled on Zephyr platforms using sockets
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && defined(__ZEPHYR__)
+#define CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_PLATFORM_MULTICAST_API
+
 /**
  *  @def CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
  *
@@ -651,7 +719,11 @@ struct LwIPEvent;
  *
  *  Defaults to enabled on Zephyr platforms using sockets
  */
+#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && defined(__ZEPHYR__)
 #define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF 0
 #endif
 #endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
 
@@ -664,9 +736,75 @@ struct LwIPEvent;
  *  Defaults to enabled on Unix/Linux platforms using sockets
  */
 #ifndef CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS
-#if (CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK) && !__ZEPHYR__
+#if (CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK) && !defined(__ZEPHYR__)
 #define CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS 1
 #else
 #define CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS 0
 #endif
 #endif // CHIP_SYSTEM_CONFIG_USE_BSD_IFADDRS
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+ *
+ *  @brief
+ *      Use Zephyr socket API.
+ *
+ *  Defaults to enabled on Zephyr platforms that do not enable Zephyr POSIX layer.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS && defined(__ZEPHYR__) && defined(CONFIG_NET_SOCKETS_POSIX_NAMES)
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
+ *
+ *  @brief
+ *      Use POSIX socket API.
+ *
+ *  Defaults to enabled on platforms that use sockets other than Zephyr sockets.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
+#if (CHIP_SYSTEM_CONFIG_USE_SOCKETS || CHIP_SYSTEM_CONFIG_USE_NETWORK_FRAMEWORK) && !CHIP_SYSTEM_CONFIG_USE_ZEPHYR_SOCKETS
+#define CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
+
+/**
+ *  @def CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
+ *
+ *  @brief
+ *      Use Zephyr eventfd API.
+ *
+ *  Defaults to enabled on Zephyr platforms that enable CONFIG_EVENTFD.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
+#if defined(__ZEPHYR__) && defined(CONFIG_EVENTFD)
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD 1
+#else
+#define CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD 0
+#endif
+#endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_EVENTFD
+
+/**
+ * @def CHIP_SYSTEM_CONFIG_MAX_LARGE_BUFFER_SIZE_BYTES
+ *
+ * @brief Maximum buffer allocation size of a 'Large' message
+ *
+ * This is the default maximum capacity (including both data and reserve
+ * space) of a large PacketBuffer(exceeding the IPv6 MTU of 1280 bytes).
+ * This shall be used over transports, such as TCP, that support large
+ * payload transfers. Fetching of large command responses or wildcard
+ * subscription responses may leverage this increased bandwidth transfer.
+ * Individual systems may override this size based on their requirements.
+ * Data transfers over MRP should not be using this size for allocating
+ * buffers as they are restricted by the IPv6 MTU.
+ */
+#ifndef CHIP_SYSTEM_CONFIG_MAX_LARGE_BUFFER_SIZE_BYTES
+#define CHIP_SYSTEM_CONFIG_MAX_LARGE_BUFFER_SIZE_BYTES (64000)
+#endif

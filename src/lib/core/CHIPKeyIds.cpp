@@ -15,16 +15,9 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
+#include <lib/core/CHIPKeyIds.h>
 
-/**
- *    @file
- *      This file implements CHIP key types helper functions.
- *
- */
-#include "CHIPKeyIds.h"
-
-#include <core/CHIPCore.h>
-#include <support/CodeUtils.h>
+#include <lib/support/CodeUtils.h>
 
 namespace chip {
 
@@ -244,7 +237,7 @@ bool ChipKeyId::IsValidKeyId(uint32_t keyId)
  *  @return      true                  If the identified key can be used to encrypt CHIP messages.
  *
  */
-bool ChipKeyId::IsMessageEncryptionKeyId(uint32_t keyId, bool allowLogicalKeys)
+bool ChipKeyId::IsMessageSessionId(uint32_t keyId, bool allowLogicalKeys)
 {
     switch (GetType(keyId))
     {

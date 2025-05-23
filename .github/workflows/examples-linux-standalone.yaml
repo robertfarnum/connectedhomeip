@@ -16,78 +16,221 @@ name: Build example - Linux Standalone
 
 on:
     push:
+        branches:
+            - master
+            - 'v*-branch'
     pull_request:
+    merge_group:
+
+concurrency:
+    group: ${{ github.ref }}-${{ github.workflow }}-${{ (github.event_name == 'pull_request' && github.event.number) || (github.event_name == 'workflow_dispatch' && github.run_number) || github.sha }}
+    cancel-in-progress: true
+
+env:
+    CHIP_NO_LOG_TIMESTAMPS: true
 
 jobs:
     linux_standalone:
         name: Linux Standalone
 
-        env:
-            BUILD_TYPE: gn_linux
-            BUILD_IMAGE: chip-build
-            BUILD_ORG: connectedhomeip
-
         runs-on: ubuntu-latest
         if: github.actor != 'restyled-io[bot]'
 
         container:
-            image: connectedhomeip/chip-build:latest
+            image: ghcr.io/project-chip/chip-build:94
             volumes:
                 - "/tmp/bloat_reports:/tmp/bloat_reports"
-                - "/tmp/output_binaries:/tmp/output_binaries"
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v2
-              # Fetch depth 0 to get all history and be able to check mergepoint for bloat report
+              uses: actions/checkout@v4
+            - name: Checkout submodules & Bootstrap
+              uses: ./.github/actions/checkout-submodules-and-bootstrap
               with:
-                  fetch-depth: 0
-                  submodules: true
-#             - name: Initialize CodeQL
-#               uses: github/codeql-action/init@v1
-#               with:
-#                   languages: "cpp, python"
-            - name: Bootstrap
-              run: scripts/build/gn_bootstrap.sh
-            - name: Build example Standalone Echo Client
-              run:
-                  scripts/examples/gn_build_example.sh examples/chip-tool
-                  out/chip_tool_debug
+                platform: linux
+
+            - name: Set up environment for size reports
+              uses: ./.github/actions/setup-size-reports
+              if: ${{ !env.ACT }}
+              with:
+                gh-context: ${{ toJson(github) }}
+
+            - name: Build Standalone cert tool
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-chip-cert \
+                        build"
+            - name: Build minmdns example with platform dns
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-address-resolve-tool-platform-mdns-ipv6only \
+                        build"
+            - name: Build example Standalone chip tool
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-chip-tool \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug chip-tool \
+                    out/linux-x64-chip-tool/chip-tool \
+                    /tmp/bloat_reports/
             - name: Build example Standalone Shell
-              run:
-                  scripts/examples/gn_build_example.sh examples/shell/standalone
-                  out/shell_debug
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-shell \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug shell \
+                    out/linux-x64-shell/chip-shell \
+                    /tmp/bloat_reports/
             - name: Build example Standalone All Clusters Server
-              run:
-                  scripts/examples/gn_build_example.sh examples/all-clusters-app/linux
-                  out/all_clusters_debug chip_bypass_rendezvous=true
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-all-clusters \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug all-clusters-app \
+                    out/linux-x64-all-clusters/chip-all-clusters-app \
+                    /tmp/bloat_reports/
+            - name: Clean out build output
+              run: rm -rf ./out
+            - name: Build example Standalone All Clusters Minimal Server
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-all-clusters-minimal \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug all-clusters-minimal-app \
+                    out/linux-x64-all-clusters-minimal/chip-all-clusters-minimal-app \
+                    /tmp/bloat_reports/
+            - name: Build example TV app
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-tv-app \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug tv-app \
+                    out/linux-x64-tv-app/chip-tv-app \
+                    /tmp/bloat_reports/
+            - name: Build example Standalone TV Casting App
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-tv-casting-app \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug tv-casting-app \
+                    out/linux-x64-tv-casting-app/chip-tv-casting-app \
+                    /tmp/bloat_reports/
+            - name: Build example lighting app with RPCs and UI
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-light-rpc-with-ui \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug+rpc+ui lighting-app \
+                    out/linux-x64-light-rpc-with-ui/chip-lighting-app \
+                    /tmp/bloat_reports/
+            - name: Clean out build output
+              run: rm -rf ./out
             - name: Build example Standalone Bridge
-              run:
-                  scripts/examples/gn_build_example.sh examples/bridge-app/linux out/bridge_debug
-            - name: Binary artifact suffix
-              id: outsuffix
-              uses: haya14busa/action-cond@v1.0.0
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-bridge \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug bridge-app \
+                    out/linux-x64-bridge/chip-bridge-app \
+                    /tmp/bloat_reports/
+            - name: Build example OTA Provider
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-ota-provider \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug ota-provider-app \
+                    out/linux-x64-ota-provider/chip-ota-provider-app \
+                    /tmp/bloat_reports/
+            - name: Build example OTA Requestor
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-ota-requestor \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug ota-requestor-app \
+                    out/linux-x64-ota-requestor/chip-ota-requestor-app \
+                    /tmp/bloat_reports/
+            - name: Clean out build output
+              run: rm -rf ./out
+            - name: Build example Standalone Lock App
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-lock-no-thread \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug lock-app \
+                    out/linux-x64-lock-no-thread/chip-lock-app \
+                    /tmp/bloat_reports/
+            - name: Build example contact sensor with UI
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-contact-sensor-no-ble-with-ui \
+                        build"
+            - name: Build example Air Purifier
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-air-purifier \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug air-purifier-app \
+                    out/linux-x64-air-purifier/chip-air-purifier-app \
+                    /tmp/bloat_reports/
+            - name: Build example Fabric Admin
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-fabric-admin-rpc \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug fabric-admin \
+                    out/linux-x64-fabric-admin-rpc/fabric-admin \
+                    /tmp/bloat_reports/
+            - name: Build example Fabric Bridge App
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-fabric-bridge-no-ble-rpc \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug fabric-bridge-app \
+                    out/linux-x64-fabric-bridge-no-ble-rpc/fabric-bridge-app \
+                    /tmp/bloat_reports/
+            - name: Build example Fabric Sync
+              run: |
+                  ./scripts/run_in_build_env.sh \
+                     "./scripts/build/build_examples.py \
+                        --target linux-x64-fabric-sync-no-ble \
+                        build"
+                  .environment/pigweed-venv/bin/python3 scripts/tools/memory/gh_sizes.py \
+                    linux debug fabric-sync \
+                    out/linux-x64-fabric-sync-no-ble/fabric-sync \
+                    /tmp/bloat_reports/                    
+            - name: Uploading Size Reports
+              uses: ./.github/actions/upload-size-reports
+              if: ${{ !env.ACT }}
               with:
-                  cond: ${{ github.event.pull_request.number == '' }}
-                  if_true: "${{ github.sha }}"
-                  if_false: "pull-${{ github.event.pull_request.number }}"
-            - name: Uploading Binaries
-              uses: actions/upload-artifact@v2
-              with:
-                  name:
-                      ${{ env.BUILD_TYPE }}-example-build-${{
-                      steps.outsuffix.outputs.value }}
-                  path: |
-                      out/all_clusters_debug/all-clusters-server
-                      out/bridge_debug/bridge-app-server
-                      out/chip_tool_debug/chip-tool
-                      out/shell_debug/chip-shell
-            - name: Remove third_party binaries for CodeQL Analysis
-              run: find out -type d -name "third_party" -exec rm -rf {} +
-            - name: Remove dbus binaries for CodeQL Analysis
-              run: find out -type d -name "dbus" -exec rm -rf {} +
-            - name: Remove gen binaries for CodeQL Analysis
-              run: find out -type d -name "gen" -exec rm -rf {} +
-#             - name: Perform CodeQL Analysis
-#               if: ${{ github.event_name == 'push' }}
-#               uses: github/codeql-action/analyze@v1
+                platform-name: Linux-Standalone
