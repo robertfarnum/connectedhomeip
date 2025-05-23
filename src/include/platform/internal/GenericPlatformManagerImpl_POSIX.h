@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2021 Project CHIP Authors
  *    Copyright (c) 2018 Nest Labs, Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,11 +24,11 @@
 
 #pragma once
 
+#include <platform/DeviceSafeQueue.h>
 #include <platform/internal/GenericPlatformManagerImpl.h>
 
 #include <fcntl.h>
 #include <sched.h>
-#include <sys/select.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -52,20 +52,32 @@ template <class ImplClass>
 class GenericPlatformManagerImpl_POSIX : public GenericPlatformManagerImpl<ImplClass>
 {
 protected:
-    // Members for select loop
-    int mMaxFd;
-    fd_set mReadSet;
-    fd_set mWriteSet;
-    fd_set mErrorSet;
-    struct timeval mNextTimeout;
-
     // OS-specific members (pthread)
-    pthread_mutex_t mChipStackLock;
-    std::queue<ChipDeviceEvent> mChipEventQueue;
+    pthread_mutex_t mChipStackLock = PTHREAD_MUTEX_INITIALIZER;
+
+    enum class State
+    {
+        kStopped  = 0,
+        kRunning  = 1,
+        kStopping = 2,
+    };
 
     pthread_t mChipTask;
+    bool mInternallyManagedChipTask = false;
+    std::atomic<State> mState{ State::kStopped };
+
+#if !CHIP_SYSTEM_CONFIG_USE_LIBEV
+    pthread_cond_t mEventQueueStoppedCond;
+    pthread_mutex_t mStateLock;
+
     pthread_attr_t mChipTaskAttr;
     struct sched_param mChipTaskSchedParam;
+#endif
+
+#if CHIP_STACK_LOCK_TRACKING_ENABLED
+    bool mChipStackIsLocked = false;
+    pthread_t mChipStackLockOwnerThread;
+#endif
 
     // ===== Methods that implement the PlatformManager abstract interface.
 
@@ -74,11 +86,16 @@ protected:
     void _LockChipStack();
     bool _TryLockChipStack();
     void _UnlockChipStack();
-    void _PostEvent(const ChipDeviceEvent * event);
+    CHIP_ERROR _PostEvent(const ChipDeviceEvent * event);
     void _RunEventLoop();
     CHIP_ERROR _StartEventLoopTask();
-    CHIP_ERROR _StartChipTimer(int64_t durationMS);
-    CHIP_ERROR _Shutdown();
+    CHIP_ERROR _StopEventLoopTask();
+    CHIP_ERROR _StartChipTimer(System::Clock::Timeout duration);
+    void _Shutdown();
+
+#if CHIP_STACK_LOCK_TRACKING_ENABLED
+    bool _IsChipStackLockedByCurrentThread() const;
+#endif
 
     // ===== Methods available to the implementation subclass.
 
@@ -87,19 +104,25 @@ private:
 
     inline ImplClass * Impl() { return static_cast<ImplClass *>(this); }
 
-    void SysUpdate();
-    void SysProcess();
-    static void SysOnEventSignal(void * arg);
+#if CHIP_SYSTEM_CONFIG_USE_LIBEV
+    static void _DispatchEventViaScheduleWork(System::Layer * aLayer, void * appState);
+#else
 
-    void ProcessDeviceEvents();
-
-    std::atomic<bool> mShouldRunEventLoop;
+    DeviceSafeQueue mChipEventQueue;
+    std::atomic<bool> mShouldRunEventLoop{ true };
     static void * EventLoopTaskMain(void * arg);
+#endif
+    void ProcessDeviceEvents();
 };
 
 // Instruct the compiler to instantiate the template only when explicitly told to do so.
 extern template class GenericPlatformManagerImpl_POSIX<PlatformManagerImpl>;
 
+#if CHIP_SYSTEM_CONFIG_USE_LIBEV
+// with external libev mainloop, this should be implemented externally to terminate the mainloop cleanly
+// (Note that there is a weak default implementation that just calls chipDie() when the external implementation is missing)
+extern void ExitExternalMainLoop();
+#endif
 } // namespace Internal
 } // namespace DeviceLayer
 } // namespace chip

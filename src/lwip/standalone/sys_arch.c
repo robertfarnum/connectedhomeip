@@ -73,7 +73,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <support/CHIPPlatformMemory.h>
+#include <lib/support/CHIPPlatformMemory.h>
 
 #include "lwip/opt.h"
 #include "lwip/stats.h"
@@ -581,7 +581,7 @@ u32_t sys_now(void)
     u32_t msec;
     gettimeofday(&tv, NULL);
 
-    msec = (u32_t)((tv.tv_sec - starttime.tv_sec) * 1000 + (tv.tv_usec - starttime.tv_usec) / 1000);
+    msec = (u32_t) ((tv.tv_sec - starttime.tv_sec) * 1000 + (tv.tv_usec - starttime.tv_usec) / 1000);
 
     return msec;
 }

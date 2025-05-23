@@ -24,55 +24,35 @@
  *
  */
 
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-
 #include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <inet/InetError.h>
-#include <support/CodeUtils.h>
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
+#include <pw_unit_test/framework.h>
 
-#include <nlunit-test.h>
+#include <inet/InetError.h>
+#include <lib/core/ErrorStr.h>
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/CodeUtils.h>
 
 using namespace chip;
 
 // Test input data.
 
 // clang-format off
-static int32_t sContext[] =
+static const CHIP_ERROR kTestElements[] =
 {
     INET_ERROR_WRONG_ADDRESS_TYPE,
-    INET_ERROR_CONNECTION_ABORTED,
     INET_ERROR_PEER_DISCONNECTED,
-    INET_ERROR_INCORRECT_STATE,
-    INET_ERROR_MESSAGE_TOO_LONG,
-    INET_ERROR_NO_CONNECTION_HANDLER,
-    INET_ERROR_NO_MEMORY,
-    INET_ERROR_OUTBOUND_MESSAGE_TRUNCATED,
-    INET_ERROR_INBOUND_MESSAGE_TOO_BIG,
     INET_ERROR_HOST_NOT_FOUND,
     INET_ERROR_DNS_TRY_AGAIN,
     INET_ERROR_DNS_NO_RECOVERY,
-    INET_ERROR_BAD_ARGS,
     INET_ERROR_WRONG_PROTOCOL_TYPE,
     INET_ERROR_UNKNOWN_INTERFACE,
-    INET_ERROR_NOT_IMPLEMENTED,
     INET_ERROR_ADDRESS_NOT_FOUND,
     INET_ERROR_HOST_NAME_TOO_LONG,
     INET_ERROR_INVALID_HOST_NAME,
-    INET_ERROR_NOT_SUPPORTED,
-    INET_ERROR_NO_ENDPOINTS,
     INET_ERROR_IDLE_TIMEOUT,
-    INET_ERROR_UNEXPECTED_EVENT,
     INET_ERROR_INVALID_IPV6_PKT,
     INET_ERROR_INTERFACE_INIT_FAILURE,
     INET_ERROR_TCP_USER_TIMEOUT,
@@ -81,59 +61,25 @@ static int32_t sContext[] =
 };
 // clang-format on
 
-static void CheckInetErrorStr(nlTestSuite * inSuite, void * inContext)
+TEST(TestInetErrorStr, CheckInetErrorStr)
 {
     // Register the layer error formatter
-
     Inet::RegisterLayerErrorFormatter();
 
     // For each defined error...
-    for (int err : sContext)
+    for (const auto & err : kTestElements)
     {
         const char * errStr = ErrorStr(err);
         char expectedText[9];
 
         // Assert that the error string contains the error number in hex.
-        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, err);
-        NL_TEST_ASSERT(inSuite, (strstr(errStr, expectedText) != nullptr));
+        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, err.AsInteger());
+        EXPECT_NE(strstr(errStr, expectedText), nullptr);
 
 #if !CHIP_CONFIG_SHORT_ERROR_STR
         // Assert that the error string contains a description, which is signaled
         // by a presence of a colon proceeding the description.
-        NL_TEST_ASSERT(inSuite, (strchr(errStr, ':') != nullptr));
+        EXPECT_NE(strchr(errStr, ':'), nullptr);
 #endif // !CHIP_CONFIG_SHORT_ERROR_STR
     }
 }
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("InetErrorStr", CheckInetErrorStr),
-
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestInetErrorStr(void)
-{
-    // clang-format off
-    nlTestSuite theSuite =
-	{
-        "Inet-Error-Strings",
-        &sTests[0],
-        nullptr,
-        nullptr
-    };
-    // clang-format on
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, &sContext);
-
-    return (nlTestRunnerStats(&theSuite));
-}
-
-CHIP_REGISTER_TEST_SUITE(TestInetErrorStr)

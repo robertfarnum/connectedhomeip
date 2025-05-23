@@ -21,9 +21,10 @@
 #include <cstring>
 #include <string>
 
+#include <lib/core/ErrorStr.h>
+#include <lib/support/CodeUtils.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/KeyValueStoreManager.h>
-#include <support/ErrorStr.h>
-#include <support/logging/CHIPLogging.h>
 
 using namespace chip::DeviceLayer::PersistedStorage;
 
@@ -35,7 +36,7 @@ using namespace chip::DeviceLayer::PersistedStorage;
         {                                                                                                                          \
             char error_str[255];                                                                                                   \
             chip::FormatCHIPError(error_str, sizeof(error_str), temp_test_result);                                                 \
-            ChipLogError(NotSpecified, "%s: FAILED %d [%s]", #test_result, temp_test_result, chip::ErrorStr(temp_test_result));    \
+            ChipLogError(NotSpecified, "%s: FAILED [%s]", #test_result, chip::ErrorStr(temp_test_result));                         \
         }                                                                                                                          \
         else                                                                                                                       \
         {                                                                                                                          \
@@ -48,8 +49,8 @@ namespace {
 
 CHIP_ERROR TestEmptyString()
 {
-    const char * kTestKey   = "str_key";
-    const char kTestValue[] = "";
+    static const char kTestKey[]   = "str_key";
+    static const char kTestValue[] = "";
     char read_value[sizeof(kTestValue)];
     size_t read_size;
     ReturnErrorOnFailure(KeyValueStoreMgr().Put(kTestKey, kTestValue));
@@ -62,8 +63,8 @@ CHIP_ERROR TestEmptyString()
 
 CHIP_ERROR TestString()
 {
-    const char * kTestKey   = "str_key";
-    const char kTestValue[] = "test_value";
+    static const char kTestKey[]   = "str_key";
+    static const char kTestValue[] = "test_value";
     char read_value[sizeof(kTestValue)];
     size_t read_size;
     ReturnErrorOnFailure(KeyValueStoreMgr().Put(kTestKey, kTestValue));
@@ -76,8 +77,8 @@ CHIP_ERROR TestString()
 
 CHIP_ERROR TestUint32()
 {
-    const char * kTestKey = "uint32_key";
-    uint32_t kTestValue   = 5;
+    static const char kTestKey[] = "uint32_key";
+    uint32_t kTestValue          = 5;
     uint32_t read_value;
     ReturnErrorOnFailure(KeyValueStoreMgr().Put(kTestKey, kTestValue));
     ReturnErrorOnFailure(KeyValueStoreMgr().Get(kTestKey, &read_value));
@@ -88,8 +89,8 @@ CHIP_ERROR TestUint32()
 
 CHIP_ERROR TestArray()
 {
-    const char * kTestKey  = "array_key";
-    uint32_t kTestValue[5] = { 1, 2, 3, 4, 5 };
+    static const char kTestKey[] = "array_key";
+    uint32_t kTestValue[5]       = { 1, 2, 3, 4, 5 };
     uint32_t read_value[5];
     ReturnErrorOnFailure(KeyValueStoreMgr().Put(kTestKey, kTestValue));
     ReturnErrorOnFailure(KeyValueStoreMgr().Get(kTestKey, &read_value));
@@ -105,7 +106,7 @@ CHIP_ERROR TestStruct()
         uint8_t value1;
         uint32_t value2;
     };
-    const char * kTestKey = "struct_key";
+    static const char kTestKey[] = "struct_key";
     SomeStruct kTestValue{ value1 : 1, value2 : 2 };
     SomeStruct read_value;
     ReturnErrorOnFailure(KeyValueStoreMgr().Put(kTestKey, kTestValue));
@@ -118,7 +119,7 @@ CHIP_ERROR TestStruct()
 
 CHIP_ERROR TestUpdateValue()
 {
-    const char * kTestKey = "update_key";
+    static const char kTestKey[] = "update_key";
     uint32_t read_value;
     for (size_t i = 0; i < 10; i++)
     {
@@ -132,8 +133,8 @@ CHIP_ERROR TestUpdateValue()
 
 CHIP_ERROR TestMultiRead()
 {
-    const char * kTestKey  = "multi_key";
-    uint32_t kTestValue[5] = { 1, 2, 3, 4, 5 };
+    static const char kTestKey[] = "multi_key";
+    uint32_t kTestValue[5]       = { 1, 2, 3, 4, 5 };
     ReturnErrorOnFailure(KeyValueStoreMgr().Put(kTestKey, kTestValue));
     for (size_t i = 0; i < 5; i++)
     {

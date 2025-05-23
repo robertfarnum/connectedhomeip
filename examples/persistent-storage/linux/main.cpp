@@ -18,8 +18,8 @@
 
 #include <platform/CHIPDeviceLayer.h>
 
-#include <core/CHIPError.h>
-#include <support/CHIPMem.h>
+#include <lib/core/CHIPError.h>
+#include <lib/support/CHIPMem.h>
 
 #include "KeyValueStorageTest.h"
 #include <platform/KeyValueStoreManager.h>
@@ -41,7 +41,7 @@ int main(int argc, char * argv[])
     printf("chip-linux-persitent-storage-example starting\n");
     printf("=============================================\n");
 
-    while (1)
+    while (true)
     {
         printf("Running Tests:\n");
         chip::RunKvsTest();
