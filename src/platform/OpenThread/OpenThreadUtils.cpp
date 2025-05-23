@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2022 Project CHIP Authors
  *    Copyright (c) 2019 Nest Labs, Inc.
  *    All rights reserved.
  *
@@ -24,8 +24,9 @@
 
 #include "OpenThreadUtils.h"
 
+#include <inet/IPAddress.h>
 #include <lib/core/CHIPEncoding.h>
-#include <lib/support/ErrorStr.h>
+#include <lib/core/ErrorStr.h>
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
@@ -38,15 +39,15 @@ namespace DeviceLayer {
 namespace Internal {
 
 /**
- * Map an OpenThread error into the OpenChip error space.
+ * Map an OpenThread error into the CHIP error space.
  */
 CHIP_ERROR MapOpenThreadError(otError otErr)
 {
-    return (otErr == OT_ERROR_NONE) ? CHIP_NO_ERROR : CHIP_CONFIG_OPENTHREAD_ERROR_MIN + (CHIP_ERROR) otErr;
+    return (otErr == OT_ERROR_NONE) ? CHIP_NO_ERROR : CHIP_ERROR(ChipError::Range::kOpenThread, static_cast<unsigned int>(otErr));
 }
 
 /**
- * Given an OpenChip error value that represents an OpenThread error, returns a
+ * Given an CHIP error value that represents an OpenThread error, returns a
  * human-readable NULL-terminated C string describing the error.
  *
  * @param[in] buf                   Buffer into which the error string will be placed.
@@ -57,9 +58,9 @@ CHIP_ERROR MapOpenThreadError(otError otErr)
  * @return false                    If the supplied error was not an OpenThread error.
  *
  */
-bool FormatOpenThreadError(char * buf, uint16_t bufSize, int32_t err)
+bool FormatOpenThreadError(char * buf, uint16_t bufSize, CHIP_ERROR err)
 {
-    if (err < CHIP_CONFIG_OPENTHREAD_ERROR_MIN || err > CHIP_CONFIG_OPENTHREAD_ERROR_MAX)
+    if (!err.IsRange(ChipError::Range::kOpenThread))
     {
         return false;
     }
@@ -67,7 +68,7 @@ bool FormatOpenThreadError(char * buf, uint16_t bufSize, int32_t err)
 #if CHIP_CONFIG_SHORT_ERROR_STR
     const char * desc = NULL;
 #else  // CHIP_CONFIG_SHORT_ERROR_STR
-    otError otErr     = (otError)(err - CHIP_CONFIG_OPENTHREAD_ERROR_MIN);
+    otError otErr     = (otError) err.GetValue();
     const char * desc = otThreadErrorToString(otErr);
 #endif // CHIP_CONFIG_SHORT_ERROR_STR
 
@@ -79,28 +80,22 @@ bool FormatOpenThreadError(char * buf, uint16_t bufSize, int32_t err)
 /**
  * Register a text error formatter for OpenThread errors.
  */
-void RegisterOpenThreadErrorFormatter(void)
+void RegisterOpenThreadErrorFormatter()
 {
     static ErrorFormatter sOpenThreadErrorFormatter = { FormatOpenThreadError, NULL };
 
     RegisterErrorFormatter(&sOpenThreadErrorFormatter);
 }
 
-/**
- * Log information related to a state change in the OpenThread stack.
- *
- * NB: This function *must* be called with the Thread stack lock held.
- */
 void LogOpenThreadStateChange(otInstance * otInst, uint32_t flags)
 {
 #if CHIP_DETAIL_LOGGING
 
     const uint32_t kParamsChanged = (OT_CHANGED_THREAD_NETWORK_NAME | OT_CHANGED_THREAD_PANID | OT_CHANGED_THREAD_EXT_PANID |
-                                     OT_CHANGED_THREAD_CHANNEL | OT_CHANGED_MASTER_KEY | OT_CHANGED_PSKC);
-
+                                     OT_CHANGED_THREAD_CHANNEL | OT_CHANGED_NETWORK_KEY | OT_CHANGED_PSKC);
     static char strBuf[64];
 
-    ChipLogDetail(DeviceLayer, "OpenThread State Changed (Flags: 0x%08x)", flags);
+    ChipLogDetail(DeviceLayer, "OpenThread State Changed (Flags: 0x%08" PRIx32 ")", flags);
     if ((flags & OT_CHANGED_THREAD_ROLE) != 0)
     {
         ChipLogDetail(DeviceLayer, "   Device Role: %s", OpenThreadRoleToStr(otThreadGetDeviceRole(otInst)));
@@ -126,10 +121,11 @@ void LogOpenThreadStateChange(otInstance * otInst, uint32_t flags)
         }
 #if CHIP_CONFIG_SECURITY_TEST_MODE
         {
-            const otMasterKey * otKey = otThreadGetMasterKey(otInst);
-            for (int i = 0; i < OT_MASTER_KEY_SIZE; i++)
-                snprintf(&strBuf[i * 2], 3, "%02X", otKey->m8[i]);
-            ChipLogDetail(DeviceLayer, "   Master Key: %s", strBuf);
+            otNetworkKey otKey;
+            otThreadGetNetworkKey(otInst, &otKey);
+            for (int i = 0; i < OT_NETWORK_KEY_SIZE; i++)
+                snprintf(&strBuf[i * 2], 3, "%02X", otKey.m8[i]);
+            ChipLogDetail(DeviceLayer, "   Network Key: %s", strBuf);
         }
 #endif // CHIP_CONFIG_SECURITY_TEST_MODE
     }
@@ -161,7 +157,7 @@ void LogOpenThreadPacket(const char * titleStr, otMessage * pkt)
 
     char srcStr[50], destStr[50], typeBuf[20];
     const char * type = typeBuf;
-    IPAddress addr;
+    Inet::IPAddress addr;
     uint8_t headerData[44];
     uint16_t pktLen;
 
@@ -212,33 +208,33 @@ void LogOpenThreadPacket(const char * titleStr, otMessage * pkt)
             }
             else
             {
-                snprintf(typeBuf, sizeof(typeBuf), "ICMPv6 %" PRIu8 ",%" PRIu8, ICMPv6_Type, ICMPv6_Code);
+                snprintf(typeBuf, sizeof(typeBuf), "ICMPv6 %u,%u", ICMPv6_Type, ICMPv6_Code);
             }
         }
         else
         {
-            snprintf(typeBuf, sizeof(typeBuf), "IP proto %" PRIu8, IPv6_NextHeader);
+            snprintf(typeBuf, sizeof(typeBuf), "IP proto %u", IPv6_NextHeader);
         }
 
         if (IPv6_NextHeader == kIPProto_UDP || IPv6_NextHeader == kIPProto_TCP)
         {
-            snprintf(srcStr + strlen(srcStr), 13, ", port %" PRIu16, Encoding::BigEndian::Get16(IPv6_SrcPort));
-            snprintf(destStr + strlen(destStr), 13, ", port %" PRIu16, Encoding::BigEndian::Get16(IPv6_DestPort));
+            snprintf(srcStr + strlen(srcStr), 13, ", port %u", Encoding::BigEndian::Get16(IPv6_SrcPort));
+            snprintf(destStr + strlen(destStr), 13, ", port %u", Encoding::BigEndian::Get16(IPv6_DestPort));
         }
 
-        ChipLogDetail(DeviceLayer, "%s: %s, len %" PRIu16, titleStr, type, pktLen);
+        ChipLogDetail(DeviceLayer, "%s: %s, len %u", StringOrNullMarker(titleStr), type, pktLen);
         ChipLogDetail(DeviceLayer, "    src  %s", srcStr);
         ChipLogDetail(DeviceLayer, "    dest %s", destStr);
     }
     else
     {
-        ChipLogDetail(DeviceLayer, "%s: %s, len %" PRIu16, titleStr, "(decode error)", pktLen);
+        ChipLogDetail(DeviceLayer, "%s: %s, len %u", StringOrNullMarker(titleStr), "(decode error)", pktLen);
     }
 
 #endif // CHIP_DETAIL_LOGGING
 }
 
-bool IsOpenThreadMeshLocalAddress(otInstance * otInst, const IPAddress & addr)
+bool IsOpenThreadMeshLocalAddress(otInstance * otInst, const Inet::IPAddress & addr)
 {
     const otMeshLocalPrefix * otMeshPrefix = otThreadGetMeshLocalPrefix(otInst);
 

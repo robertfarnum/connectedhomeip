@@ -25,8 +25,9 @@
 
 #pragma once
 
+#include <array>
+#include <lib/support/CodeUtils.h>
 #include <protocols/Protocols.h>
-#include <support/CodeUtils.h>
 
 /**
  *   @namespace chip::Protocols::SecureChannel
@@ -41,6 +42,8 @@
 namespace chip {
 namespace Protocols {
 namespace SecureChannel {
+
+inline constexpr char kProtocolName[] = "SecureChannel";
 
 /**
  * SecureChannel Protocol Message Types
@@ -57,25 +60,31 @@ enum class MsgType : uint8_t
     // Password-based session establishment Message Types
     PBKDFParamRequest  = 0x20,
     PBKDFParamResponse = 0x21,
-    PASE_Spake2p1      = 0x22,
-    PASE_Spake2p2      = 0x23,
-    PASE_Spake2p3      = 0x24,
-    PASE_Spake2pError  = 0x2F,
+    PASE_Pake1         = 0x22,
+    PASE_Pake2         = 0x23,
+    PASE_Pake3         = 0x24,
 
     // Certificate-based session establishment Message Types
-    CASE_SigmaR1  = 0x30,
-    CASE_SigmaR2  = 0x31,
-    CASE_SigmaR3  = 0x32,
-    CASE_SigmaErr = 0x3F,
+    CASE_Sigma1       = 0x30,
+    CASE_Sigma2       = 0x31,
+    CASE_Sigma3       = 0x32,
+    CASE_Sigma2Resume = 0x33,
 
     StatusReport = 0x40,
+
+    ICD_CheckIn = 0x50,
 };
 
 // Placeholder value for the ProtocolCode field when the GeneralCode is Success or Continue.
-constexpr uint16_t kProtocolCodeSuccess = 0x0000;
+inline constexpr uint16_t kProtocolCodeSuccess         = 0x0000;
+inline constexpr uint16_t kProtocolCodeNoSharedRoot    = 0x0001;
+inline constexpr uint16_t kProtocolCodeInvalidParam    = 0x0002;
+inline constexpr uint16_t kProtocolCodeCloseSession    = 0x0003;
+inline constexpr uint16_t kProtocolCodeBusy            = 0x0004;
+inline constexpr uint16_t kProtocolCodeSessionNotFound = 0x0005;
 
 // Placeholder value for the ProtocolCode field when there is no additional protocol-specific code to provide more information.
-constexpr uint16_t kProtocolCodeGeneralFailure = 0xFFFF;
+inline constexpr uint16_t kProtocolCodeGeneralFailure = 0xFFFF;
 
 /**
  * Status Report - General Status Codes used to convey protocol-agnostic status info.
@@ -117,6 +126,30 @@ template <>
 struct MessageTypeTraits<SecureChannel::MsgType>
 {
     static constexpr const Protocols::Id & ProtocolId() { return SecureChannel::Id; }
+
+    static auto GetTypeToNameTable()
+    {
+        static const std::array<MessageTypeNameLookup, 14> typeToNameTable = {
+            {
+                { SecureChannel::MsgType::MsgCounterSyncReq, "MsgCounterSyncReq" },
+                { SecureChannel::MsgType::MsgCounterSyncRsp, "MsgCounterSyncRsp" },
+                { SecureChannel::MsgType::StandaloneAck, "StandaloneAck" },
+                { SecureChannel::MsgType::PBKDFParamRequest, "PBKDFParamRequest" },
+                { SecureChannel::MsgType::PBKDFParamResponse, "PBKDFParamResponse" },
+                { SecureChannel::MsgType::PASE_Pake1, "PASE_Pake1" },
+                { SecureChannel::MsgType::PASE_Pake2, "PASE_Pake2" },
+                { SecureChannel::MsgType::PASE_Pake3, "PASE_Pake3" },
+                { SecureChannel::MsgType::CASE_Sigma1, "CASE_Sigma1" },
+                { SecureChannel::MsgType::CASE_Sigma2, "CASE_Sigma2" },
+                { SecureChannel::MsgType::CASE_Sigma3, "CASE_Sigma3" },
+                { SecureChannel::MsgType::CASE_Sigma2Resume, "CASE_Sigma2Resume" },
+                { SecureChannel::MsgType::StatusReport, "StatusReport" },
+                { SecureChannel::MsgType::ICD_CheckIn, "ICD_CheckInMessage" },
+            },
+        };
+
+        return &typeToNameTable;
+    }
 };
 
 } // namespace Protocols

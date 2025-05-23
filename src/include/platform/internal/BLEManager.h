@@ -24,8 +24,8 @@
 
 #pragma once
 
+#include <lib/support/CodeUtils.h>
 #include <platform/ConnectivityManager.h>
-#include <support/CodeUtils.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 
@@ -54,8 +54,7 @@ public:
     using BLEAdvertisingMode  = ConnectivityManager::BLEAdvertisingMode;
 
     CHIP_ERROR Init();
-    CHIPoBLEServiceMode GetCHIPoBLEServiceMode();
-    CHIP_ERROR SetCHIPoBLEServiceMode(CHIPoBLEServiceMode val);
+    void Shutdown();
     bool IsAdvertisingEnabled();
     CHIP_ERROR SetAdvertisingEnabled(bool val);
     bool IsAdvertising();
@@ -72,8 +71,8 @@ protected:
     ~BLEManager() = default;
 
     // No copy, move or assignment.
-    BLEManager(const BLEManager &)  = delete;
-    BLEManager(const BLEManager &&) = delete;
+    BLEManager(const BLEManager &)             = delete;
+    BLEManager(const BLEManager &&)            = delete;
     BLEManager & operator=(const BLEManager &) = delete;
 };
 
@@ -116,14 +115,12 @@ inline CHIP_ERROR BLEManager::Init()
     return static_cast<ImplClass *>(this)->_Init();
 }
 
-inline BLEManager::CHIPoBLEServiceMode BLEManager::GetCHIPoBLEServiceMode()
+inline void BLEManager::Shutdown()
 {
-    return static_cast<ImplClass *>(this)->_GetCHIPoBLEServiceMode();
-}
-
-inline CHIP_ERROR BLEManager::SetCHIPoBLEServiceMode(CHIPoBLEServiceMode val)
-{
-    return static_cast<ImplClass *>(this)->_SetCHIPoBLEServiceMode(val);
+#if CONFIG_NETWORK_LAYER_BLE
+    GetBleLayer()->Shutdown();
+#endif
+    static_cast<ImplClass *>(this)->_Shutdown();
 }
 
 inline bool BLEManager::IsAdvertisingEnabled()

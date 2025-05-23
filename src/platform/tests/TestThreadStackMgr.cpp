@@ -16,18 +16,21 @@
  */
 
 #include <assert.h>
-#include <dbus/dbus.h>
 #include <memory>
 
-#include <support/CHIPMem.h>
-#include <support/UnitTestRegistration.h>
+#include <pw_unit_test/framework.h>
+
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/ThreadOperationalDataset.h>
 
 #include "platform/internal/CHIPDeviceLayerInternal.h"
 
 #include "platform/PlatformManager.h"
 #include "platform/ThreadStackManager.h"
 
-#if CHIP_DEVICE_LAYER_TARGET == LINUX
+#if CHIP_DEVICE_LAYER_TARGET_LINUX
+#include <dbus/dbus.h>
 #include <thread>
 
 struct DBusConnectionDeleter
@@ -38,31 +41,31 @@ struct DBusConnectionDeleter
 using UniqueDBusConnection = std::unique_ptr<DBusConnection, DBusConnectionDeleter>;
 #endif
 
-void EventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t arg)
+static std::atomic_bool eventReceived{ false };
+
+void EventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t)
 {
-    (void) arg;
     if (event->Type == chip::DeviceLayer::DeviceEventType::kThreadConnectivityChange)
     {
         if (event->ThreadConnectivityChange.Result == chip::DeviceLayer::ConnectivityChange::kConnectivity_Established)
         {
-            exit(0);
+            eventReceived = true;
         }
     }
 }
 
-int TestThreadStackManager()
+TEST(TestThreadStackManager, TestThreadStackManager)
 {
     chip::DeviceLayer::ThreadStackManagerImpl impl;
-    chip::DeviceLayer::Internal::DeviceNetworkInfo info;
-    uint16_t masterKey[16] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
+    chip::Thread::OperationalDataset dataset{};
+    constexpr uint8_t masterKey[] = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
 
-    strncpy(info.ThreadNetworkName, "CHIP-TEST", sizeof(info.ThreadNetworkName));
-    info.ThreadChannel                    = UINT8_MAX;
-    info.ThreadPANId                      = 0x3455;
-    info.FieldPresent.ThreadExtendedPANId = false;
-    info.FieldPresent.ThreadMeshPrefix    = false;
-    info.FieldPresent.ThreadPSKc          = false;
-    memcpy(&info.ThreadMasterKey, &masterKey, sizeof(masterKey));
+    dataset.SetNetworkName("CHIP-TEST");
+    dataset.SetChannel(UINT8_MAX);
+    dataset.SetPanId(0x3455);
+    dataset.SetMasterKey(masterKey);
 
     chip::Platform::MemoryInit();
     chip::DeviceLayer::PlatformMgrImpl().InitChipStack();
@@ -70,14 +73,13 @@ int TestThreadStackManager()
 
     impl.InitThreadStack();
     impl.StartThreadTask();
-    impl._SetThreadProvision(info);
+    impl._SetThreadProvision(dataset.AsByteSpan());
     impl._SetThreadEnabled(true);
 
     printf("Start Thread task done\n");
 
     chip::DeviceLayer::PlatformMgrImpl().RunEventLoop();
+    chip::Platform::MemoryShutdown();
 
-    return -1;
+    EXPECT_TRUE(eventReceived);
 }
-
-CHIP_REGISTER_TEST_SUITE(TestThreadStackManager);

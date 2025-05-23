@@ -23,9 +23,10 @@
 
 #pragma once
 
+#include <app/icd/server/ICDServerConfig.h>
+#include <lib/support/logging/CHIPLogging.h>
 #include <platform/ConnectivityManager.h>
 #include <platform/internal/DeviceNetworkInfo.h>
-#include <support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -59,8 +60,8 @@ public:
     CHIP_ERROR _SetWiFiStationMode(ConnectivityManager::WiFiStationMode val);
     bool _IsWiFiStationEnabled();
     bool _IsWiFiStationApplicationControlled();
-    uint32_t _GetWiFiStationReconnectIntervalMS();
-    CHIP_ERROR _SetWiFiStationReconnectIntervalMS(uint32_t val);
+    System::Clock::Timeout _GetWiFiStationReconnectInterval();
+    CHIP_ERROR _SetWiFiStationReconnectInterval(System::Clock::Timeout val);
     bool _IsWiFiStationProvisioned();
     void _ClearWiFiStationProvision();
     ConnectivityManager::WiFiAPMode _GetWiFiAPMode();
@@ -70,12 +71,16 @@ public:
     void _DemandStartWiFiAP();
     void _StopOnDemandWiFiAP();
     void _MaintainOnDemandWiFiAP();
-    uint32_t _GetWiFiAPIdleTimeoutMS();
-    void _SetWiFiAPIdleTimeoutMS(uint32_t val);
-    CHIP_ERROR _GetAndLogWifiStatsCounters();
+    System::Clock::Timeout _GetWiFiAPIdleTimeout();
+    void _SetWiFiAPIdleTimeout(System::Clock::Timeout val);
+    CHIP_ERROR _GetAndLogWiFiStatsCounters();
     bool _CanStartWiFiScan();
     void _OnWiFiScanDone();
     void _OnWiFiStationProvisionChange();
+// TODO ICD rework: ambiguous declaration of _SetPollingInterval when thread and wifi are both build together
+#if CHIP_CONFIG_ENABLE_ICD_SERVER && !CHIP_DEVICE_CONFIG_ENABLE_THREAD
+    CHIP_ERROR _SetPollingInterval(System::Clock::Milliseconds32 pollingInterval);
+#endif
     static const char * _WiFiStationModeToStr(ConnectivityManager::WiFiStationMode mode);
     static const char * _WiFiAPModeToStr(ConnectivityManager::WiFiAPMode mode);
     static const char * _WiFiStationStateToStr(ConnectivityManager::WiFiStationState state);
@@ -94,13 +99,13 @@ private:
 };
 
 template <class ImplClass>
-inline uint32_t GenericConnectivityManagerImpl_WiFi<ImplClass>::_GetWiFiStationReconnectIntervalMS()
+inline System::Clock::Timeout GenericConnectivityManagerImpl_WiFi<ImplClass>::_GetWiFiStationReconnectInterval()
 {
-    return 0;
+    return System::Clock::kZero;
 }
 
 template <class ImplClass>
-inline CHIP_ERROR GenericConnectivityManagerImpl_WiFi<ImplClass>::_SetWiFiStationReconnectIntervalMS(uint32_t val)
+inline CHIP_ERROR GenericConnectivityManagerImpl_WiFi<ImplClass>::_SetWiFiStationReconnectInterval(System::Clock::Timeout val)
 {
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
@@ -152,17 +157,17 @@ inline void GenericConnectivityManagerImpl_WiFi<ImplClass>::_MaintainOnDemandWiF
 {}
 
 template <class ImplClass>
-inline uint32_t GenericConnectivityManagerImpl_WiFi<ImplClass>::_GetWiFiAPIdleTimeoutMS()
+inline System::Clock::Timeout GenericConnectivityManagerImpl_WiFi<ImplClass>::_GetWiFiAPIdleTimeout()
 {
-    return 0;
+    return System::Clock::kZero;
 }
 
 template <class ImplClass>
-inline void GenericConnectivityManagerImpl_WiFi<ImplClass>::_SetWiFiAPIdleTimeoutMS(uint32_t val)
+inline void GenericConnectivityManagerImpl_WiFi<ImplClass>::_SetWiFiAPIdleTimeout(System::Clock::Timeout val)
 {}
 
 template <class ImplClass>
-inline CHIP_ERROR GenericConnectivityManagerImpl_WiFi<ImplClass>::_GetAndLogWifiStatsCounters()
+inline CHIP_ERROR GenericConnectivityManagerImpl_WiFi<ImplClass>::_GetAndLogWiFiStatsCounters()
 {
     return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
@@ -180,6 +185,14 @@ inline void GenericConnectivityManagerImpl_WiFi<ImplClass>::_OnWiFiScanDone()
 template <class ImplClass>
 inline void GenericConnectivityManagerImpl_WiFi<ImplClass>::_OnWiFiStationProvisionChange()
 {}
+
+#if CHIP_CONFIG_ENABLE_ICD_SERVER && !CHIP_DEVICE_CONFIG_ENABLE_THREAD
+template <class ImplClass>
+inline CHIP_ERROR GenericConnectivityManagerImpl_WiFi<ImplClass>::_SetPollingInterval(System::Clock::Milliseconds32 pollingInterval)
+{
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+}
+#endif
 
 } // namespace Internal
 } // namespace DeviceLayer

@@ -28,40 +28,30 @@
 
 #include <messaging/ReliableMessageProtocolConfig.h>
 
-#include <core/CHIPError.h>
-#include <inet/InetLayer.h>
+#include <lib/core/CHIPError.h>
 #include <lib/core/ReferenceCounted.h>
-#include <support/DLLUtil.h>
+#include <lib/support/DLLUtil.h>
+#include <messaging/ReliableMessageProtocolConfig.h>
 #include <system/SystemLayer.h>
 #include <transport/raw/MessageHeader.h>
 
 namespace chip {
+namespace app {
+class TestCommandInteraction;
+class TestReadInteraction;
+class TestWriteInteraction;
+} // namespace app
 namespace Messaging {
 
 class ChipMessageInfo;
 class ExchangeContext;
 enum class MessageFlagValues : uint32_t;
-class ReliableMessageContext;
 class ReliableMessageMgr;
-
-class ReliableMessageDelegate
-{
-public:
-    virtual ~ReliableMessageDelegate() {}
-
-    /* Application callbacks */
-    virtual void OnSendError(CHIP_ERROR err) = 0; /**< Application callback for error while sending. */
-    virtual void OnAckRcvd()                 = 0; /**< Application callback for received acknowledgment. */
-};
 
 class ReliableMessageContext
 {
 public:
     ReliableMessageContext();
-
-    void Init(ReliableMessageMgr * manager, ExchangeContext * exchange);
-    void SetConfig(ReliableMessageProtocolConfig config) { mConfig = config; }
-    void SetDelegate(ReliableMessageDelegate * delegate) { mDelegate = delegate; }
 
     /**
      * Flush the pending Ack for current exchange.
@@ -70,13 +60,23 @@ public:
     CHIP_ERROR FlushAcks();
 
     /**
-     *  Get the current retransmit timeout. It would be either the initial or
-     *  the active retransmit timeout based on whether the ExchangeContext has
-     *  an active message exchange going with its peer.
-     *
-     *  @return the current retransmit time.
+     * Take the pending peer ack message counter from the context.  This must
+     * only be called when HasPiggybackAckPending() is true.  After this call,
+     * IsAckPending() will be false; it's the caller's responsibility to send
+     * the ack.
      */
-    uint64_t GetCurrentRetransmitTimeoutTick();
+    uint32_t TakePendingPeerAckMessageCounter()
+    {
+        SetAckPending(false);
+        return mPendingPeerAckMessageCounter;
+    }
+
+    /**
+     * Check whether we have a mPendingPeerAckMessageCounter. The counter is
+     * valid once we receive a message which requests an ack. Once
+     * mPendingPeerAckMessageCounter is valid, it never stops being valid.
+     */
+    bool HasPiggybackAckPending() const;
 
     /**
      *  Send a SecureChannel::StandaloneAck message.
@@ -108,31 +108,91 @@ public:
     void SetAutoRequestAck(bool autoReqAck);
 
     /**
-     *  Determine whether the ChipExchangeManager should not send an
-     *  acknowledgement.
-     *
-     *  For internal, debug use only.
-     */
-    bool ShouldDropAckDebug() const;
-
-    /**
-     *  Set whether the ChipExchangeManager should not send acknowledgements
-     *  for this context.
-     *
-     *  For internal, debug use only.
-     *
-     *  @param[in]  inDropAckDebug  A Boolean indicating whether (true) or not
-     *                         (false) the acknowledgements should be not
-     *                         sent for the exchange.
-     */
-    void SetDropAckDebug(bool inDropAckDebug);
-
-    /**
      *  Determine whether there is already an acknowledgment pending to be sent to the peer on this exchange.
      *
      *  @return Returns 'true' if there is already an acknowledgment pending  on this exchange, else 'false'.
      */
     bool IsAckPending() const;
+
+    /// Determine whether the reliable message context is waiting for an ack.
+    bool IsWaitingForAck() const;
+
+    /// Set whether the reliable message context is waiting for an ack.
+    void SetWaitingForAck(bool waitingForAck);
+
+    /// Set if this exchange is requesting Sleepy End Device active mode
+    void SetRequestingActiveMode(bool activeMode);
+
+    /// Determine whether this exchange is a EphemeralExchange for replying a StandaloneAck
+    bool IsEphemeralExchange() const;
+
+    /**
+     * Get the reliable message manager that corresponds to this reliable
+     * message context.
+     */
+    ReliableMessageMgr * GetReliableMessageMgr();
+
+protected:
+    bool WaitingForResponseOrAck() const;
+    void SetWaitingForResponseOrAck(bool waitingForResponseOrAck);
+
+    enum class Flags : uint16_t
+    {
+        /// When set, signifies that this context is the initiator of the exchange.
+        kFlagInitiator = (1u << 0),
+
+        /// When set, signifies that a response is expected for a message that is being sent.
+        kFlagResponseExpected = (1u << 1),
+
+        /// When set, automatically request an acknowledgment whenever a message is sent via UDP.
+        kFlagAutoRequestAck = (1u << 2),
+
+        /// When set, signifies the reliable message context is waiting for an
+        /// ack: a message that needs an ack has been sent, no ack has been
+        /// received, and we have not yet run out of MRP retries.
+        kFlagWaitingForAck = (1u << 3),
+
+        /// When set, signifies that there is an acknowledgment pending to be sent back.
+        kFlagAckPending = (1u << 4),
+
+        /// When set, signifies that mPendingPeerAckMessageCounter is valid.
+        /// The counter is valid once we receive a message which requests an ack.
+        /// Once mPendingPeerAckMessageCounter is valid, it never stops being valid.
+        kFlagAckMessageCounterIsValid = (1u << 5),
+
+        /// When set, signifies that this exchange is waiting for a call to SendMessage.
+        kFlagWillSendMessage = (1u << 6),
+
+        /// When set, we have had Close() or Abort() called on us already.
+        kFlagClosed = (1u << 7),
+
+        /// When set, signifies that the exchange created sorely for replying a StandaloneAck
+        kFlagEphemeralExchange = (1u << 8),
+
+        /// When set, ignore session being released, because we are releasing it ourselves.
+        kFlagIgnoreSessionRelease = (1u << 9),
+
+        // This flag is used to determine if the peer (receiver) should be considered active or not.
+        // When set, sender knows it has received at least one application-level message
+        // from the peer and can assume the peer (receiver) is active.
+        // If the flag is not set, we don't know if the peer (receiver) is active or not.
+        kFlagReceivedAtLeastOneMessage = (1u << 10),
+
+        /// When set:
+        ///
+        /// (1) We sent a message that expected a response (hence
+        ///     IsResponseExpected() is true).
+        /// (2) We have received neither a response nor an ack for that message.
+        kFlagWaitingForResponseOrAck = (1u << 11),
+    };
+
+    BitFlags<Flags> mFlags; // Internal state flags
+
+private:
+    void HandleRcvdAck(uint32_t ackMessageCounter);
+    CHIP_ERROR HandleNeedsAck(uint32_t messageCounter, BitFlags<MessageFlagValues> messageFlags);
+    CHIP_ERROR HandleNeedsAckInner(uint32_t messageCounter, BitFlags<MessageFlagValues> messageFlags);
+    ExchangeContext * GetExchangeContext();
 
     /**
      *  Set if an acknowledgment needs to be sent back to the peer on this exchange.
@@ -143,84 +203,65 @@ public:
      */
     void SetAckPending(bool inAckPending);
 
-    /**
-     *  Determine whether peer requested acknowledgment for at least one message
-     *  on this exchange.
-     *
-     *  @return Returns 'true' if acknowledgment requested, else 'false'.
-     */
-    bool HasPeerRequestedAck() const;
+    // Set our pending peer ack message counter and any other state needed to ensure that we
+    // will send that ack at some point.
+    void SetPendingPeerAckMessageCounter(uint32_t aPeerAckMessageCounter);
 
-    /**
-     *  Set if an acknowledgment was requested in the last message received
-     *  on this exchange.
-     *
-     *  @param[in]  inPeerRequestedAck A Boolean indicating whether (true) or not
-     *                                 (false) an acknowledgment was requested
-     *                                 in the last received message.
-     */
-    void SetPeerRequestedAck(bool inPeerRequestedAck);
-
-    /**
-     *  Determine whether at least one message has been received
-     *  on this exchange from peer.
-     *
-     *  @return Returns 'true' if message received, else 'false'.
-     */
-    bool HasRcvdMsgFromPeer() const;
-
-    /**
-     *  Set if a message has been received from the peer
-     *  on this exchange.
-     *
-     *  @param[in]  inMsgRcvdFromPeer  A Boolean indicating whether (true) or not
-     *                                 (false) a message has been received
-     *                                 from the peer on this exchange context.
-     */
-    void SetMsgRcvdFromPeer(bool inMsgRcvdFromPeer);
-
-private:
-    enum class Flags : uint16_t
-    {
-        /// When set, automatically request an acknowledgment whenever a message is sent via UDP.
-        kFlagAutoRequestAck = 0x0004,
-
-        /// Internal and debug only: when set, the exchange layer does not send an acknowledgment.
-        kFlagDropAckDebug = 0x0008,
-
-        /// If a response is expected for a message that is being sent.
-        kFlagResponseExpected = 0x0010,
-
-        /// When set, signifies that there is an acknowledgment pending to be sent back.
-        kFlagAckPending = 0x0020,
-
-        /// When set, signifies that at least one message received on this exchange requested an acknowledgment.
-        /// This flag is read by the application to decide if it needs to request an acknowledgment for the
-        /// response message it is about to send. This flag can also indicate whether peer is using ReliableMessageProtocol.
-        kFlagPeerRequestedAck = 0x0040,
-
-        /// When set, signifies that at least one message has been received from peer on this exchange context.
-        kFlagMsgRcvdFromPeer = 0x0080,
-    };
-
-    BitFlags<Flags> mFlags; // Internal state flags
-
-    void Retain();
-    void Release();
-    CHIP_ERROR HandleRcvdAck(uint32_t AckMsgId);
-    CHIP_ERROR HandleNeedsAck(uint32_t MessageId, BitFlags<MessageFlagValues> Flags);
-
-private:
     friend class ReliableMessageMgr;
     friend class ExchangeContext;
+    friend class ExchangeMessageDispatch;
+    friend class ::chip::app::TestCommandInteraction;
+    friend class ::chip::app::TestReadInteraction;
+    friend class ::chip::app::TestWriteInteraction;
 
-    ReliableMessageMgr * mManager;
-    ExchangeContext * mExchange;
-    ReliableMessageDelegate * mDelegate;
-    ReliableMessageProtocolConfig mConfig;
-    uint16_t mNextAckTimeTick; // Next time for triggering Solo Ack
-    uint32_t mPendingPeerAckId;
+    System::Clock::Timestamp mNextAckTime; // Next time for triggering Solo Ack
+    uint32_t mPendingPeerAckMessageCounter;
 };
+
+inline bool ReliableMessageContext::AutoRequestAck() const
+{
+    return mFlags.Has(Flags::kFlagAutoRequestAck);
+}
+
+inline bool ReliableMessageContext::IsAckPending() const
+{
+    return mFlags.Has(Flags::kFlagAckPending);
+}
+
+inline bool ReliableMessageContext::IsWaitingForAck() const
+{
+    return mFlags.Has(Flags::kFlagWaitingForAck);
+}
+
+inline bool ReliableMessageContext::HasPiggybackAckPending() const
+{
+    return mFlags.Has(Flags::kFlagAckMessageCounterIsValid);
+}
+
+inline void ReliableMessageContext::SetAutoRequestAck(bool autoReqAck)
+{
+    mFlags.Set(Flags::kFlagAutoRequestAck, autoReqAck);
+}
+
+inline void ReliableMessageContext::SetAckPending(bool inAckPending)
+{
+    mFlags.Set(Flags::kFlagAckPending, inAckPending);
+}
+
+inline bool ReliableMessageContext::IsEphemeralExchange() const
+{
+    return mFlags.Has(Flags::kFlagEphemeralExchange);
+}
+
+inline bool ReliableMessageContext::WaitingForResponseOrAck() const
+{
+    return mFlags.Has(Flags::kFlagWaitingForResponseOrAck);
+}
+
+inline void ReliableMessageContext::SetWaitingForResponseOrAck(bool waitingForResponseOrAck)
+{
+    mFlags.Set(Flags::kFlagWaitingForResponseOrAck, waitingForResponseOrAck);
+}
 
 } // namespace Messaging
 } // namespace chip

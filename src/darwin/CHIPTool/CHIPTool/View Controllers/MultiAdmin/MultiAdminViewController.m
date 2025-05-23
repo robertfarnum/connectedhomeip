@@ -199,45 +199,54 @@ static NSString * const DEFAULT_DISCRIMINATOR = @"3840";
 
 - (IBAction)openPairingWindow:(id)sender
 {
-    uint32_t setupPIN = arc4random();
+    NSUInteger setupPIN = [MTRSetupPayload generateRandomPIN];
     [_deviceSelector forSelectedDevices:^(uint64_t deviceId) {
-        CHIPDevice * chipDevice = CHIPGetPairedDeviceWithID(deviceId);
-        // send message
-        if (chipDevice != nil && [chipDevice isActive]) {
-            NSString * timeoutStr = [self.timeoutField text];
-            if (timeoutStr.length == 0) {
-                timeoutStr = [self.timeoutField placeholder];
-            }
-            int timeout = [timeoutStr intValue];
+        if (MTRGetConnectedDeviceWithID(deviceId, ^(MTRBaseDevice * _Nullable chipDevice, NSError * _Nullable error) {
+                if (chipDevice) {
+                    NSString * timeoutStr = [self.timeoutField text];
+                    if (timeoutStr.length == 0) {
+                        timeoutStr = [self.timeoutField placeholder];
+                    }
+                    int timeout = [timeoutStr intValue];
 
-            NSString * output;
-            NSError * error;
-            if ([self.useOnboardingTokenSwitch isOn]) {
-                NSString * discriminatorStr = [self.discriminatorField text];
-                if (discriminatorStr.length == 0) {
-                    discriminatorStr = [self.discriminatorField placeholder];
-                }
-                NSInteger discriminator = [discriminatorStr intValue];
+                    NSString * output;
+                    NSError * error;
+                    MTRDeviceController * controller = InitializeMTR();
+                    if ([self.useOnboardingTokenSwitch isOn]) {
+                        NSString * discriminatorStr = [self.discriminatorField text];
+                        if (discriminatorStr.length == 0) {
+                            discriminatorStr = [self.discriminatorField placeholder];
+                        }
+                        NSInteger discriminator = [discriminatorStr intValue];
 
-                output = [chipDevice openPairingWindowWithPIN:timeout discriminator:discriminator setupPIN:setupPIN error:&error];
+                        output = [controller openPairingWindowWithPIN:deviceId
+                                                             duration:timeout
+                                                        discriminator:discriminator
+                                                             setupPIN:setupPIN
+                                                                error:&error];
 
-                if (output != nil) {
-                    NSString * result = [@"Use Manual Code: " stringByAppendingString:output];
-                    [self updateResult:result];
+                        if (output != nil) {
+                            NSString * result = [@"Use Manual Code: " stringByAppendingString:output];
+                            [self updateResult:result];
+                        } else {
+                            [self updateResult:@"Failed in opening the pairing window"];
+                        }
+                    } else {
+                        BOOL didSend = [controller openPairingWindow:deviceId duration:timeout error:&error];
+                        if (didSend) {
+                            [self updateResult:@"Scan the QR code on the device"];
+                        } else {
+                            NSString * errorString = [@"Error: " stringByAppendingString:error.localizedDescription];
+                            [self updateResult:errorString];
+                        }
+                    }
                 } else {
-                    [self updateResult:@"Failed in opening the pairing window"];
+                    [self updateResult:[NSString stringWithFormat:@"Failed to establish a connection with the device"]];
                 }
-            } else {
-                BOOL didSend = [chipDevice openPairingWindow:timeout error:&error];
-                if (didSend) {
-                    [self updateResult:@"Scan the QR code on the device"];
-                } else {
-                    NSString * errorString = [@"Error: " stringByAppendingString:error.localizedDescription];
-                    [self updateResult:errorString];
-                }
-            }
+            })) {
+            [self updateResult:[NSString stringWithFormat:@"Waiting for connection with the device"]];
         } else {
-            [self updateResult:@"Controller not connected"];
+            [self updateResult:[NSString stringWithFormat:@"Failed to trigger the connection with the device"]];
         }
     }];
 }

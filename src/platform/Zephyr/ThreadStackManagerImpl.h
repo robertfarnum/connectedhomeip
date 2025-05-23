@@ -25,13 +25,13 @@
 
 #include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread.h>
 
-#include <net/openthread.h>
-#include <zephyr.h>
+#include <zephyr/kernel.h>
+#include <zephyr/net/openthread.h>
 
 #include <openthread/thread.h>
 #include <platform/Zephyr/BLEManagerImpl.h>
 
-#include <support/logging/CHIPLogging.h>
+#include <lib/support/logging/CHIPLogging.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -64,16 +64,18 @@ public:
 protected:
     // ===== Methods that implement the ThreadStackManager abstract interface.
 
-    CHIP_ERROR _StartThreadTask();
+    CHIP_ERROR _StartThreadTask() { return CHIP_NO_ERROR; }
     void _LockThreadStack();
     bool _TryLockThreadStack();
     void _UnlockThreadStack();
 
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+    void _WaitOnSrpClearAllComplete();
+    void _NotifySrpClearAllComplete();
+#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
     // ===== Methods that override the GenericThreadStackManagerImpl_OpenThread abstract interface.
 
-    void _ProcessThreadActivity();
-    void _OnCHIPoBLEAdvertisingStart();
-    void _OnCHIPoBLEAdvertisingStop();
+    void _ProcessThreadActivity() {}
 
     //} // namespace Internal
 
@@ -83,11 +85,13 @@ private:
     friend ThreadStackManager & ::chip::DeviceLayer::ThreadStackMgr(void);
     friend ThreadStackManagerImpl & ::chip::DeviceLayer::ThreadStackMgrImpl(void);
 
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+    k_sem mSrpClearAllSemaphore;
+#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+
     static ThreadStackManagerImpl sInstance;
 
     // ===== Private members for use by this class only.
-
-    ThreadStackManagerImpl() = default;
 };
 
 /**
