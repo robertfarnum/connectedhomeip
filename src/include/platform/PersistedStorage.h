@@ -31,8 +31,8 @@
 #include <cstdint>
 #include <type_traits>
 
-#include <core/CHIPConfig.h>
-#include <core/CHIPError.h>
+#include <lib/core/CHIPConfig.h>
+#include <lib/core/CHIPError.h>
 
 namespace chip {
 namespace Platform {
@@ -57,7 +57,7 @@ struct EmptyKey<const char *>
 
 } // namespace internal
 
-constexpr Key kEmptyKey = internal::EmptyKey<Key>::value;
+inline constexpr Key kEmptyKey = internal::EmptyKey<Key>::value;
 
 /**
  *  @brief

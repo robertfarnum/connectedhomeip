@@ -16,56 +16,43 @@
  *    limitations under the License.
  */
 
-#include <platform/CHIPDeviceLayer.h>
-#include <platform/PlatformManager.h>
-
-#include "af.h"
-#include "gen/attribute-id.h"
-#include "gen/cluster-id.h"
-#include <app/chip-zcl-zpro-codec.h>
-#include <app/util/af-types.h>
-#include <app/util/attribute-storage.h>
-#include <app/util/util.h>
-#include <core/CHIPError.h>
-#include <setup_payload/QRCodeSetupPayloadGenerator.h>
-#include <setup_payload/SetupPayload.h>
-#include <support/CHIPMem.h>
-#include <support/RandUtils.h>
-
+#include "LightingAppCommandDelegate.h"
 #include "LightingManager.h"
-#include "Options.h"
-#include "Server.h"
+#include <AppMain.h>
 
-#include <cassert>
-#include <iostream>
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
+#include <app/ConcreteAttributePath.h>
+#include <app/server/Server.h>
+#include <lib/support/logging/CHIPLogging.h>
+
+#include <string>
+
+#if defined(CHIP_IMGUI_ENABLED) && CHIP_IMGUI_ENABLED
+#include <imgui_ui/ui.h>
+#include <imgui_ui/windows/light.h>
+#include <imgui_ui/windows/occupancy_sensing.h>
+#include <imgui_ui/windows/qrcode.h>
+
+#endif
 
 using namespace chip;
-using namespace chip::Inet;
-using namespace chip::Transport;
-using namespace chip::DeviceLayer;
+using namespace chip::app;
+using namespace chip::app::Clusters;
 
-void emberAfPostAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                        uint16_t manufacturerCode, uint8_t type, uint8_t size, uint8_t * value)
+namespace {
+
+constexpr char kChipEventFifoPathPrefix[] = "/tmp/chip_lighting_fifo_";
+NamedPipeCommands sChipNamedPipeCommands;
+LightingAppCommandDelegate sLightingAppCommandDelegate;
+} // namespace
+
+void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & attributePath, uint8_t type, uint16_t size,
+                                       uint8_t * value)
 {
-    if (clusterId != ZCL_ON_OFF_CLUSTER_ID)
+    if (attributePath.mClusterId == OnOff::Id && attributePath.mAttributeId == OnOff::Attributes::OnOff::Id)
     {
-        ChipLogProgress(Zcl, "Unknown cluster ID: %d", clusterId);
-        return;
-    }
-
-    if (attributeId != ZCL_ON_OFF_ATTRIBUTE_ID)
-    {
-        ChipLogProgress(Zcl, "Unknown attribute ID: %d", attributeId);
-        return;
-    }
-
-    if (*value)
-    {
-        LightingMgr().InitiateAction(LightingManager::ON_ACTION);
-    }
-    else
-    {
-        LightingMgr().InitiateAction(LightingManager::OFF_ACTION);
+        LightingMgr().InitiateAction(*value ? LightingManager::ON_ACTION : LightingManager::OFF_ACTION);
     }
 }
 
@@ -89,119 +76,62 @@ void emberAfOnOffClusterInitCallback(EndpointId endpoint)
     // TODO: implement any additional Cluster Server init actions
 }
 
-namespace {
-void EventHandler(const chip::DeviceLayer::ChipDeviceEvent * event, intptr_t arg)
+void ApplicationInit()
 {
-    (void) arg;
-    if (event->Type == chip::DeviceLayer::DeviceEventType::kCHIPoBLEConnectionEstablished)
+    std::string path = kChipEventFifoPathPrefix + std::to_string(getpid());
+
+    if (sChipNamedPipeCommands.Start(path, &sLightingAppCommandDelegate) != CHIP_NO_ERROR)
     {
-        ChipLogProgress(DeviceLayer, "Receive kCHIPoBLEConnectionEstablished");
+        ChipLogError(NotSpecified, "Failed to start CHIP NamedPipeCommands");
+        sChipNamedPipeCommands.Stop();
     }
 }
 
-CHIP_ERROR PrintQRCodeContent()
+void ApplicationShutdown()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    // If we do not have a discriminator, generate one
-    chip::SetupPayload payload;
-    uint32_t setUpPINCode;
-    uint16_t setUpDiscriminator;
-    uint16_t vendorId;
-    uint16_t productId;
-    std::string result;
-
-    err = ConfigurationMgr().GetSetupPinCode(setUpPINCode);
-    SuccessOrExit(err);
-
-    err = ConfigurationMgr().GetSetupDiscriminator(setUpDiscriminator);
-    SuccessOrExit(err);
-
-    err = ConfigurationMgr().GetVendorId(vendorId);
-    SuccessOrExit(err);
-
-    err = ConfigurationMgr().GetProductId(productId);
-    SuccessOrExit(err);
-
-    payload.version       = 0;
-    payload.vendorID      = vendorId;
-    payload.productID     = productId;
-    payload.setUpPINCode  = setUpPINCode;
-    payload.discriminator = setUpDiscriminator;
-
-    // Wrap it so SuccessOrExit can work
+    if (sChipNamedPipeCommands.Stop() != CHIP_NO_ERROR)
     {
-        chip::QRCodeSetupPayloadGenerator generator(payload);
-        err = generator.payloadBase41Representation(result);
-        SuccessOrExit(err);
+        ChipLogError(NotSpecified, "Failed to stop CHIP NamedPipeCommands");
     }
-
-    std::cout << "SetupPINCode: [" << setUpPINCode << "]" << std::endl;
-    // There might be whitespace in setup QRCode, add brackets to make it clearer.
-    std::cout << "SetupQRCode:  [" << result << "]" << std::endl;
-
-exit:
-    if (err != CHIP_NO_ERROR)
-    {
-        std::cerr << "Failed to generate QR Code: " << ErrorStr(err) << std::endl;
-    }
-    return err;
 }
-} // namespace
+
+#ifdef __NuttX__
+// NuttX requires the main function to be defined with C-linkage. However, marking
+// the main as extern "C" is not strictly conformant with the C++ standard. Since
+// clang >= 20 such code triggers -Wmain warning.
+extern "C" {
+#endif
 
 int main(int argc, char * argv[])
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    err = chip::Platform::MemoryInit();
-    SuccessOrExit(err);
-
-    err = ParseArguments(argc, argv);
-    SuccessOrExit(err);
-
-    err = chip::DeviceLayer::PlatformMgr().InitChipStack();
-    SuccessOrExit(err);
-
-    err = PrintQRCodeContent();
-    SuccessOrExit(err);
-
-    chip::DeviceLayer::PlatformMgrImpl().AddEventHandler(EventHandler, 0);
-
-    chip::DeviceLayer::ConnectivityMgr().SetBLEDeviceName(nullptr); // Use default device name (CHIP-XXXX)
-
-#if CONFIG_NETWORK_LAYER_BLE
-    chip::DeviceLayer::Internal::BLEMgrImpl().ConfigureBle(LinuxDeviceOptions::GetInstance().mBleDevice, false);
-#endif
-
-    chip::DeviceLayer::ConnectivityMgr().SetBLEAdvertisingEnabled(true);
-
-    LightingMgr().Init();
-
-    // Init ZCL Data Model and CHIP App Server
-    InitServer();
-
-#if CHIP_DEVICE_CONFIG_ENABLE_WPA
-    if (LinuxDeviceOptions::GetInstance().mWiFi)
+    if (ChipLinuxAppInit(argc, argv) != 0)
     {
-        chip::DeviceLayer::ConnectivityMgrImpl().StartWiFiManagement();
+        return -1;
     }
-#endif // CHIP_DEVICE_CONFIG_ENABLE_WPA
 
-#if CHIP_ENABLE_OPENTHREAD
-    if (LinuxDeviceOptions::GetInstance().mThread)
-    {
-        SuccessOrExit(err = chip::DeviceLayer::ThreadStackMgrImpl().InitThreadStack());
-        std::cerr << "Thread initialized." << std::endl;
-    }
-#endif // CHIP_ENABLE_OPENTHREAD
-
-    chip::DeviceLayer::PlatformMgr().RunEventLoop();
-
-exit:
+    CHIP_ERROR err = LightingMgr().Init();
     if (err != CHIP_NO_ERROR)
     {
-        std::cerr << "Failed to run Linux Lighting App: " << ErrorStr(err) << std::endl;
-        // End the program with non zero error code to indicate a error.
-        return 1;
+        ChipLogError(AppServer, "Failed to initialize lighting manager: %" CHIP_ERROR_FORMAT, err.Format());
+        chip::DeviceLayer::PlatformMgr().Shutdown();
+        return -1;
     }
+
+#if defined(CHIP_IMGUI_ENABLED) && CHIP_IMGUI_ENABLED
+    example::Ui::ImguiUi ui;
+
+    ui.AddWindow(std::make_unique<example::Ui::Windows::QRCode>());
+    ui.AddWindow(std::make_unique<example::Ui::Windows::OccupancySensing>(chip::EndpointId(1), "Occupancy"));
+    ui.AddWindow(std::make_unique<example::Ui::Windows::Light>(chip::EndpointId(1)));
+
+    ChipLinuxAppMainLoop(&ui);
+#else
+    ChipLinuxAppMainLoop();
+#endif
+
     return 0;
 }
+
+#ifdef __NuttX__
+}
+#endif

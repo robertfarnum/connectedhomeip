@@ -14,62 +14,70 @@
 
 import("//build_overrides/chip.gni")
 
-config("includes") {
-  include_dirs = [
-    ".",
-    "include",
-  ]
+import("${chip_root}/src/app/chip_data_model.gni")
+import("${chip_root}/src/lib/lib.gni")
+
+chip_data_model("tv-common") {
+  zap_file = "tv-app.zap"
+  is_server = true
 }
 
-source_set("tv-common") {
+config("config") {
+  include_dirs = [
+    "include",
+    "clusters",
+  ]
+  if (chip_build_libshell) {
+    include_dirs += [ "shell" ]
+  }
+}
+
+source_set("tv-common-sources") {
+  deps = [
+    "${chip_root}/examples/platform/linux:app-main",
+    "${chip_root}/examples/tv-app/tv-common",
+    "${chip_root}/src/lib",
+  ]
+  public_configs = [ ":config" ]
   sources = [
-    "${chip_root}/src/app/clusters/barrier-control-server/barrier-control-server.cpp",
-    "${chip_root}/src/app/clusters/basic/basic.cpp",
-    "${chip_root}/src/app/clusters/bindings/bindings.cpp",
-    "${chip_root}/src/app/clusters/color-control-server/color-control-server.cpp",
-    "${chip_root}/src/app/clusters/content-launch-server/content-launch-server.cpp",
-    "${chip_root}/src/app/clusters/door-lock-client/door-lock-client.cpp",
-    "${chip_root}/src/app/clusters/door-lock-server/door-lock-server-core.cpp",
-    "${chip_root}/src/app/clusters/door-lock-server/door-lock-server-logging.cpp",
-    "${chip_root}/src/app/clusters/door-lock-server/door-lock-server-schedule.cpp",
-    "${chip_root}/src/app/clusters/door-lock-server/door-lock-server-user.cpp",
-    "${chip_root}/src/app/clusters/groups-client/groups-client.cpp",
-    "${chip_root}/src/app/clusters/groups-server/groups-server.cpp",
-    "${chip_root}/src/app/clusters/ias-zone-server/ias-zone-server.cpp",
-    "${chip_root}/src/app/clusters/identify-client/identify-client.cpp",
-    "${chip_root}/src/app/clusters/identify/identify.cpp",
-    "${chip_root}/src/app/clusters/level-control/level-control.cpp",
-    "${chip_root}/src/app/clusters/low-power-server/low-power-server.cpp",
-    "${chip_root}/src/app/clusters/media-playback-server/media-playback-server.cpp",
-    "${chip_root}/src/app/clusters/network-commissioning/network-commissioning-ember.cpp",
-    "${chip_root}/src/app/clusters/network-commissioning/network-commissioning.cpp",
-    "${chip_root}/src/app/clusters/on-off-server/on-off.cpp",
-    "${chip_root}/src/app/clusters/scenes-client/scenes-client.cpp",
-    "${chip_root}/src/app/clusters/scenes/scenes.cpp",
-    "${chip_root}/src/app/clusters/temperature-measurement-server/temperature-measurement-server.cpp",
-    "${chip_root}/src/app/reporting/reporting-default-configuration.cpp",
-    "${chip_root}/src/app/reporting/reporting.cpp",
-    "${chip_root}/src/app/server/DataModelHandler.cpp",
-    "${chip_root}/src/app/util/af-event.cpp",
-    "${chip_root}/src/app/util/af-main-common.cpp",
-    "${chip_root}/src/app/util/attribute-size.cpp",
-    "${chip_root}/src/app/util/attribute-storage.cpp",
-    "${chip_root}/src/app/util/attribute-table.cpp",
-    "${chip_root}/src/app/util/binding-table.cpp",
-    "${chip_root}/src/app/util/chip-message-send.cpp",
-    "${chip_root}/src/app/util/client-api.cpp",
-    "${chip_root}/src/app/util/ember-print.cpp",
-    "${chip_root}/src/app/util/message.cpp",
-    "${chip_root}/src/app/util/process-cluster-message.cpp",
-    "${chip_root}/src/app/util/process-global-message.cpp",
-    "${chip_root}/src/app/util/util.cpp",
-    "gen/call-command-handler.cpp",
-    "gen/callback-stub.cpp",
+    "clusters/account-login/AccountLoginManager.cpp",
+    "clusters/account-login/AccountLoginManager.h",
+    "clusters/application-basic/ApplicationBasicManager.cpp",
+    "clusters/application-basic/ApplicationBasicManager.h",
+    "clusters/application-launcher/ApplicationLauncherManager.cpp",
+    "clusters/application-launcher/ApplicationLauncherManager.h",
+    "clusters/audio-output/AudioOutputManager.cpp",
+    "clusters/audio-output/AudioOutputManager.h",
+    "clusters/channel/ChannelManager.cpp",
+    "clusters/channel/ChannelManager.h",
+    "clusters/content-control/ContentController.cpp",
+    "clusters/content-control/ContentController.h",
+    "clusters/content-launcher/ContentLauncherManager.cpp",
+    "clusters/content-launcher/ContentLauncherManager.h",
+    "clusters/keypad-input/KeypadInputManager.cpp",
+    "clusters/keypad-input/KeypadInputManager.h",
+    "clusters/low-power/LowPowerManager.cpp",
+    "clusters/low-power/LowPowerManager.h",
+    "clusters/media-input/MediaInputManager.cpp",
+    "clusters/media-input/MediaInputManager.h",
+    "clusters/media-playback/MediaPlaybackManager.cpp",
+    "clusters/media-playback/MediaPlaybackManager.h",
+    "clusters/messages/MessagesManager.cpp",
+    "clusters/messages/MessagesManager.h",
+    "clusters/target-navigator/TargetNavigatorManager.cpp",
+    "clusters/target-navigator/TargetNavigatorManager.h",
+    "clusters/wake-on-lan/WakeOnLanManager.cpp",
+    "clusters/wake-on-lan/WakeOnLanManager.h",
+    "include/AppTv.h",
+    "include/CHIPProjectAppConfig.h",
+    "src/AppTv.cpp",
+    "src/ZCLCallbacks.cpp",
   ]
 
-  cflags = [ "-Wconversion" ]
-
-  deps = [ "${chip_root}/src/lib" ]
-
-  public_configs = [ ":includes" ]
+  if (chip_build_libshell) {
+    sources += [
+      "shell/AppTvShellCommands.cpp",
+      "shell/AppTvShellCommands.h",
+    ]
+  }
 }

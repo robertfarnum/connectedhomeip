@@ -20,14 +20,16 @@
  *      This file describes a QRCode Setup Payload generator based on the
  *      CHIP specification.
  *
- *      The encoding of the binary data to a base41 string is as follows:
+ *      The encoding of the binary data to a base38 string is as follows:
  *      - Every 2 bytes (16 bits) of binary source data are encoded to 3
- *        characters of the Base-41 alphabet.
+ *        characters of the Base-38 alphabet.
  *      - If an odd number of bytes are to be encoded, the remaining
- *        single byte is encoded to 2 characters of the Base-41 alphabet.
+ *        single byte is encoded to 2 characters of the Base-38 alphabet.
  */
 
 #include "SetupPayload.h"
+
+#include <lib/support/Span.h>
 
 #include <string>
 
@@ -45,10 +47,13 @@ public:
 
     /**
      * This function is called to encode the binary data of a payload to a
-     * base41 string using CHIP TLV encoding scheme.
+     * base38 null-terminated string.
      *
-     * @param[out] base41Representation
-     *                  The string to copy the base41 to.
+     * If the payload has any optional data that needs to be TLV encoded, this
+     * function will fail.
+     *
+     * @param[out] base38Representation
+     *                  The string to copy the base38 to.
      *
      * @retval #CHIP_NO_ERROR if the method succeeded.
      * @retval #CHIP_ERROR_INVALID_ARGUMENT if the payload is invalid.
@@ -56,17 +61,36 @@ public:
      *               that an error occurred preventing the function from
      *               producing the requested string.
      */
-    CHIP_ERROR payloadBase41Representation(std::string & base41Representation);
+    CHIP_ERROR payloadBase38Representation(std::string & base38Representation);
 
     /**
      * This function is called to encode the binary data of a payload to a
-     * base41 string. Callers must pass a buffer of at least
-     * chip::kTotalPayloadDataInBytes or more if there is any serialNumber or
-     * any other optional data. The buffer should be big enough to hold the
-     * TLV encoded value of the payload. If not an error will be throw.
+     * base38 null-terminated string.
      *
-     * @param[out] base41Representation
-     *                  The string to copy the base41 to.
+     * If the payload has any optional data that needs to be TLV encoded, this
+     * function will allocate a scratch heap buffer to hold the TLV data while
+     * encoding.
+     *
+     * @param[out] base38Representation
+     *                  The string to copy the base38 to.
+     *
+     * @retval #CHIP_NO_ERROR if the method succeeded.
+     * @retval #CHIP_ERROR_INVALID_ARGUMENT if the payload is invalid.
+     * @retval other Other CHIP or platform-specific error codes indicating
+     *               that an error occurred preventing the function from
+     *               producing the requested string.
+     */
+    CHIP_ERROR payloadBase38RepresentationWithAutoTLVBuffer(std::string & base38Representation);
+
+    /**
+     * This function is called to encode the binary data of a payload to a
+     * base38 null-terminated string, using the caller-provided buffer as
+     * temporary scratch space for optional data that needs to be TLV-encoded.
+     * If that buffer is not big enough to hold the TLV-encoded part of the
+     * payload, this function will fail.
+     *
+     * @param[out] base38Representation
+     *                  The string to copy the base38 to.
      * @param[in]  tlvDataStart
      *                  A pointer to an uint8_t buffer into which the TLV
      *                  should be written.
@@ -80,11 +104,58 @@ public:
      *               that an error occurred preventing the function from
      *               producing the requested string.
      */
-    CHIP_ERROR payloadBase41Representation(std::string & base41Representation, uint8_t * tlvDataStart, uint32_t tlvDataStartSize);
+    CHIP_ERROR payloadBase38Representation(std::string & base38Representation, uint8_t * tlvDataStart, uint32_t tlvDataStartSize);
+
+    /**
+     * This function disables internal checks about the validity of the generated payload.
+     * It allows using the generator to generate invalid payloads.
+     * Default is false.
+     */
+    void SetAllowInvalidPayload(bool allow) { mAllowInvalidPayload = allow; }
 
 private:
     CHIP_ERROR generateTLVFromOptionalData(SetupPayload & outPayload, uint8_t * tlvDataStart, uint32_t maxLen,
                                            size_t & tlvDataLengthInBytes);
+
+    bool mAllowInvalidPayload = false;
+};
+
+/**
+ * A minimal QR code setup payload generator that omits any optional data,
+ * for compatibility with devices that don't support std::string or STL.
+ */
+class QRCodeBasicSetupPayloadGenerator
+{
+private:
+    PayloadContents mPayload;
+
+public:
+    QRCodeBasicSetupPayloadGenerator(const PayloadContents & payload) : mPayload(payload) {}
+
+    /**
+     * This function is called to encode the binary data of a payload to a
+     * base38 null-terminated string.
+     *
+     * The resulting size of the out_buf span will be the size of data written
+     * and not including the null terminator.
+     *
+     * This function will fail if the payload has any optional data requiring
+     * TLV encoding.
+     *
+     * @param[out] outBuffer
+     *                  The buffer to copy the base38 to.
+     *
+     * @retval #CHIP_NO_ERROR if the method succeeded.
+     * @retval #CHIP_ERROR_INVALID_ARGUMENT if the payload is invalid.
+     * @retval #CHIP_ERROR_BUFFER_TOO_SMALL if outBuffer has insufficient size.
+     * @retval other Other CHIP or platform-specific error codes indicating
+     *               that an error occurred preventing the function from
+     *               producing the requested string.
+     */
+    CHIP_ERROR payloadBase38Representation(MutableCharSpan & outBuffer);
+
+    // TODO - Find the optimal value for maximum length of QR Code Base38 string
+    static constexpr uint16_t kMaxQRCodeBase38RepresentationLength = 128;
 };
 
 } // namespace chip

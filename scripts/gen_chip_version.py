@@ -17,19 +17,19 @@
 import optparse
 import sys
 
-TEMPLATE = '''/*
+TEMPLATE = r'''/*
  *
  *    Copyright (c) 2020 Project CHIP Authors
  *    All rights reserved.
  *
- *    Licensed under the Apache License, Version 2.0 (the \"License\");
+ *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
  *        http://www.apache.org/licenses/LICENSE-2.0
  *
  *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an \"AS IS\" BASIS,
+ *    distributed under the License is distributed on an "AS IS" BASIS,
  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
@@ -94,9 +94,9 @@ TEMPLATE = '''/*
  *        \@endcode
  *
  */
-#define CHIP_VERSION_CODE_ENCODE(major, minor, patch)                                    \\
-    ((((major)  & _CHIP_VERSION_CODE_MAJOR_MASK)  << _CHIP_VERSION_CODE_MAJOR_SHIFT)  | \\
-     (((minor)  & _CHIP_VERSION_CODE_MINOR_MASK)  << _CHIP_VERSION_CODE_MINOR_SHIFT)  | \\
+#define CHIP_VERSION_CODE_ENCODE(major, minor, patch)                                    \
+    ((((major)  & _CHIP_VERSION_CODE_MAJOR_MASK)  << _CHIP_VERSION_CODE_MAJOR_SHIFT)  | \
+     (((minor)  & _CHIP_VERSION_CODE_MINOR_MASK)  << _CHIP_VERSION_CODE_MINOR_SHIFT)  | \
      (((patch)  & _CHIP_VERSION_CODE_PATCH_MASK)  << _CHIP_VERSION_CODE_PATCH_SHIFT))
 
 /**
@@ -160,7 +160,7 @@ TEMPLATE = '''/*
  *    The CHIP version extra component, as a quoted C string.
  *
  */
-#define CHIP_VERSION_EXTRA               \"%(chip_extra)s\"
+#define CHIP_VERSION_EXTRA               "%(chip_extra)s"
 
 /**
  *  \@def CHIP_VERSION_STRING
@@ -169,7 +169,7 @@ TEMPLATE = '''/*
  *    The CHIP version, as a quoted C string.
  *
  */
-#define CHIP_VERSION_STRING              \"%(chip_version)s\"
+#define CHIP_VERSION_STRING              "%(chip_version)s"
 
 /**
  *  \@def CHIP_VERSION_CODE
@@ -191,10 +191,10 @@ TEMPLATE = '''/*
  *        \@endcode
  *
  */
-#define CHIP_VERSION_CODE                CHIP_VERSION_CODE_ENCODE( \\
-          CHIP_VERSION_MAJOR,                                      \\
-          CHIP_VERSION_MINOR,                                      \\
-          CHIP_VERSION_PATCH                                       \\
+#define CHIP_VERSION_CODE                CHIP_VERSION_CODE_ENCODE( \
+          CHIP_VERSION_MAJOR,                                      \
+          CHIP_VERSION_MINOR,                                      \
+          CHIP_VERSION_PATCH                                       \
         )
 
 #endif /* CHIP_VERSION_H_ */
@@ -202,29 +202,30 @@ TEMPLATE = '''/*
 
 
 def main(argv):
-  parser = optparse.OptionParser()
+    parser = optparse.OptionParser()
 
-  parser.add_option('--output_file')
-  parser.add_option('--chip_major', type=int, default=0)
-  parser.add_option('--chip_minor', type=int, default=0)
-  parser.add_option('--chip_patch', type=int, default=0)
-  parser.add_option('--chip_extra', type=str, default='')
+    parser.add_option('--output_file')
+    parser.add_option('--chip_major', type=int, default=0)
+    parser.add_option('--chip_minor', type=int, default=0)
+    parser.add_option('--chip_patch', type=int, default=0)
+    parser.add_option('--chip_extra', type=str, default='')
 
-  options, _ = parser.parse_args(argv)
+    options, _ = parser.parse_args(argv)
 
-  template_args = {
-          'chip_major': options.chip_major,
-          'chip_minor': options.chip_minor,
-          'chip_patch': options.chip_patch,
-          'chip_extra': options.chip_extra,
-  }
+    template_args = {
+        'chip_major': options.chip_major,
+        'chip_minor': options.chip_minor,
+        'chip_patch': options.chip_patch,
+        'chip_extra': options.chip_extra,
+    }
 
-  template_args['chip_version'] = '%d.%d.%d%s' % (options.chip_major, options.chip_minor, options.chip_patch, options.chip_extra)
+    template_args['chip_version'] = '%d.%d.%d%s' % (
+        options.chip_major, options.chip_minor, options.chip_patch, options.chip_extra)
 
-  with open(options.output_file, 'w') as chip_version_file:
-      chip_version_file.write(TEMPLATE % template_args)
+    with open(options.output_file, 'w') as chip_version_file:
+        chip_version_file.write(TEMPLATE % template_args)
 
-  return 0
+    return 0
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright (c) 2020 Project CHIP Authors
 #
@@ -26,5 +26,5 @@ fi
 
 set -e
 
-echo "Executing in build environment: $@"
+echo "Executing in build environment: $*"
 bash -c -- "$@"

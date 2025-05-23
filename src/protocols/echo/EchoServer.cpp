@@ -18,7 +18,7 @@
 
 /**
  *    @file
- *      This file implements an object for a CHIP Echo unsolicitied
+ *      This file implements an object for a CHIP Echo unsolicited
  *      responder (server).
  *
  */
@@ -32,8 +32,7 @@ namespace Echo {
 CHIP_ERROR EchoServer::Init(Messaging::ExchangeManager * exchangeMgr)
 {
     // Error if already initialized.
-    if (mExchangeMgr != nullptr)
-        return CHIP_ERROR_INCORRECT_STATE;
+    VerifyOrReturnError(mExchangeMgr == nullptr, CHIP_ERROR_INCORRECT_STATE);
 
     mExchangeMgr          = exchangeMgr;
     OnEchoRequestReceived = nullptr;
@@ -53,11 +52,16 @@ void EchoServer::Shutdown()
     }
 }
 
-void EchoServer::OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
-                                   const PayloadHeader & payloadHeader, System::PacketBufferHandle payload)
+CHIP_ERROR EchoServer::OnUnsolicitedMessageReceived(const PayloadHeader & payloadHeader, ExchangeDelegate *& newDelegate)
 {
-    System::PacketBufferHandle response;
+    // Handle messages by myself
+    newDelegate = this;
+    return CHIP_NO_ERROR;
+}
 
+CHIP_ERROR EchoServer::OnMessageReceived(Messaging::ExchangeContext * ec, const PayloadHeader & payloadHeader,
+                                         System::PacketBufferHandle && payload)
+{
     // NOTE: we already know this is an Echo Request message because we explicitly registered with the
     // Exchange Manager for unsolicited Echo Requests.
 
@@ -66,6 +70,8 @@ void EchoServer::OnMessageReceived(Messaging::ExchangeContext * ec, const Packet
     {
         OnEchoRequestReceived(ec, payload.Retain());
     }
+
+    System::PacketBufferHandle response;
 
     // Since we are re-using the inbound EchoRequest buffer to send the EchoResponse, if necessary,
     // adjust the position of the payload within the buffer to ensure there is enough room for the
@@ -78,13 +84,11 @@ void EchoServer::OnMessageReceived(Messaging::ExchangeContext * ec, const Packet
     else
     {
         response = MessagePacketBuffer::NewWithData(payload->Start(), payload->DataLength());
+        VerifyOrReturnError(!response.IsNull(), CHIP_ERROR_NO_MEMORY);
     }
 
     // Send an Echo Response back to the sender.
-    ec->SendMessage(MsgType::EchoResponse, std::move(response), Messaging::SendFlags(Messaging::SendMessageFlags::kNone));
-
-    // Discard the exchange context.
-    ec->Close();
+    return ec->SendMessage(MsgType::EchoResponse, std::move(response));
 }
 
 } // namespace Echo

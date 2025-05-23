@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from chip_mobly import pigweed_device
-from mobly import asserts
-from mobly import base_test
-from mobly import test_runner
 import time
+
+from chip_mobly import pigweed_device
+from mobly import asserts, base_test, test_runner
 
 
 class PigweedEchoTest(base_test.BaseTestClass):
@@ -26,8 +25,9 @@ class PigweedEchoTest(base_test.BaseTestClass):
         object is created from this.'''
         self.ads = self.register_controller(pigweed_device)
         self.dut = self.ads[0]
-        self.dut.platform.flash() # Flashes the image passed in the configuration yml.
-        time.sleep(1) # give the device time to boot and register rpcs
+        # Flashes the image passed in the configuration yml.
+        self.dut.platform.flash()
+        time.sleep(1)  # give the device time to boot and register rpcs
 
     def test_hello(self):
         ''' Tests EchoService.Echo '''
