@@ -2,8 +2,8 @@
 
 #include <platform/logging/LogV.h>
 
-#include <core/CHIPConfig.h>
-#include <support/logging/Constants.h>
+#include <lib/core/CHIPConfig.h>
+#include <lib/support/logging/Constants.h>
 
 #include <stdio.h>
 
@@ -25,21 +25,38 @@ void LogV(const char * module, uint8_t category, const char * msg, va_list v)
     snprintf(tag, sizeof(tag), "chip[%s]", module);
     tag[sizeof(tag) - 1] = 0;
 
-    char formattedMsg[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
-    vsnprintf(formattedMsg, sizeof(formattedMsg), msg, v);
-
+    // We intentionally added the printf statements to ensure we could apply colors to logs redirected to the console.
+    // The printf statements are not bypassing the log level, rather, they are intentionally designed to print the
+    // initial and later parts of the log.
     switch (category)
     {
-    case kLogCategory_Error:
-        ESP_LOGE(tag, "%s", formattedMsg);
-        break;
+    case kLogCategory_Error: {
+        {
+            printf(LOG_COLOR_E "E (%" PRIu32 ") %s: ", esp_log_timestamp(), tag);
+            esp_log_writev(ESP_LOG_ERROR, tag, msg, v);
+            printf(LOG_RESET_COLOR "\n");
+        }
+    }
+    break;
+
     case kLogCategory_Progress:
-    default:
-        ESP_LOGI(tag, "%s", formattedMsg);
-        break;
-    case kLogCategory_Detail:
-        ESP_LOGV(tag, "%s", formattedMsg);
-        break;
+    default: {
+        {
+            printf(LOG_COLOR_I "I (%" PRIu32 ") %s: ", esp_log_timestamp(), tag);
+            esp_log_writev(ESP_LOG_INFO, tag, msg, v);
+            printf(LOG_RESET_COLOR "\n");
+        }
+    }
+    break;
+
+    case kLogCategory_Detail: {
+        {
+            printf(LOG_COLOR_D "D (%" PRIu32 ") %s: ", esp_log_timestamp(), tag);
+            esp_log_writev(ESP_LOG_DEBUG, tag, msg, v);
+            printf(LOG_RESET_COLOR "\n");
+        }
+    }
+    break;
     }
 }
 

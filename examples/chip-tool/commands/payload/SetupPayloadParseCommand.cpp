@@ -17,88 +17,154 @@
  */
 
 #include "SetupPayloadParseCommand.h"
+#include <lib/support/StringBuilder.h>
 #include <setup_payload/ManualSetupPayloadParser.h>
 #include <setup_payload/QRCodeSetupPayloadParser.h>
 #include <setup_payload/SetupPayload.h>
 
+#include <string>
+
 using namespace ::chip;
 
-CHIP_ERROR SetupPayloadParseCommand::Run(PersistentStorage & storage, NodeId localId, NodeId remoteId)
+namespace {
+
+#if CHIP_PROGRESS_LOGGING
+
+const char * CustomFlowString(CommissioningFlow flow)
+{
+    switch (flow)
+    {
+    case CommissioningFlow::kStandard:
+        return "STANDARD";
+    case CommissioningFlow::kUserActionRequired:
+        return "USER ACTION REQUIRED";
+    case CommissioningFlow::kCustom:
+        return "CUSTOM";
+    }
+
+    return "???";
+}
+
+#endif // CHIP_PROGRESS_LOGGING
+
+} // namespace
+
+CHIP_ERROR SetupPayloadParseCommand::Run()
 {
     std::string codeString(mCode);
     SetupPayload payload;
 
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    err            = Parse(codeString, payload);
-    SuccessOrExit(err);
+    ReturnErrorOnFailure(Parse(codeString, payload));
+    ReturnErrorOnFailure(Print(payload));
 
-    err = Print(payload);
-    SuccessOrExit(err);
-exit:
-    return err;
-}
-
-CHIP_ERROR SetupPayloadParseCommand::Print(chip::SetupPayload payload)
-{
-    std::string serialNumber;
-    std::vector<OptionalQRCodeInfo> optionalVendorData;
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    ChipLogProgress(SetupPayload, "RequiresCustomFlow: %u", payload.requiresCustomFlow);
-    ChipLogProgress(SetupPayload, "VendorID: %u", payload.vendorID);
-    ChipLogProgress(SetupPayload, "Version: %u", payload.version);
-    ChipLogProgress(SetupPayload, "ProductID: %u", payload.productID);
-    ChipLogProgress(SetupPayload, "Discriminator: %u", payload.discriminator);
-    ChipLogProgress(SetupPayload, "SetUpPINCode: %u", payload.setUpPINCode);
-    ChipLogProgress(SetupPayload, "RendezvousInformation: %u", payload.rendezvousInformation);
-
-    if (payload.getSerialNumber(serialNumber) == CHIP_NO_ERROR)
-    {
-        ChipLogProgress(SetupPayload, "SerialNumber: %s", serialNumber.c_str());
-    }
-
-    optionalVendorData = payload.getAllOptionalVendorData();
-    for (const OptionalQRCodeInfo & info : optionalVendorData)
-    {
-        if (info.type == optionalQRCodeInfoTypeString)
-        {
-            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,string value=%s", info.tag, info.data.c_str());
-        }
-        else if (info.type == optionalQRCodeInfoTypeInt32)
-        {
-            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,int value=%u", info.tag, info.int32);
-        }
-        else
-        {
-            err = CHIP_ERROR_INVALID_ARGUMENT;
-        }
-    }
-
-    SuccessOrExit(err);
-
-exit:
-    return err;
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR SetupPayloadParseCommand::Parse(std::string codeString, chip::SetupPayload & payload)
 {
+    bool isQRCode = IsQRCode(codeString);
 
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    if (IsQRCode(codeString))
+    ChipLogDetail(SetupPayload, "Parsing %sRepresentation: %s", isQRCode ? "base38" : "decimal", codeString.c_str());
+
+    return isQRCode ? QRCodeSetupPayloadParser(codeString).populatePayload(payload)
+                    : ManualSetupPayloadParser(codeString).populatePayload(payload);
+}
+
+CHIP_ERROR SetupPayloadParseCommand::Print(chip::SetupPayload payload)
+{
+    ChipLogProgress(SetupPayload, "Version:             %u", payload.version);
+    ChipLogProgress(SetupPayload, "VendorID:            %u", payload.vendorID);
+    ChipLogProgress(SetupPayload, "ProductID:           %u", payload.productID);
+    ChipLogProgress(SetupPayload, "Custom flow:         %u    (%s)", to_underlying(payload.commissioningFlow),
+                    CustomFlowString(payload.commissioningFlow));
     {
-        ChipLogDetail(SetupPayload, "Parsing base41Representation: %s", codeString.c_str());
-        err = QRCodeSetupPayloadParser(codeString).populatePayload(payload);
+        StringBuilder<128> humanFlags;
+
+        if (!payload.rendezvousInformation.HasValue())
+        {
+            ChipLogProgress(SetupPayload, "Discovery Bitmask:   UNKNOWN");
+        }
+        else
+        {
+            if (payload.rendezvousInformation.Value().HasAny())
+            {
+                if (payload.rendezvousInformation.Value().Has(RendezvousInformationFlag::kSoftAP))
+                {
+                    humanFlags.Add("Soft-AP");
+                }
+                if (payload.rendezvousInformation.Value().Has(RendezvousInformationFlag::kBLE))
+                {
+                    if (!humanFlags.Empty())
+                    {
+                        humanFlags.Add(", ");
+                    }
+                    humanFlags.Add("BLE");
+                }
+                if (payload.rendezvousInformation.Value().Has(RendezvousInformationFlag::kOnNetwork))
+                {
+                    if (!humanFlags.Empty())
+                    {
+                        humanFlags.Add(", ");
+                    }
+                    humanFlags.Add("On IP network");
+                }
+                if (payload.rendezvousInformation.Value().Has(RendezvousInformationFlag::kWiFiPAF))
+                {
+                    if (!humanFlags.Empty())
+                    {
+                        humanFlags.Add(", ");
+                    }
+                    humanFlags.Add("Wi-Fi PAF");
+                }
+            }
+            else
+            {
+                humanFlags.Add("NONE");
+            }
+
+            ChipLogProgress(SetupPayload, "Discovery Bitmask:   0x%02X (%s)", payload.rendezvousInformation.Value().Raw(),
+                            humanFlags.c_str());
+        }
+    }
+    if (payload.discriminator.IsShortDiscriminator())
+    {
+        ChipLogProgress(SetupPayload, "Short discriminator: %u   (0x%x)", payload.discriminator.GetShortValue(),
+                        payload.discriminator.GetShortValue());
     }
     else
     {
-        ChipLogDetail(SetupPayload, "Parsing decimalRepresentation: %s", codeString.c_str());
-        err = ManualSetupPayloadParser(codeString).populatePayload(payload);
+        ChipLogProgress(SetupPayload, "Long discriminator:  %u   (0x%x)", payload.discriminator.GetLongValue(),
+                        payload.discriminator.GetLongValue());
+    }
+    ChipLogProgress(SetupPayload, "Passcode:            %u", payload.setUpPINCode);
+
+    std::string serialNumber;
+    if (payload.getSerialNumber(serialNumber) == CHIP_NO_ERROR)
+    {
+        ChipLogProgress(SetupPayload, "SerialNumber:        %s", serialNumber.c_str());
     }
 
-    return err;
+    std::vector<OptionalQRCodeInfo> optionalVendorData = payload.getAllOptionalVendorData();
+    for (const OptionalQRCodeInfo & info : optionalVendorData)
+    {
+        bool isTypeString = info.type == optionalQRCodeInfoTypeString;
+        bool isTypeInt32  = info.type == optionalQRCodeInfoTypeInt32;
+        VerifyOrReturnError(isTypeString || isTypeInt32, CHIP_ERROR_INVALID_ARGUMENT);
+
+        if (isTypeString)
+        {
+            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo:  tag=%u,string value=%s", info.tag, info.data.c_str());
+        }
+        else
+        {
+            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo:  tag=%u,int value=%u", info.tag, info.int32);
+        }
+    }
+
+    return CHIP_NO_ERROR;
 }
 
 bool SetupPayloadParseCommand::IsQRCode(std::string codeString)
 {
-    return codeString.rfind(QRCODE_PREFIX) == 0;
+    return codeString.rfind(kQRCodePrefix) == 0;
 }

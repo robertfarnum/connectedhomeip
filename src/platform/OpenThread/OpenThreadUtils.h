@@ -30,9 +30,9 @@
 #include <openthread/ip6.h>
 #include <openthread/thread.h>
 
-#include <core/CHIPError.h>
 #include <inet/IPAddress.h>
 #include <inet/IPPrefix.h>
+#include <lib/core/CHIPError.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -59,7 +59,13 @@ namespace Internal {
 #endif // CHIP_CONFIG_OPENTHREAD_ERROR_MAX
 
 extern CHIP_ERROR MapOpenThreadError(otError otErr);
-extern void RegisterOpenThreadErrorFormatter(void);
+extern void RegisterOpenThreadErrorFormatter();
+
+/**
+ * Log information related to a state change in the OpenThread stack.
+ *
+ * NB: This function *must* be called with the Thread stack lock held.
+ */
 extern void LogOpenThreadStateChange(otInstance * otInst, uint32_t flags);
 extern void LogOpenThreadPacket(const char * titleStr, otMessage * pkt);
 extern bool IsOpenThreadMeshLocalAddress(otInstance * otInst, const Inet::IPAddress & addr);

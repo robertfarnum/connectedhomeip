@@ -26,69 +26,68 @@
 
 #include <system/SystemError.h>
 
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 #if !CHIP_SYSTEM_CONFIG_USE_POSIX_TIME_FUNCTS
 
 namespace chip {
 namespace System {
-namespace Platform {
-namespace Layer {
+namespace Clock {
 
-static uint64_t sBootTimeUS = 0;
+namespace Internal {
 
-uint64_t GetClock_Monotonic(void)
+ClockImpl gClockImpl;
+
+} // namespace Internal
+
+namespace {
+
+constexpr Microseconds64 kUnknownRealTime = Seconds64::zero();
+
+// Unix epoch time of boot event
+Microseconds64 gBootRealTime = kUnknownRealTime;
+
+} // namespace
+
+Microseconds64 ClockImpl::GetMonotonicMicroseconds64()
 {
-    return k_ticks_to_us_floor64(k_uptime_ticks());
+    return Microseconds64(k_ticks_to_us_floor64(k_uptime_ticks()));
 }
 
-uint64_t GetClock_MonotonicMS(void)
+Milliseconds64 ClockImpl::GetMonotonicMilliseconds64()
 {
-    return k_uptime_get();
+    return Milliseconds64(k_uptime_get());
 }
 
-uint64_t GetClock_MonotonicHiRes(void)
+CHIP_ERROR ClockImpl::GetClock_RealTime(Microseconds64 & aCurTime)
 {
-    return GetClock_Monotonic();
+    // The real time can be configured by an application if it has access to a reliable time source.
+    // Otherwise, just return an error so that Matter stack can fallback to Last Known UTC Time.
+    VerifyOrReturnError(gBootRealTime != kUnknownRealTime, CHIP_ERROR_INCORRECT_STATE);
+
+    aCurTime = gBootRealTime + GetMonotonicMicroseconds64();
+
+    return CHIP_NO_ERROR;
 }
 
-Error GetClock_RealTime(uint64_t & curTime)
+CHIP_ERROR ClockImpl::GetClock_RealTimeMS(Milliseconds64 & aCurTime)
 {
-    if (sBootTimeUS == 0)
-    {
-        return CHIP_SYSTEM_ERROR_REAL_TIME_NOT_SYNCED;
-    }
-    curTime = sBootTimeUS + GetClock_Monotonic();
-    return CHIP_SYSTEM_NO_ERROR;
+    Microseconds64 curTimeUs;
+
+    ReturnErrorOnFailure(GetClock_RealTime(curTimeUs));
+    aCurTime = std::chrono::duration_cast<Milliseconds64>(curTimeUs);
+
+    return CHIP_NO_ERROR;
 }
 
-Error GetClock_RealTimeMS(uint64_t & curTime)
+CHIP_ERROR ClockImpl::SetClock_RealTime(Microseconds64 aNewCurTime)
 {
-    if (sBootTimeUS == 0)
-    {
-        return CHIP_SYSTEM_ERROR_REAL_TIME_NOT_SYNCED;
-    }
-    curTime = (sBootTimeUS + GetClock_Monotonic()) / 1000;
-    return CHIP_SYSTEM_NO_ERROR;
+    gBootRealTime = aNewCurTime - GetMonotonicMicroseconds64();
+
+    return CHIP_NO_ERROR;
 }
 
-Error SetClock_RealTime(uint64_t newCurTime)
-{
-    // FIXME: make thread-safe or update comment in SystemClock.h
-    uint64_t timeSinceBootUS = GetClock_Monotonic();
-    if (newCurTime > timeSinceBootUS)
-    {
-        sBootTimeUS = newCurTime - timeSinceBootUS;
-    }
-    else
-    {
-        sBootTimeUS = 0;
-    }
-    return CHIP_SYSTEM_NO_ERROR;
-}
-
-} // namespace Layer
-} // namespace Platform
+} // namespace Clock
 } // namespace System
 } // namespace chip
 

@@ -29,14 +29,15 @@
 
 #include "common.h"
 
-#include <core/CHIPCore.h>
+#include <lib/core/CHIPCore.h>
+#include <lib/core/ErrorStr.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <protocols/echo/Echo.h>
-#include <support/ErrorStr.h>
+#include <protocols/secure_channel/PASESession.h>
 #include <system/SystemPacketBuffer.h>
-#include <transport/PASESession.h>
-#include <transport/SecureSessionMgr.h>
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
 #include <transport/raw/TCP.h>
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 #include <transport/raw/UDP.h>
 
 namespace {
@@ -44,14 +45,15 @@ namespace {
 // The EchoServer object.
 chip::Protocols::Echo::EchoServer gEchoServer;
 chip::TransportMgr<chip::Transport::UDP> gUDPManager;
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
 chip::TransportMgr<chip::Transport::TCP<kMaxTcpActiveConnectionCount, kMaxTcpPendingPackets>> gTCPManager;
-chip::SecureSessionMgr gSessionManager;
-chip::SecurePairingUsingTestSecret gTestPairing;
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+chip::SessionHolder gSession;
 
 // Callback handler when a CHIP EchoRequest is received.
-void HandleEchoRequestReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle payload)
+void HandleEchoRequestReceived(chip::Messaging::ExchangeContext * ec, chip::System::PacketBufferHandle && payload)
 {
-    printf("Echo Request, len=%u ... sending response.\n", payload->DataLength());
+    printf("Echo Request, len=%" PRIu32 "... sending response.\n", static_cast<uint32_t>(payload->DataLength()));
 }
 
 } // namespace
@@ -59,14 +61,13 @@ void HandleEchoRequestReceived(chip::Messaging::ExchangeContext * ec, chip::Syst
 int main(int argc, char * argv[])
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::Optional<chip::Transport::PeerAddress> peer(chip::Transport::Type::kUndefined);
-    bool useTCP      = false;
+    chip::Transport::PeerAddress peer(chip::Transport::Type::kUndefined);
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    bool useTCP = false;
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
     bool disableEcho = false;
 
-    chip::Transport::AdminPairingTable admins;
-    chip::Transport::AdminPairingInfo * adminInfo = nullptr;
-
-    const chip::Transport::AdminId gAdminId = 0;
+    const chip::FabricIndex gFabricIndex = 0;
 
     if (argc > 2)
     {
@@ -74,10 +75,12 @@ int main(int argc, char * argv[])
         ExitNow(err = CHIP_ERROR_INVALID_ARGUMENT);
     }
 
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if ((argc == 2) && (strcmp(argv[1], "--tcp") == 0))
     {
         useTCP = true;
     }
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
     if ((argc == 2) && (strcmp(argv[1], "--disable") == 0))
     {
@@ -86,29 +89,33 @@ int main(int argc, char * argv[])
 
     InitializeChip();
 
-    adminInfo = admins.AssignAdminId(gAdminId, chip::kTestDeviceNodeId);
-    VerifyOrExit(adminInfo != nullptr, err = CHIP_ERROR_NO_MEMORY);
-
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
     if (useTCP)
     {
-        err = gTCPManager.Init(
-            chip::Transport::TcpListenParameters(&chip::DeviceLayer::InetLayer).SetAddressType(chip::Inet::kIPAddressType_IPv4));
+        err = gTCPManager.Init(chip::Transport::TcpListenParameters(chip::DeviceLayer::TCPEndPointManager())
+                                   .SetAddressType(chip::Inet::IPAddressType::kIPv6));
         SuccessOrExit(err);
 
-        err = gSessionManager.Init(chip::kTestDeviceNodeId, &chip::DeviceLayer::SystemLayer, &gTCPManager, &admins);
+        err = gSessionManager.Init(&chip::DeviceLayer::SystemLayer(), &gTCPManager, &gMessageCounterManager, &gStorage,
+                                   &gFabricTable, gSessionKeystore);
         SuccessOrExit(err);
     }
     else
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
     {
-        err = gUDPManager.Init(
-            chip::Transport::UdpListenParameters(&chip::DeviceLayer::InetLayer).SetAddressType(chip::Inet::kIPAddressType_IPv4));
+        err = gUDPManager.Init(chip::Transport::UdpListenParameters(chip::DeviceLayer::UDPEndPointManager())
+                                   .SetAddressType(chip::Inet::IPAddressType::kIPv6));
         SuccessOrExit(err);
 
-        err = gSessionManager.Init(chip::kTestDeviceNodeId, &chip::DeviceLayer::SystemLayer, &gUDPManager, &admins);
+        err = gSessionManager.Init(&chip::DeviceLayer::SystemLayer(), &gUDPManager, &gMessageCounterManager, &gStorage,
+                                   &gFabricTable, gSessionKeystore);
         SuccessOrExit(err);
     }
 
     err = gExchangeManager.Init(&gSessionManager);
+    SuccessOrExit(err);
+
+    err = gMessageCounterManager.Init(&gExchangeManager);
     SuccessOrExit(err);
 
     if (!disableEcho)
@@ -117,8 +124,8 @@ int main(int argc, char * argv[])
         SuccessOrExit(err);
     }
 
-    err = gSessionManager.NewPairing(peer, chip::kTestControllerNodeId, &gTestPairing,
-                                     chip::SecureSessionMgr::PairingDirection::kResponder, gAdminId);
+    err = gSessionManager.InjectPaseSessionWithTestKey(gSession, 1, chip::kTestControllerNodeId, 1, gFabricIndex, peer,
+                                                       chip::CryptoContext::SessionRole::kResponder);
     SuccessOrExit(err);
 
     if (!disableEcho)
@@ -142,6 +149,8 @@ exit:
     {
         gEchoServer.Shutdown();
     }
+
+    gUDPManager.Close();
 
     ShutdownChip();
 

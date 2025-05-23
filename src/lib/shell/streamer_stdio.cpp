@@ -20,9 +20,8 @@
  *      Source implementation of an input / output stream for stdio targets.
  */
 
-#include "shell.h"
+#include <lib/shell/streamer.h>
 
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -82,7 +81,7 @@ streamer_t * streamer_get()
     return &streamer_stdio;
 }
 
-#endif //#ifndef SHELL_STREAMER_APP_SPECIFIC
+#endif // #ifndef SHELL_STREAMER_APP_SPECIFIC
 
 } // namespace Shell
 } // namespace chip

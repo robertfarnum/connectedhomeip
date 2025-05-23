@@ -22,13 +22,9 @@
  *    @file
  *      Implementation of the fault-injection utilities for CHIP System Layer.
  */
-#if CHIP_SYSTEM_CONFIG_TEST
 /* module header, also carries config, comes first */
 #include <system/SystemFaultInjection.h>
 
-#include "SystemLayerPrivate.h"
-
-#include <nlassert.h>
 #include <string.h>
 
 namespace chip {
@@ -108,5 +104,3 @@ void SetAsyncEventCallbacks(int32_t (*aGetNumEventsAvailable)(), void (*aInjectA
 } // namespace FaultInjection
 } // namespace System
 } // namespace chip
-
-#endif // CHIP_SYSTEM_CONFIG_TEST

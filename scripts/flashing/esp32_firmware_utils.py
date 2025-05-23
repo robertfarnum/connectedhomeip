@@ -73,6 +73,7 @@ operations:
 """
 
 import os
+import pathlib
 import sys
 
 import firmware_utils
@@ -85,7 +86,7 @@ ESP32_OPTIONS = {
         # Tool configuration options.
         'esptool': {
             'help': 'File name of the esptool executable',
-            'default': None,
+            'default': 'esptool.py',
             'argparse': {
                 'metavar': 'FILE',
             },
@@ -102,9 +103,8 @@ ESP32_OPTIONS = {
                 """\
                 Unable to execute {esptool}.
 
-                Please ensure that this tool is installed and
-                that $IDF_PATH is set. See the ESP32 example
-                README for installation instructions.
+                Please ensure that the esptool Python package is available.
+                See the ESP32 setup guide for instructions.
                 """,
         },
         'parttool': {
@@ -222,7 +222,8 @@ ESP32_OPTIONS = {
             'help': 'Bootloader image',
             'default': None,
             'argparse': {
-                'metavar': 'FILE'
+                'metavar': 'FILE',
+                'type': pathlib.Path,
             },
         },
         'bootloader_offset': {
@@ -231,12 +232,14 @@ ESP32_OPTIONS = {
             'argparse': {
                 'metavar': 'OFFSET'
             },
+            'sdkconfig': 'CONFIG_BOOTLOADER_OFFSET_IN_FLASH',
         },
         'partition': {
             'help': 'Partition table image',
             'default': None,
             'argparse': {
-                'metavar': 'FILE'
+                'metavar': 'FILE',
+                'type': pathlib.Path,
             },
         },
         'partition_offset': {
@@ -304,7 +307,6 @@ class Flasher(firmware_utils.Flasher):
         return result
 
     IDF_PATH_TOOLS = {
-        'esptool': 'components/esptool_py/esptool/esptool.py',
         'parttool': 'components/partition_table/parttool.py',
     }
 
@@ -407,11 +409,11 @@ class Flasher(firmware_utils.Flasher):
             if self.erase().err:
                 return self
 
-        bootloader = self.optional_file(self.option.bootloader)
-        application = self.optional_file(self.option.application)
-        partition = self.optional_file(self.option.partition)
+        if self.option.application:
+            application = self.option.application
+            bootloader = self.option.bootloader
+            partition = self.option.partition
 
-        if bootloader or application or partition:
             # Collect the flashable items.
             flash = []
             if bootloader:
@@ -445,13 +447,16 @@ class Flasher(firmware_utils.Flasher):
 
         return self
 
-### Mobly integration
-class ESP32Platform:
-  def __init__(self, flasher_args):
-      self.flasher = Flasher(**flasher_args)
+# Mobly integration
 
-  def flash(self):
-      self.flasher.flash_command([os.getcwd()])
+
+class ESP32Platform:
+    def __init__(self, flasher_args):
+        self.flasher = Flasher(**flasher_args)
+
+    def flash(self):
+        self.flasher.flash_command([os.getcwd()])
+
 
 def verify_platform_args(platform_args):
     required_args = [
@@ -474,11 +479,13 @@ def verify_platform_args(platform_args):
     if difference:
         raise ValueError("Required arguments missing: %s" % difference)
 
+
 def create_platform(platform_args):
     verify_platform_args(platform_args[0])
     return ESP32Platform(platform_args[0])
 
-### End of Mobly integration
+# End of Mobly integration
+
 
 if __name__ == '__main__':
     sys.exit(Flasher().flash_command(sys.argv))

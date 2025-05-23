@@ -16,22 +16,35 @@
 
 #include <transport/TransportMgrBase.h>
 
-#include <support/CodeUtils.h>
+#include <lib/support/CodeUtils.h>
+#include <platform/LockTracker.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/Base.h>
 
 namespace chip {
 
-CHIP_ERROR TransportMgrBase::SendMessage(const PacketHeader & header, const Transport::PeerAddress & address,
-                                         System::PacketBufferHandle && msgBuf)
+CHIP_ERROR TransportMgrBase::SendMessage(const Transport::PeerAddress & address, System::PacketBufferHandle && msgBuf)
 {
-    return mTransport->SendMessage(header, address, std::move(msgBuf));
+    return mTransport->SendMessage(address, std::move(msgBuf));
 }
 
-void TransportMgrBase::Disconnect(const Transport::PeerAddress & address)
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+CHIP_ERROR TransportMgrBase::TCPConnect(const Transport::PeerAddress & address, Transport::AppTCPConnectionCallbackCtxt * appState,
+                                        Transport::ActiveTCPConnectionState ** peerConnState)
 {
-    mTransport->Disconnect(address);
+    return mTransport->TCPConnect(address, appState, peerConnState);
 }
+
+void TransportMgrBase::TCPDisconnect(const Transport::PeerAddress & address)
+{
+    mTransport->TCPDisconnect(address);
+}
+
+void TransportMgrBase::TCPDisconnect(Transport::ActiveTCPConnectionState * conn, bool shouldAbort)
+{
+    mTransport->TCPDisconnect(conn, shouldAbort);
+}
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
 CHIP_ERROR TransportMgrBase::Init(Transport::Base * transport)
 {
@@ -41,32 +54,104 @@ CHIP_ERROR TransportMgrBase::Init(Transport::Base * transport)
     }
     mTransport = transport;
     mTransport->SetDelegate(this);
+
     ChipLogDetail(Inet, "TransportMgr initialized");
     return CHIP_NO_ERROR;
 }
 
 void TransportMgrBase::Close()
 {
-    mSecureSessionMgr = nullptr;
-    mRendezvous       = nullptr;
-    mTransport        = nullptr;
+    mSessionManager = nullptr;
+    mTransport      = nullptr;
 }
 
-void TransportMgrBase::HandleMessageReceived(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
-                                             System::PacketBufferHandle msg)
+CHIP_ERROR TransportMgrBase::MulticastGroupJoinLeave(const Transport::PeerAddress & address, bool join)
 {
-    TransportMgrDelegate * handler = packetHeader.GetFlags().Has(Header::FlagValues::kSecure) ? mSecureSessionMgr : mRendezvous;
-    if (handler != nullptr)
+    return mTransport->MulticastGroupJoinLeave(address, join);
+}
+
+void TransportMgrBase::HandleMessageReceived(const Transport::PeerAddress & peerAddress, System::PacketBufferHandle && msg,
+                                             Transport::MessageTransportContext * ctxt)
+{
+    // This is the first point all incoming messages funnel through.  Ensure
+    // that our message receipts are all synchronized correctly.
+    assertChipStackLockedByCurrentThread();
+
+    if (msg->HasChainedBuffer())
     {
-        handler->OnMessageReceived(packetHeader, peerAddress, std::move(msg));
+        // Something in the lower levels messed up.
+        char addrBuffer[Transport::PeerAddress::kMaxToStringSize];
+        peerAddress.ToString(addrBuffer);
+        ChipLogError(Inet, "message from %s dropped due to lower layers not ensuring a single packet buffer.", addrBuffer);
+        return;
+    }
+
+    if (mSessionManager != nullptr)
+    {
+        mSessionManager->OnMessageReceived(peerAddress, std::move(msg), ctxt);
     }
     else
     {
         char addrBuffer[Transport::PeerAddress::kMaxToStringSize];
         peerAddress.ToString(addrBuffer);
-        ChipLogError(Inet, "%s message from %s is dropped since no corresponding handler is set in TransportMgr.",
-                     packetHeader.GetFlags().Has(Header::FlagValues::kSecure) ? "Encrypted" : "Unencrypted", addrBuffer);
+        ChipLogError(Inet, "message from %s is dropped since no corresponding handler is set in TransportMgr.", addrBuffer);
     }
 }
+
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+void TransportMgrBase::HandleConnectionReceived(Transport::ActiveTCPConnectionState * conn)
+{
+    if (mSessionManager != nullptr)
+    {
+        mSessionManager->HandleConnectionReceived(conn);
+    }
+    else
+    {
+        Transport::TCPBase * tcp = reinterpret_cast<Transport::TCPBase *>(conn->mEndPoint->mAppState);
+
+        // Close connection here since no upper layer is interested in the
+        // connection.
+        if (tcp)
+        {
+            tcp->TCPDisconnect(conn, /* shouldAbort = */ true);
+        }
+    }
+}
+
+void TransportMgrBase::HandleConnectionAttemptComplete(Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr)
+{
+    if (mSessionManager != nullptr)
+    {
+        mSessionManager->HandleConnectionAttemptComplete(conn, conErr);
+    }
+    else
+    {
+        Transport::TCPBase * tcp = reinterpret_cast<Transport::TCPBase *>(conn->mEndPoint->mAppState);
+
+        // Close connection here since no upper layer is interested in the
+        // connection.
+        if (tcp)
+        {
+            tcp->TCPDisconnect(conn, /* shouldAbort = */ true);
+        }
+    }
+}
+
+void TransportMgrBase::HandleConnectionClosed(Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr)
+{
+    if (mSessionManager != nullptr)
+    {
+        mSessionManager->HandleConnectionClosed(conn, conErr);
+    }
+    else
+    {
+        Transport::TCPBase * tcp = reinterpret_cast<Transport::TCPBase *>(conn->mEndPoint->mAppState);
+        if (tcp)
+        {
+            tcp->TCPDisconnect(conn, /* shouldAbort = */ true);
+        }
+    }
+}
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
 } // namespace chip
