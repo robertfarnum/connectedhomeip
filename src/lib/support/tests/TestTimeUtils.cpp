@@ -29,25 +29,26 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <support/TimeUtils.h>
-#include <support/UnitTestRegistration.h>
-#include <support/logging/CHIPLogging.h>
+#include <pw_unit_test/framework.h>
+
+#include <lib/core/StringBuilderAdapters.h>
+#include <lib/support/TimeUtils.h>
+#include <lib/support/logging/CHIPLogging.h>
 
 using namespace chip;
 
-static void Abort()
-{
-    abort();
-}
-
-void TestAssert(bool assert, const char * msg)
-{
-    if (!assert)
-    {
-        printf("%s\n", msg);
-        Abort();
-    }
-}
+#define TestAssert(cond, message)                                                                                                  \
+    do                                                                                                                             \
+    {                                                                                                                              \
+        if (!(cond))                                                                                                               \
+        {                                                                                                                          \
+            ChipLogError(NotSpecified, "%s", (message));                                                                           \
+        }                                                                                                                          \
+        EXPECT_TRUE((cond));                                                                                                       \
+                                                                                                                                   \
+        if (!(cond))                                                                                                               \
+            return;                                                                                                                \
+    } while (0)
 
 struct OrdinalDateTestValue
 {
@@ -799,7 +800,7 @@ OrdinalDateTestValue LeapYearOrdinalDates[] =
 };
 // clang-format on
 
-void TestOrdinalDateConversion()
+TEST(TestTimeUtils, TestOrdinalDateConversion)
 {
     for (uint16_t year = 0; year <= 10000; year++)
     {
@@ -822,44 +823,45 @@ void TestOrdinalDateConversion()
     }
 }
 
-void TestDaysSinceEpochConversion()
+TEST(TestTimeUtils, TestDaysSinceEpochConversion)
 {
     uint32_t daysSinceEpoch = 0;
 
-    for (uint16_t year = kEpochYear; year <= kMaxYearInDaysSinceEpoch32; year++)
+    for (uint16_t year = kUnixEpochYear; year <= kMaxYearInDaysSinceUnixEpoch32; year++)
     {
         for (uint8_t month = kJanuary; month <= kDecember; month++)
         {
             for (uint8_t dayOfMonth = 1; dayOfMonth <= DaysInMonth(year, month); dayOfMonth++)
             {
-                // Test CalendarDateToDaysSinceEpoch()
+                // Test CalendarDateToDaysSinceUnixEpoch()
                 {
                     uint32_t calculatedDaysSinceEpoch;
 
-                    CalendarDateToDaysSinceEpoch(year, month, dayOfMonth, calculatedDaysSinceEpoch);
+                    CalendarDateToDaysSinceUnixEpoch(year, month, dayOfMonth, calculatedDaysSinceEpoch);
 
                     if (calculatedDaysSinceEpoch != daysSinceEpoch)
-                        printf("%04u/%02u/%02u %u %u\n", year, month, dayOfMonth, daysSinceEpoch, calculatedDaysSinceEpoch);
+                        printf("%04u/%02u/%02u %" PRIu32 " %" PRIu32 "\n", year, month, dayOfMonth, daysSinceEpoch,
+                               calculatedDaysSinceEpoch);
 
                     TestAssert(calculatedDaysSinceEpoch == daysSinceEpoch,
-                               "CalendarDateToDaysSinceEpoch() returned unexpected value");
+                               "CalendarDateToDaysSinceUnixEpoch() returned unexpected value");
                 }
 
-                // Test DaysSinceEpochToCalendarDate()
+                // Test DaysSinceUnixEpochToCalendarDate()
                 {
                     uint16_t calculatedYear;
                     uint8_t calculatedMonth, calculatedDayOfMonth;
 
-                    DaysSinceEpochToCalendarDate(daysSinceEpoch, calculatedYear, calculatedMonth, calculatedDayOfMonth);
+                    DaysSinceUnixEpochToCalendarDate(daysSinceEpoch, calculatedYear, calculatedMonth, calculatedDayOfMonth);
 
                     if (calculatedYear != year || calculatedMonth != month || calculatedDayOfMonth != dayOfMonth)
                         printf("%04u/%02u/%02u %04u/%02u/%02u\n", year, month, dayOfMonth, calculatedYear, calculatedMonth,
                                calculatedDayOfMonth);
 
-                    TestAssert(calculatedYear == year, "DaysSinceEpochToCalendarDate() returned unexpected year value");
-                    TestAssert(calculatedMonth == month, "DaysSinceEpochToCalendarDate() returned unexpected month value");
+                    TestAssert(calculatedYear == year, "DaysSinceUnixEpochToCalendarDate() returned unexpected year value");
+                    TestAssert(calculatedMonth == month, "DaysSinceUnixEpochToCalendarDate() returned unexpected month value");
                     TestAssert(calculatedDayOfMonth == dayOfMonth,
-                               "DaysSinceEpochToCalendarDate() returned unexpected dayOfMonth value");
+                               "DaysSinceUnixEpochToCalendarDate() returned unexpected dayOfMonth value");
                 }
 
                 daysSinceEpoch++;
@@ -868,12 +870,12 @@ void TestDaysSinceEpochConversion()
     }
 }
 
-void TestSecondsSinceEpochConversion()
+TEST(TestTimeUtils, TestSecondsSinceEpochConversion)
 {
     uint32_t daysSinceEpoch = 0;
     uint32_t timeOfDay      = 0; // in seconds
 
-    for (uint16_t year = kEpochYear; year <= kMaxYearInSecondsSinceEpoch32; year++)
+    for (uint16_t year = kUnixEpochYear; year <= kMaxYearInSecondsSinceUnixEpoch32; year++)
     {
         for (uint8_t month = kJanuary; month <= kDecember; month++)
         {
@@ -904,34 +906,37 @@ void TestSecondsSinceEpochConversion()
                     }
 #endif
 
-                    // Test SecondsSinceEpochToCalendarTime()
+                    // Test SecondsSinceUnixEpochToCalendarTime()
                     {
                         uint16_t calculatedYear;
                         uint8_t calculatedMonth, calculatedDayOfMonth, calculatedHour, calculatedMinute, calculatedSecond;
 
-                        SecondsSinceEpochToCalendarTime(secondsSinceEpoch, calculatedYear, calculatedMonth, calculatedDayOfMonth,
-                                                        calculatedHour, calculatedMinute, calculatedSecond);
+                        SecondsSinceUnixEpochToCalendarTime(secondsSinceEpoch, calculatedYear, calculatedMonth,
+                                                            calculatedDayOfMonth, calculatedHour, calculatedMinute,
+                                                            calculatedSecond);
 
-                        TestAssert(calculatedYear == year, "SecondsSinceEpochToCalendarTime() returned unexpected year value");
-                        TestAssert(calculatedMonth == month, "SecondsSinceEpochToCalendarTime() returned unexpected month value");
+                        TestAssert(calculatedYear == year, "SecondsSinceUnixEpochToCalendarTime() returned unexpected year value");
+                        TestAssert(calculatedMonth == month,
+                                   "SecondsSinceUnixEpochToCalendarTime() returned unexpected month value");
                         TestAssert(calculatedDayOfMonth == dayOfMonth,
-                                   "SecondsSinceEpochToCalendarTime() returned unexpected dayOfMonth value");
-                        TestAssert(calculatedHour == hour, "SecondsSinceEpochToCalendarTime() returned unexpected hour value");
+                                   "SecondsSinceUnixEpochToCalendarTime() returned unexpected dayOfMonth value");
+                        TestAssert(calculatedHour == hour, "SecondsSinceUnixEpochToCalendarTime() returned unexpected hour value");
                         TestAssert(calculatedMinute == minute,
-                                   "SecondsSinceEpochToCalendarTime() returned unexpected minute value");
+                                   "SecondsSinceUnixEpochToCalendarTime() returned unexpected minute value");
                         TestAssert(calculatedSecond == second,
-                                   "SecondsSinceEpochToCalendarTime() returned unexpected second value");
+                                   "SecondsSinceUnixEpochToCalendarTime() returned unexpected second value");
                     }
 
-                    // Test CalendarTimeToSecondsSinceEpoch()
+                    // Test CalendarTimeToSecondsSinceUnixEpoch()
 
                     {
                         uint32_t calculatedSecondsSinceEpoch;
 
-                        CalendarTimeToSecondsSinceEpoch(year, month, dayOfMonth, hour, minute, second, calculatedSecondsSinceEpoch);
+                        CalendarTimeToSecondsSinceUnixEpoch(year, month, dayOfMonth, hour, minute, second,
+                                                            calculatedSecondsSinceEpoch);
 
                         TestAssert(calculatedSecondsSinceEpoch == secondsSinceEpoch,
-                                   "CalendarTimeToSecondsSinceEpoch() returned unexpected value");
+                                   "CalendarTimeToSecondsSinceUnixEpoch() returned unexpected value");
                     }
 
                     // Iterate through times of day by skipping a large prime number of seconds.
@@ -944,7 +949,7 @@ void TestSecondsSinceEpochConversion()
     }
 }
 
-void TestChipEpochTimeConversion()
+TEST(TestTimeUtils, TestChipEpochTimeConversion)
 {
     uint32_t daysSinceEpoch = 0;
     uint32_t timeOfDay      = 0; // in seconds
@@ -996,7 +1001,7 @@ void TestChipEpochTimeConversion()
                         TestAssert(calculatedSecond == second, "ChipEpochToCalendarTime() returned unexpected second value");
                     }
 
-                    // Test CalendarTimeToSecondsSinceEpoch()
+                    // Test CalendarTimeToSecondsSinceUnixEpoch()
 
                     {
                         uint32_t calculatedChipEpochTime;
@@ -1004,7 +1009,7 @@ void TestChipEpochTimeConversion()
                         CalendarToChipEpochTime(year, month, dayOfMonth, hour, minute, second, calculatedChipEpochTime);
 
                         TestAssert(calculatedChipEpochTime == chipEpochTime,
-                                   "CalendarTimeToSecondsSinceEpoch() returned unexpected value");
+                                   "CalendarTimeToSecondsSinceUnixEpoch() returned unexpected value");
                     }
 
                     // Iterate through times of day by skipping a large prime number of seconds.
@@ -1017,16 +1022,22 @@ void TestChipEpochTimeConversion()
     }
 }
 
-int TestTimeUtils(void)
+TEST(TestTimeUtils, TestChipEpochTimeEdgeConditions)
 {
-    TestOrdinalDateConversion();
-    TestDaysSinceEpochConversion();
-    TestSecondsSinceEpochConversion();
-    TestChipEpochTimeConversion();
+    uint32_t chip_epoch_time_sec = 0;
 
-    printf("All tests passed\n");
+    EXPECT_TRUE(UnixEpochToChipEpochTime(UINT32_MAX, chip_epoch_time_sec));
+    EXPECT_LT(chip_epoch_time_sec, UINT32_MAX);
 
-    return (0);
+    // TODO(#30990): Bring back tests when implementation fixed.
+#if 0
+    constexpr uint32_t kUnix2000Jan1 = 946702800; // Start of CHIP epoch.
+
+    chip_epoch_time_sec = UINT32_MAX;
+    EXPECT_EQ(UnixEpochToChipEpochTime(kUnix2000Jan1, chip_epoch_time_sec), true);
+    EXPECT_EQ(chip_epoch_time_sec, 0u);
+
+    chip_epoch_time_sec = 0;
+    EXPECT_EQ(UnixEpochToChipEpochTime(kUnix2000Jan1 - 1, chip_epoch_time_sec), false);
+#endif
 }
-
-CHIP_REGISTER_TEST_SUITE(TestTimeUtils);

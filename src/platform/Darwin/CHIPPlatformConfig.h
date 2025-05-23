@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2022 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -23,66 +23,48 @@
 
 #pragma once
 
+#include <TargetConditionals.h>
+
 // ==================== General Platform Adaptations ====================
 
-#define ChipDie() abort()
+#define CHIP_CONFIG_ABORT() abort()
 
-// TODO:(#756) Add FabricState support
-#define CHIP_CONFIG_ENABLE_FABRIC_STATE 0
+#include <os/trace_base.h> // for __dso_handle
+extern "C" int __cxa_atexit(void (*f)(void *), void * p, void * d);
+#define CHIP_CXA_ATEXIT(f, p) __cxa_atexit((f), (p), &__dso_handle)
 
-#define CHIP_CONFIG_TIME_ENABLE_CLIENT 1
-#define CHIP_CONFIG_TIME_ENABLE_SERVER 0
+#define CHIP_CONFIG_GLOBALS_LAZY_INIT 1
+
+#define CHIP_CONFIG_ERROR_FORMAT_AS_STRING 1
+#define CHIP_CONFIG_ERROR_SOURCE 1
+
+#define CHIP_CONFIG_VERBOSE_VERIFY_OR_DIE 1
+
+#define CHIP_CONFIG_IM_STATUS_CODE_VERBOSE_FORMAT 1
 
 // ==================== Security Adaptations ====================
 
-#define CHIP_CONFIG_USE_OPENSSL_ECC 0
-#define CHIP_CONFIG_USE_MICRO_ECC 0
-
-#define CHIP_CONFIG_HASH_IMPLEMENTATION_OPENSSL 0
-#define CHIP_CONFIG_HASH_IMPLEMENTATION_MINCRYPT 1
-#define CHIP_CONFIG_HASH_IMPLEMENTATION_MBEDTLS 0
-#define CHIP_CONFIG_HASH_IMPLEMENTATION_PLATFORM 0
-
-#define CHIP_CONFIG_AES_IMPLEMENTATION_OPENSSL 0
-#define CHIP_CONFIG_AES_IMPLEMENTATION_AESNI 0
-#define CHIP_CONFIG_AES_IMPLEMENTATION_MBEDTLS 1
-#define CHIP_CONFIG_AES_IMPLEMENTATION_PLATFORM 0
-
-#define CHIP_CONFIG_RNG_IMPLEMENTATION_OPENSSL 0
-#define CHIP_CONFIG_RNG_IMPLEMENTATION_CHIPDRBG 1
-#define CHIP_CONFIG_RNG_IMPLEMENTATION_PLATFORM 0
-
-#define CHIP_CONFIG_ENABLE_PASE_INITIATOR 0
-#define CHIP_CONFIG_ENABLE_PASE_RESPONDER 1
-#define CHIP_CONFIG_ENABLE_CASE_INITIATOR 1
-
-#define CHIP_CONFIG_SUPPORT_PASE_CONFIG0 0
-#define CHIP_CONFIG_SUPPORT_PASE_CONFIG1 0
-#define CHIP_CONFIG_SUPPORT_PASE_CONFIG2 0
-#define CHIP_CONFIG_SUPPORT_PASE_CONFIG3 0
-#define CHIP_CONFIG_SUPPORT_PASE_CONFIG4 1
-
-#define CHIP_CONFIG_ENABLE_KEY_EXPORT_INITIATOR 0
-
-#define CHIP_CONFIG_ENABLE_PROVISIONING_BUNDLE_SUPPORT 0
+// If unspecified, assume crypto is fast on Darwin
+#ifndef CHIP_CONFIG_SLOW_CRYPTO
+#define CHIP_CONFIG_SLOW_CRYPTO 0
+#endif // CHIP_CONFIG_SLOW_CRYPTO
 
 // ==================== General Configuration Overrides ====================
 
-#ifndef CHIP_CONFIG_MAX_PEER_NODES
-#define CHIP_CONFIG_MAX_PEER_NODES 16
-#endif // CHIP_CONFIG_MAX_PEER_NODES
-
 #ifndef CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS
-#define CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS 16
+#define CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS 8
 #endif // CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS
 
-#ifndef CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
-#define CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS 8
-#endif // CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
-
-#ifndef CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
-#define CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT 6
-#endif // CHIP_CONFIG_RMP_TIMER_DEFAULT_PERIOD_SHIFT
+//
+// Default of 8 ECs is not sufficient for some of the unit tests
+// that try to validate multiple simultaneous interactions.
+// In tests like TestReadHandler_MultipleSubscriptions, we are trying to issue as many read / subscription requests as possible in
+// parallel. Since the default config says we support 16 fabrics, and we will have 4 read handlers for each fabric (3 subscriptions
+// + 1 reserved for read) that is read transactions in parallel. Since the report handlers are allocated on the heap, we will issue
+// 65 requests (the TestReadHandler_MultipleSubscriptions will issue CHIP_IM_MAX_NUM_READ_HANDLER + 1 subscriptions to verify heap
+// allocation logic) in total and that is 130 ECs. Round this up to 150 ECs
+//
+#define CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS 150
 
 #ifndef CHIP_LOG_FILTERING
 #define CHIP_LOG_FILTERING 1
@@ -92,16 +74,19 @@
 #define CHIP_CONFIG_BDX_MAX_NUM_TRANSFERS 1
 #endif // CHIP_CONFIG_BDX_MAX_NUM_TRANSFERS
 
-// ==================== Security Configuration Overrides ====================
+#ifndef CHIP_CONFIG_KVS_PATH
+#if TARGET_OS_IPHONE
+#define CHIP_CONFIG_KVS_PATH "chip.store"
+#else
+#define CHIP_CONFIG_KVS_PATH "/tmp/chip_kvs"
+#endif // TARGET_OS_IPHONE
+#endif // CHIP_CONFIG_KVS_PATH
 
-#ifndef CHIP_CONFIG_MAX_APPLICATION_GROUPS
-#define CHIP_CONFIG_MAX_APPLICATION_GROUPS 4
-#endif // CHIP_CONFIG_MAX_APPLICATION_GROUPS
+#define CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE 0
 
-#ifndef CHIP_CONFIG_DEBUG_CERT_VALIDATION
-#define CHIP_CONFIG_DEBUG_CERT_VALIDATION 0
-#endif // CHIP_CONFIG_DEBUG_CERT_VALIDATION
+// The session pool size limits how many subscriptions we can have live at
+// once.  Home supports up to 1000 accessories, and we subscribe to all of them,
+// so we need to make sure the pool is big enough for that.
+#define CHIP_CONFIG_SECURE_SESSION_POOL_SIZE 1000
 
-#ifndef CHIP_CONFIG_ENABLE_CASE_RESPONDER
-#define CHIP_CONFIG_ENABLE_CASE_RESPONDER 1
-#endif // CHIP_CONFIG_ENABLE_CASE_RESPONDER
+#define INET_CONFIG_OVERRIDE_SYSTEM_TCP_USER_TIMEOUT 0

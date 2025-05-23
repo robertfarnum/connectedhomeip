@@ -24,45 +24,32 @@
 
 #pragma once
 
+#include <lib/support/BitFlags.h>
+#include <lib/support/BufferWriter.h>
+#include <lib/support/CodeUtils.h>
 #include <protocols/Protocols.h>
-#include <support/BitFlags.h>
-#include <support/BufferWriter.h>
-#include <support/CodeUtils.h>
+#include <protocols/bdx/StatusCode.h>
 #include <system/SystemPacketBuffer.h>
+
 namespace chip {
 namespace bdx {
 
+inline constexpr uint16_t kMaxFileDesignatorLen = 0xFF;
+
+inline constexpr char kProtocolName[] = "BDX";
+
 enum class MessageType : uint8_t
 {
-    SendInit      = 0x01,
-    SendAccept    = 0x02,
-    ReceiveInit   = 0x04,
-    ReceiveAccept = 0x05,
-    BlockQuery    = 0x10,
-    Block         = 0x11,
-    BlockEOF      = 0x12,
-    BlockAck      = 0x13,
-    BlockAckEOF   = 0x14,
-};
-
-enum class StatusCode : uint16_t
-{
-    kNone                       = 0x0000,
-    kOverflow                   = 0x0011,
-    kLengthTooLarge             = 0x0012,
-    kLengthTooShort             = 0x0013,
-    kLengthMismatch             = 0x0014,
-    kLengthRequired             = 0x0015,
-    kBadMessageContents         = 0x0016,
-    kBadBlockCounter            = 0x0017,
-    kUnexpectedMessage          = 0x0018,
-    kTransferFailedUnknownError = 0x001F,
-    kFailureToSend              = 0x0021,
-    kTransferMethodNotSupported = 0x0050,
-    kFileDesignatorUnknown      = 0x0051,
-    kStartOffsetNotSupported    = 0x0052,
-    kVersionNotSupported        = 0x0053,
-    kUnknown                    = 0x005F,
+    SendInit           = 0x01,
+    SendAccept         = 0x02,
+    ReceiveInit        = 0x04,
+    ReceiveAccept      = 0x05,
+    BlockQuery         = 0x10,
+    Block              = 0x11,
+    BlockEOF           = 0x12,
+    BlockAck           = 0x13,
+    BlockAckEOF        = 0x14,
+    BlockQueryWithSkip = 0x15,
 };
 
 enum class TransferControlFlags : uint8_t
@@ -94,7 +81,7 @@ struct BdxMessage
      *  so it is essential that the underlying PacketBuffer is not modified until after this
      *  struct is no longer needed.
      *
-     * @param[in] aBuffer A PacketBufferHandle with a refernce to the PacketBuffer containing the data.
+     * @param[in] aBuffer A PacketBufferHandle with a reference to the PacketBuffer containing the data.
      *
      * @return CHIP_ERROR Return an error if the message format is invalid and/or can't be parsed
      */
@@ -120,6 +107,14 @@ struct BdxMessage
      */
     virtual size_t MessageSize() const = 0;
 
+#if CHIP_AUTOMATION_LOGGING
+    /**
+     * @brief
+     * Log all parameters for this message.
+     */
+    virtual void LogMessage(bdx::MessageType messageType) const = 0;
+#endif // CHIP_AUTOMATION_LOGGING
+
     virtual ~BdxMessage() = default;
 };
 
@@ -129,15 +124,14 @@ struct BdxMessage
  */
 struct TransferInit : public BdxMessage
 {
-    /**
-     * @brief
-     *  Equality check method.
-     */
     bool operator==(const TransferInit &) const;
 
     // Proposed Transfer Control (required)
     BitFlags<TransferControlFlags> TransferCtlOptions;
     uint8_t Version = 0; ///< The highest version supported by the sender
+
+    // Range Control
+    BitFlags<RangeControlFlags> mRangeCtlFlags;
 
     // All required
     uint16_t MaxBlockSize = 0; ///< Proposed max block size to use in transfer
@@ -150,7 +144,7 @@ struct TransferInit : public BdxMessage
     const uint8_t * FileDesignator = nullptr;
     uint16_t FileDesLength         = 0; ///< Length of file designator string (not including null-terminator)
     const uint8_t * Metadata       = nullptr;
-    uint16_t MetadataLength        = 0;
+    size_t MetadataLength          = 0;
 
     // Retain ownership of the packet buffer so that the FileDesignator and Metadata pointers remain valid.
     System::PacketBufferHandle Buffer;
@@ -158,6 +152,9 @@ struct TransferInit : public BdxMessage
     CHIP_ERROR Parse(System::PacketBufferHandle aBuffer) override;
     Encoding::LittleEndian::BufferWriter & WriteToBuffer(Encoding::LittleEndian::BufferWriter & aBuffer) const override;
     size_t MessageSize() const override;
+#if CHIP_AUTOMATION_LOGGING
+    void LogMessage(bdx::MessageType messageType) const override;
+#endif // CHIP_AUTOMATION_LOGGING
 };
 
 using SendInit    = TransferInit;
@@ -168,10 +165,6 @@ using ReceiveInit = TransferInit;
  */
 struct SendAccept : public BdxMessage
 {
-    /**
-     * @brief
-     *  Equality check method.
-     */
     bool operator==(const SendAccept &) const;
 
     // Transfer Control (required, only one should be set)
@@ -184,7 +177,7 @@ struct SendAccept : public BdxMessage
     // WARNING: there is no guarantee at any point that this pointer will point to valid memory. The Buffer field should be used to
     // hold a reference to the PacketBuffer containing the data in order to ensure the data is not freed.
     const uint8_t * Metadata = nullptr;
-    uint16_t MetadataLength  = 0;
+    size_t MetadataLength    = 0;
 
     // Retain ownership of the packet buffer so that the FileDesignator and Metadata pointers remain valid.
     System::PacketBufferHandle Buffer;
@@ -192,6 +185,9 @@ struct SendAccept : public BdxMessage
     CHIP_ERROR Parse(System::PacketBufferHandle aBuffer) override;
     Encoding::LittleEndian::BufferWriter & WriteToBuffer(Encoding::LittleEndian::BufferWriter & aBuffer) const override;
     size_t MessageSize() const override;
+#if CHIP_AUTOMATION_LOGGING
+    void LogMessage(bdx::MessageType messageType) const override;
+#endif // CHIP_AUTOMATION_LOGGING
 };
 
 /**
@@ -199,14 +195,13 @@ struct SendAccept : public BdxMessage
  */
 struct ReceiveAccept : public BdxMessage
 {
-    /**
-     * @brief
-     *  Equality check method.
-     */
     bool operator==(const ReceiveAccept &) const;
 
     // Transfer Control (required, only one should be set)
     BitFlags<TransferControlFlags> TransferCtlFlags;
+
+    // Range Control
+    BitFlags<RangeControlFlags> mRangeCtlFlags;
 
     // All required
     uint8_t Version       = 0; ///< The agreed upon version for the transfer
@@ -218,7 +213,7 @@ struct ReceiveAccept : public BdxMessage
     // WARNING: there is no guarantee at any point that this pointer will point to valid memory. The Buffer field should be used to
     // hold a reference to the PacketBuffer containing the data in order to ensure the data is not freed.
     const uint8_t * Metadata = nullptr;
-    uint16_t MetadataLength  = 0;
+    size_t MetadataLength    = 0;
 
     // Retain ownership of the packet buffer so that the FileDesignator and Metadata pointers remain valid.
     System::PacketBufferHandle Buffer;
@@ -226,6 +221,9 @@ struct ReceiveAccept : public BdxMessage
     CHIP_ERROR Parse(System::PacketBufferHandle aBuffer) override;
     Encoding::LittleEndian::BufferWriter & WriteToBuffer(Encoding::LittleEndian::BufferWriter & aBuffer) const override;
     size_t MessageSize() const override;
+#if CHIP_AUTOMATION_LOGGING
+    void LogMessage(bdx::MessageType messageType) const override;
+#endif // CHIP_AUTOMATION_LOGGING
 };
 
 /**
@@ -234,10 +232,6 @@ struct ReceiveAccept : public BdxMessage
  */
 struct CounterMessage : public BdxMessage
 {
-    /**
-     * @brief
-     *  Equality check method.
-     */
     bool operator==(const CounterMessage &) const;
 
     uint32_t BlockCounter = 0;
@@ -245,6 +239,9 @@ struct CounterMessage : public BdxMessage
     CHIP_ERROR Parse(System::PacketBufferHandle aBuffer) override;
     Encoding::LittleEndian::BufferWriter & WriteToBuffer(Encoding::LittleEndian::BufferWriter & aBuffer) const override;
     size_t MessageSize() const override;
+#if CHIP_AUTOMATION_LOGGING
+    void LogMessage(bdx::MessageType messageType) const override;
+#endif // CHIP_AUTOMATION_LOGGING
 };
 
 using BlockQuery  = CounterMessage;
@@ -256,10 +253,6 @@ using BlockAckEOF = CounterMessage;
  */
 struct DataBlock : public BdxMessage
 {
-    /**
-     * @brief
-     *  Equality check method.
-     */
     bool operator==(const DataBlock &) const;
 
     uint32_t BlockCounter = 0;
@@ -267,7 +260,7 @@ struct DataBlock : public BdxMessage
     // WARNING: there is no guarantee at any point that this pointer will point to valid memory. The Buffer field should be used to
     // hold a reference to the PacketBuffer containing the data in order to ensure the data is not freed.
     const uint8_t * Data = nullptr;
-    uint16_t DataLength  = 0;
+    size_t DataLength    = 0;
 
     // Retain ownership of the packet buffer so that the FileDesignator and Metadata pointers remain valid.
     System::PacketBufferHandle Buffer;
@@ -275,10 +268,28 @@ struct DataBlock : public BdxMessage
     CHIP_ERROR Parse(System::PacketBufferHandle aBuffer) override;
     Encoding::LittleEndian::BufferWriter & WriteToBuffer(Encoding::LittleEndian::BufferWriter & aBuffer) const override;
     size_t MessageSize() const override;
+#if CHIP_AUTOMATION_LOGGING
+    void LogMessage(bdx::MessageType messageType) const override;
+#endif // CHIP_AUTOMATION_LOGGING
 };
 
 using Block    = DataBlock;
 using BlockEOF = DataBlock;
+
+struct BlockQueryWithSkip : public BdxMessage
+{
+    bool operator==(const BlockQueryWithSkip &) const;
+
+    uint32_t BlockCounter = 0;
+    uint64_t BytesToSkip  = 0;
+
+    CHIP_ERROR Parse(System::PacketBufferHandle aBuffer) override;
+    Encoding::LittleEndian::BufferWriter & WriteToBuffer(Encoding::LittleEndian::BufferWriter & aBuffer) const override;
+    size_t MessageSize() const override;
+#if CHIP_AUTOMATION_LOGGING
+    void LogMessage(bdx::MessageType messageType) const override;
+#endif // CHIP_AUTOMATION_LOGGING
+};
 
 } // namespace bdx
 
@@ -287,6 +298,26 @@ template <>
 struct MessageTypeTraits<bdx::MessageType>
 {
     static constexpr const Protocols::Id & ProtocolId() { return BDX::Id; }
+
+    static auto GetTypeToNameTable()
+    {
+        static const std::array<MessageTypeNameLookup, 10> typeToNameTable = {
+            {
+                { bdx::MessageType::SendInit, "SendInit" },
+                { bdx::MessageType::SendAccept, "SendAccept" },
+                { bdx::MessageType::ReceiveInit, "ReceiveInit" },
+                { bdx::MessageType::ReceiveAccept, "ReceiveAccept" },
+                { bdx::MessageType::BlockQuery, "BlockQuery" },
+                { bdx::MessageType::Block, "Block" },
+                { bdx::MessageType::BlockEOF, "BlockEOF" },
+                { bdx::MessageType::BlockAck, "BlockAck" },
+                { bdx::MessageType::BlockAckEOF, "BlockAckEOF" },
+                { bdx::MessageType::BlockQueryWithSkip, "BlockQueryWithSkip" },
+            },
+        };
+
+        return &typeToNameTable;
+    }
 };
 } // namespace Protocols
 

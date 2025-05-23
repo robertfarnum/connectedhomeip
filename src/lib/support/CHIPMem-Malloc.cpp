@@ -23,8 +23,9 @@
  *
  */
 
-#include <core/CHIPConfig.h>
-#include <support/CHIPMem.h>
+#include <lib/core/CHIPConfig.h>
+#include <lib/support/CHIPMem.h>
+#include <lib/support/VerificationMacrosNoLogging.h>
 
 #include <stdlib.h>
 
@@ -35,7 +36,7 @@
 
 #if CHIP_CONFIG_MEMORY_DEBUG_DMALLOC
 #include <dmalloc.h>
-#include <support/SafeInt.h>
+#include <lib/support/SafeInt.h>
 #endif // CHIP_CONFIG_MEMORY_DEBUG_DMALLOC
 
 #if CHIP_CONFIG_MEMORY_MGMT_MALLOC
@@ -56,44 +57,33 @@ static std::atomic_int memoryInitialized{ 0 };
 
 static void VerifyInitialized(const char * func)
 {
-    if (!memoryInitialized)
-    {
-        fprintf(stderr, "ABORT: chip::Platform::%s() called before chip::Platform::MemoryInit()\n", func);
-        abort();
-    }
+    // Logging can use Memory::Alloc, so we can't use logging with our
+    // VerifyOrDie bits here.
+    VerifyOrDieWithoutLogging(memoryInitialized);
 }
 
-#define VERIFY_POINTER(p)                                                                                                          \
-    do                                                                                                                             \
-        if (((p) != nullptr) && (MemoryDebugCheckPointer((p)) == false))                                                           \
-        {                                                                                                                          \
-            fprintf(stderr, "ABORT: chip::Platform::%s() found corruption on %p\n", __func__, (p));                                \
-            abort();                                                                                                               \
-        }                                                                                                                          \
-    while (0)
+// Logging can use Memory::Alloc, so we can't use logging with our
+// VerifyOrDie bits here.
+#define VERIFY_POINTER(p) VerifyOrDieWithoutLogging((p) == nullptr || MemoryDebugCheckPointer((p)))
 
 #endif
 
 CHIP_ERROR MemoryAllocatorInit(void * buf, size_t bufSize)
 {
+    // Logging can use Memory::Alloc, so we can't use logging with our
+    // VerifyOrDie bits here.
 #ifndef NDEBUG
-    if (memoryInitialized++ > 0)
-    {
-        fprintf(stderr, "ABORT: chip::Platform::MemoryInit() called twice.\n");
-        abort();
-    }
+    VerifyOrDieWithoutLogging(memoryInitialized++ == 0);
 #endif
     return CHIP_NO_ERROR;
 }
 
 void MemoryAllocatorShutdown()
 {
+    // Logging can use Memory::Alloc, so we can't use logging with our
+    // VerifyOrDie bits here.
 #ifndef NDEBUG
-    if (--memoryInitialized < 0)
-    {
-        fprintf(stderr, "ABORT: chip::Platform::MemoryShutdown() called twice.\n");
-        abort();
-    }
+    VerifyOrDieWithoutLogging(--memoryInitialized == 0);
 #endif
 #if CHIP_CONFIG_MEMORY_DEBUG_DMALLOC
     dmalloc_shutdown();

@@ -16,11 +16,14 @@
 
 #pragma once
 
-#include <support/CodeUtils.h>
+#include <lib/support/CodeUtils.h>
 #include <system/SystemPacketBuffer.h>
 #include <transport/raw/Base.h>
 #include <transport/raw/MessageHeader.h>
 #include <transport/raw/PeerAddress.h>
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+#include <transport/raw/TCP.h>
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
 
 namespace chip {
 
@@ -35,24 +38,37 @@ class TransportMgrBase : public Transport::RawTransportDelegate
 public:
     CHIP_ERROR Init(Transport::Base * transport);
 
-    CHIP_ERROR SendMessage(const PacketHeader & header, const Transport::PeerAddress & address,
-                           System::PacketBufferHandle && msgBuf);
+    CHIP_ERROR SendMessage(const Transport::PeerAddress & address, System::PacketBufferHandle && msgBuf);
 
     void Close();
 
-    void Disconnect(const Transport::PeerAddress & address);
+#if INET_CONFIG_ENABLE_TCP_ENDPOINT
+    CHIP_ERROR TCPConnect(const Transport::PeerAddress & address, Transport::AppTCPConnectionCallbackCtxt * appState,
+                          Transport::ActiveTCPConnectionState ** peerConnState);
 
-    void SetSecureSessionMgr(TransportMgrDelegate * secureSessionMgr) { mSecureSessionMgr = secureSessionMgr; }
+    void TCPDisconnect(const Transport::PeerAddress & address);
 
-    void SetRendezvousSession(TransportMgrDelegate * rendezvousSessionMgr) { mRendezvous = rendezvousSessionMgr; }
+    void TCPDisconnect(Transport::ActiveTCPConnectionState * conn, bool shouldAbort = 0);
 
-    void HandleMessageReceived(const PacketHeader & packetHeader, const Transport::PeerAddress & peerAddress,
-                               System::PacketBufferHandle msg) override;
+    void HandleConnectionReceived(Transport::ActiveTCPConnectionState * conn) override;
+
+    void HandleConnectionAttemptComplete(Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr) override;
+
+    void HandleConnectionClosed(Transport::ActiveTCPConnectionState * conn, CHIP_ERROR conErr) override;
+#endif // INET_CONFIG_ENABLE_TCP_ENDPOINT
+
+    void SetSessionManager(TransportMgrDelegate * sessionManager) { mSessionManager = sessionManager; }
+
+    TransportMgrDelegate * GetSessionManager() { return mSessionManager; };
+
+    CHIP_ERROR MulticastGroupJoinLeave(const Transport::PeerAddress & address, bool join);
+
+    void HandleMessageReceived(const Transport::PeerAddress & peerAddress, System::PacketBufferHandle && msg,
+                               Transport::MessageTransportContext * ctxt = nullptr) override;
 
 private:
-    TransportMgrDelegate * mSecureSessionMgr = nullptr;
-    TransportMgrDelegate * mRendezvous       = nullptr;
-    Transport::Base * mTransport             = nullptr;
+    TransportMgrDelegate * mSessionManager = nullptr;
+    Transport::Base * mTransport           = nullptr;
 };
 
 } // namespace chip

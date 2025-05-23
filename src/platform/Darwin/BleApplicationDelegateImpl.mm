@@ -20,7 +20,11 @@
  *          Provides an implementation of BleApplicationDelegate for Darwin platforms.
  */
 
-#include <ble/BleConfig.h>
+#if !__has_feature(objc_arc)
+#error This file must be compiled with ARC. Use -fobjc-arc flag (or convert project to ARC).
+#endif
+
+#include <ble/Ble.h>
 #include <platform/Darwin/BleApplicationDelegate.h>
 
 using namespace ::chip;

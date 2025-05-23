@@ -23,9 +23,22 @@
  */
 #pragma once
 
-#include <assert.h>
+#include <new>
+#include <optional>
+#include <type_traits>
+#include <utility>
+
+#include <lib/core/InPlace.h>
+#include <lib/support/CodeUtils.h>
 
 namespace chip {
+
+/// An empty class type used to indicate optional type with uninitialized state.
+struct NullOptionalType
+{
+    explicit NullOptionalType() = default;
+};
+inline constexpr NullOptionalType NullOptional{};
 
 /**
  * Pairs an object with a boolean value to determine if the object value
@@ -35,80 +48,260 @@ template <class T>
 class Optional
 {
 public:
-    constexpr Optional() : mHasValue(false) {}
-    explicit Optional(const T & value) : mValue(value), mHasValue(true) {}
+    constexpr Optional() {}
+    constexpr Optional(NullOptionalType) {}
 
-    constexpr Optional(const Optional & other) = default;
-    constexpr Optional(Optional && other)      = default;
+    explicit Optional(const T & value)
+    {
+        mValueHolder.mHasValue = true;
+        new (&mValueHolder.mValue.mData) T(value);
+    }
 
-    /**
-     * Assignment operator implementation.
-     *
-     * NOTE: Manually implemented instead of =default  since other::mValue may not be initialized
-     * if it has no value.
-     */
+    template <class... Args>
+    constexpr explicit Optional(InPlaceType, Args &&... args)
+    {
+        mValueHolder.mHasValue = true;
+        new (&mValueHolder.mValue.mData) T(std::forward<Args>(args)...);
+    }
+
+    constexpr Optional(const Optional & other)
+    {
+        mValueHolder.mHasValue = other.mValueHolder.mHasValue;
+        if (mValueHolder.mHasValue)
+        {
+            new (&mValueHolder.mValue.mData) T(other.mValueHolder.mValue.mData);
+        }
+    }
+
+    // Converts an Optional of an implicitly convertible type
+    template <class U, std::enable_if_t<!std::is_same_v<T, U> && std::is_convertible_v<const U, T>, bool> = true>
+    constexpr Optional(const Optional<U> & other)
+    {
+        mValueHolder.mHasValue = other.HasValue();
+        if (mValueHolder.mHasValue)
+        {
+            new (&mValueHolder.mValue.mData) T(other.Value());
+        }
+    }
+
+    // Converts an Optional of a type that requires explicit conversion
+    template <class U,
+              std::enable_if_t<!std::is_same_v<T, U> && !std::is_convertible_v<const U, T> && std::is_constructible_v<T, const U &>,
+                               bool> = true>
+    constexpr explicit Optional(const Optional<U> & other)
+    {
+        mValueHolder.mHasValue = other.HasValue();
+        if (mValueHolder.mHasValue)
+        {
+            new (&mValueHolder.mValue.mData) T(other.Value());
+        }
+    }
+
+    constexpr Optional(Optional && other)
+    {
+        mValueHolder.mHasValue = other.mValueHolder.mHasValue;
+        if (mValueHolder.mHasValue)
+        {
+            new (&mValueHolder.mValue.mData) T(std::move(other.mValueHolder.mValue.mData));
+            other.mValueHolder.mValue.mData.~T();
+            other.mValueHolder.mHasValue = false;
+        }
+    }
+
     constexpr Optional & operator=(const Optional & other)
     {
-        if (other.HasValue())
+        if (mValueHolder.mHasValue)
         {
-            SetValue(other.Value());
+            mValueHolder.mValue.mData.~T();
         }
-        else
+        mValueHolder.mHasValue = other.mValueHolder.mHasValue;
+        if (mValueHolder.mHasValue)
         {
-            ClearValue();
+            new (&mValueHolder.mValue.mData) T(other.mValueHolder.mValue.mData);
         }
         return *this;
+    }
+
+    constexpr Optional & operator=(Optional && other)
+    {
+        if (mValueHolder.mHasValue)
+        {
+            mValueHolder.mValue.mData.~T();
+        }
+        mValueHolder.mHasValue = other.mValueHolder.mHasValue;
+        if (mValueHolder.mHasValue)
+        {
+            new (&mValueHolder.mValue.mData) T(std::move(other.mValueHolder.mValue.mData));
+            other.mValueHolder.mValue.mData.~T();
+            other.mValueHolder.mHasValue = false;
+        }
+        return *this;
+    }
+
+    /// Constructs the contained value in-place
+    template <class... Args>
+    constexpr T & Emplace(Args &&... args)
+    {
+        if (mValueHolder.mHasValue)
+        {
+            mValueHolder.mValue.mData.~T();
+        }
+        mValueHolder.mHasValue = true;
+        new (&mValueHolder.mValue.mData) T(std::forward<Args>(args)...);
+        return mValueHolder.mValue.mData;
     }
 
     /** Make the optional contain a specific value */
     constexpr void SetValue(const T & value)
     {
-        mValue    = value;
-        mHasValue = true;
+        if (mValueHolder.mHasValue)
+        {
+            mValueHolder.mValue.mData.~T();
+        }
+        mValueHolder.mHasValue = true;
+        new (&mValueHolder.mValue.mData) T(value);
+    }
+
+    constexpr void SetValue(std::optional<T> & value)
+    {
+        if (value.has_value())
+        {
+            SetValue(*value);
+        }
+        else
+        {
+            ClearValue();
+        }
+    }
+
+    /** Make the optional contain a specific value */
+    constexpr void SetValue(T && value)
+    {
+        if (mValueHolder.mHasValue)
+        {
+            mValueHolder.mValue.mData.~T();
+        }
+        mValueHolder.mHasValue = true;
+        new (&mValueHolder.mValue.mData) T(std::move(value));
     }
 
     /** Invalidate the value inside the optional. Optional now has no value */
-    constexpr void ClearValue() { mHasValue = false; }
+    constexpr void ClearValue()
+    {
+        if (mValueHolder.mHasValue)
+        {
+            mValueHolder.mValue.mData.~T();
+        }
+        mValueHolder.mHasValue = false;
+    }
 
     /** Gets the current value of the optional. Valid IFF `HasValue`. */
-    const T & Value() const
+    T & Value() &
     {
-        assert(HasValue());
-        return mValue;
+        VerifyOrDie(HasValue());
+        return mValueHolder.mValue.mData;
+    }
+
+    /** Gets the current value of the optional. Valid IFF `HasValue`. */
+    const T & Value() const &
+    {
+        VerifyOrDie(HasValue());
+        return mValueHolder.mValue.mData;
     }
 
     /** Gets the current value of the optional if the optional has a value;
         otherwise returns the provided default value. */
-    const T & ValueOr(const T & defaultValue) const
-    {
-        if (HasValue())
-        {
-            return mValue;
-        }
-        return defaultValue;
-    }
+    const T & ValueOr(const T & defaultValue) const { return HasValue() ? Value() : defaultValue; }
 
     /** Checks if the optional contains a value or not */
-    constexpr bool HasValue() const { return mHasValue; }
+    constexpr bool HasValue() const { return mValueHolder.mHasValue; }
 
-    /** Comparison operator, handling missing values. */
     bool operator==(const Optional & other) const
     {
-        return (mHasValue == other.mHasValue) && (!other.mHasValue || (mValue == other.mValue));
+        return (mValueHolder.mHasValue == other.mValueHolder.mHasValue) &&
+            (!other.mValueHolder.mHasValue || (mValueHolder.mValue.mData == other.mValueHolder.mValue.mData));
     }
-
-    /** Comparison operator, handling missing values. */
     bool operator!=(const Optional & other) const { return !(*this == other); }
+    bool operator==(const T & other) const { return HasValue() && Value() == other; }
+    bool operator!=(const T & other) const { return !(*this == other); }
+
+    std::optional<T> std_optional() const
+    {
+        VerifyOrReturnValue(HasValue(), std::nullopt);
+        return std::make_optional(Value());
+    }
 
     /** Convenience method to create an optional without a valid value. */
     static Optional<T> Missing() { return Optional<T>(); }
 
     /** Convenience method to create an optional containing the specified value. */
-    static Optional<T> Value(const T & value) { return Optional(value); }
+    template <class... Args>
+    static Optional<T> Value(Args &&... args)
+    {
+        return Optional(InPlace, std::forward<Args>(args)...);
+    }
 
 private:
-    T mValue;       ///< Value IFF optional contains a value
-    bool mHasValue; ///< True IFF optional contains a value
+    // A container of bool + value (without constructor/destructor) when the underlying
+    // type has a trivial destructor
+    class TrivialDestructor
+    {
+    public:
+        bool mHasValue = false;
+        union Value
+        {
+            Value() {}
+            T mData;
+        } mValue;
+    };
+
+    // A container of bool + value that destroys the underlying type when mHasValue is true.
+    // To be used for non-trivial destructor classes.
+    class NonTrivialDestructor
+    {
+    public:
+        ~NonTrivialDestructor()
+        {
+            // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch): mData is set when mHasValue
+            if (mHasValue)
+            {
+                mValue.mData.~T();
+            }
+        }
+
+        bool mHasValue = false;
+        union Value
+        {
+            Value() {}
+            ~Value() {}
+            T mData;
+        } mValue;
+    };
+
+    class ValueHolder : public std::conditional_t<std::is_trivially_destructible_v<T>, TrivialDestructor, NonTrivialDestructor>
+    {
+    };
+
+    ValueHolder mValueHolder;
 };
+
+template <class T>
+constexpr Optional<std::decay_t<T>> MakeOptional(T && value)
+{
+    return Optional<std::decay_t<T>>(InPlace, std::forward<T>(value));
+}
+
+template <class T>
+constexpr Optional<T> FromStdOptional(const std::optional<T> & value)
+{
+    VerifyOrReturnValue(value.has_value(), NullOptional);
+    return MakeOptional(*value);
+}
+
+template <class T, class... Args>
+constexpr Optional<T> MakeOptional(Args &&... args)
+{
+    return Optional<T>(InPlace, std::forward<Args>(args)...);
+}
 
 } // namespace chip

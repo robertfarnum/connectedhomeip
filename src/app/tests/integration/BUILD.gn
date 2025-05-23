@@ -19,17 +19,37 @@ import("${chip_root}/build/chip/tools.gni")
 
 assert(chip_build_tools)
 
-executable("chip-im-initiator") {
+source_set("common") {
   sources = [
-    "chip_im_initiator.cpp",
     "common.cpp",
+    "common.h",
   ]
 
-  public_deps = [
+  deps = [
+    "${chip_root}/src/credentials",
+    "${chip_root}/src/crypto",
+    "${chip_root}/src/lib/support:testing",
+    "${chip_root}/src/messaging",
+    "${chip_root}/src/protocols",
+    "${chip_root}/src/transport",
+  ]
+}
+
+executable("chip-im-initiator") {
+  sources = [
+    "${chip_root}/src/app/reporting/tests/MockReportScheduler.cpp",
+    "chip_im_initiator.cpp",
+  ]
+
+  deps = [
+    ":common",
     "${chip_root}/src/app",
+    "${chip_root}/src/app/util/mock:mock_codegen_data_model",
+    "${chip_root}/src/app/util/mock:mock_ember",
     "${chip_root}/src/lib/core",
     "${chip_root}/src/lib/support",
     "${chip_root}/src/platform",
+    "${chip_root}/src/platform/logging:default",
     "${chip_root}/src/protocols",
     "${chip_root}/src/system",
   ]
@@ -39,19 +59,27 @@ executable("chip-im-initiator") {
 
 executable("chip-im-responder") {
   sources = [
+    "${chip_root}/src/app/reporting/tests/MockReportScheduler.cpp",
+    "MockEvents.cpp",
+    "MockEvents.h",
     "chip_im_responder.cpp",
-    "common.cpp",
   ]
 
-  public_deps = [
+  deps = [
+    ":common",
     "${chip_root}/src/app",
-    "${chip_root}/src/app",
+    "${chip_root}/src/app/util/mock:mock_codegen_data_model",
+    "${chip_root}/src/app/util/mock:mock_ember",
     "${chip_root}/src/lib/core",
     "${chip_root}/src/lib/support",
+    "${chip_root}/src/messaging",
     "${chip_root}/src/platform",
+    "${chip_root}/src/platform/logging:default",
     "${chip_root}/src/protocols",
     "${chip_root}/src/system",
   ]
+
+  cflags = [ "-Wconversion" ]
 
   output_dir = root_out_dir
 }

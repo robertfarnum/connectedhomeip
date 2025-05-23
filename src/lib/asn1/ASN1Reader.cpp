@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2020 Project CHIP Authors
+ *    Copyright (c) 2020-2022 Project CHIP Authors
  *    Copyright (c) 2013-2017 Nest Labs, Inc.
  *    All rights reserved.
  *
@@ -29,12 +29,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <asn1/ASN1.h>
+#include <lib/asn1/ASN1.h>
+#include <lib/core/CHIPEncoding.h>
+#include <lib/support/SafeInt.h>
 
 namespace chip {
 namespace ASN1 {
 
-void ASN1Reader::Init(const uint8_t * buf, uint32_t len)
+using namespace chip::Encoding;
+
+void ASN1Reader::Init(const uint8_t * buf, size_t len)
 {
     ResetElementState();
     mBuf              = buf;
@@ -44,59 +48,62 @@ void ASN1Reader::Init(const uint8_t * buf, uint32_t len)
     mNumSavedContexts = 0;
 }
 
-ASN1_ERROR ASN1Reader::Next()
+CHIP_ERROR ASN1Reader::Next()
 {
-    if (EndOfContents)
-        return ASN1_END;
+    VerifyOrReturnError(!EndOfContents, ASN1_END);
+    VerifyOrReturnError(!IndefiniteLen, ASN1_ERROR_UNSUPPORTED_ENCODING);
 
-    if (IndefiniteLen)
-    {
-        return ASN1_ERROR_UNSUPPORTED_ENCODING;
-    }
-    else
-        mElemStart += (mHeadLen + ValueLen);
+    // Note: avoid using addition assignment operator (+=), which may result in integer overflow
+    // in the right hand side of an assignment (mHeadLen + ValueLen).
+    mElemStart = mElemStart + mHeadLen + ValueLen;
 
     ResetElementState();
 
-    if (mElemStart == mContainerEnd)
-        return ASN1_END;
+    VerifyOrReturnError(mElemStart != mContainerEnd, ASN1_END);
 
     return DecodeHead();
 }
 
-ASN1_ERROR ASN1Reader::EnterConstructedType()
+CHIP_ERROR ASN1Reader::EnterConstructedType()
 {
-    if (!Constructed)
-        return ASN1_ERROR_INVALID_STATE;
+    VerifyOrReturnError(Constructed, ASN1_ERROR_INVALID_STATE);
 
     return EnterContainer(0);
 }
 
-ASN1_ERROR ASN1Reader::ExitConstructedType()
+CHIP_ERROR ASN1Reader::ExitConstructedType()
 {
     return ExitContainer();
 }
 
-ASN1_ERROR ASN1Reader::EnterEncapsulatedType()
+CHIP_ERROR ASN1Reader::GetConstructedType(const uint8_t *& val, uint32_t & valLen)
 {
-    if (Class != kASN1TagClass_Universal || (Tag != kASN1UniversalTag_OctetString && Tag != kASN1UniversalTag_BitString))
-        return ASN1_ERROR_INVALID_STATE;
+    VerifyOrReturnError(Constructed, ASN1_ERROR_INVALID_STATE);
 
-    if (Constructed)
-        return ASN1_ERROR_UNSUPPORTED_ENCODING;
+    val    = mElemStart;
+    valLen = mHeadLen + ValueLen;
+
+    return CHIP_NO_ERROR;
+}
+CHIP_ERROR ASN1Reader::EnterEncapsulatedType()
+{
+    VerifyOrReturnError(Class == kASN1TagClass_Universal &&
+                            (Tag == kASN1UniversalTag_OctetString || Tag == kASN1UniversalTag_BitString),
+                        ASN1_ERROR_INVALID_STATE);
+
+    VerifyOrReturnError(!Constructed, ASN1_ERROR_UNSUPPORTED_ENCODING);
 
     return EnterContainer((Tag == kASN1UniversalTag_BitString) ? 1 : 0);
 }
 
-ASN1_ERROR ASN1Reader::ExitEncapsulatedType()
+CHIP_ERROR ASN1Reader::ExitEncapsulatedType()
 {
     return ExitContainer();
 }
 
-ASN1_ERROR ASN1Reader::EnterContainer(uint32_t offset)
+CHIP_ERROR ASN1Reader::EnterContainer(uint32_t offset)
 {
-    if (mNumSavedContexts == kMaxContextDepth)
-        return ASN1_ERROR_MAX_DEPTH_EXCEEDED;
+    VerifyOrReturnError(mNumSavedContexts != kMaxContextDepth, ASN1_ERROR_MAX_DEPTH_EXCEEDED);
 
     mSavedContexts[mNumSavedContexts].ElemStart     = mElemStart;
     mSavedContexts[mNumSavedContexts].HeadLen       = mHeadLen;
@@ -107,32 +114,32 @@ ASN1_ERROR ASN1Reader::EnterContainer(uint32_t offset)
 
     mElemStart = Value + offset;
     if (!IndefiniteLen)
+    {
+        VerifyOrReturnError(CanCastTo<uint32_t>(mBufEnd - Value), ASN1_ERROR_VALUE_OVERFLOW);
+        VerifyOrReturnError(static_cast<uint32_t>(mBufEnd - Value) >= ValueLen, ASN1_ERROR_VALUE_OVERFLOW);
         mContainerEnd = Value + ValueLen;
+    }
 
     ResetElementState();
 
-    return ASN1_NO_ERROR;
+    return CHIP_NO_ERROR;
 }
 
-ASN1_ERROR ASN1Reader::ExitContainer()
+CHIP_ERROR ASN1Reader::ExitContainer()
 {
-    if (mNumSavedContexts == 0)
-        return ASN1_ERROR_INVALID_STATE;
+    VerifyOrReturnError(mNumSavedContexts != 0, ASN1_ERROR_INVALID_STATE);
 
     ASN1ParseContext & prevContext = mSavedContexts[--mNumSavedContexts];
 
-    if (prevContext.IndefiniteLen)
-    {
-        return ASN1_ERROR_UNSUPPORTED_ENCODING;
-    }
-    else
-        mElemStart = prevContext.ElemStart + prevContext.HeadLen + prevContext.ValueLen;
+    VerifyOrReturnError(!prevContext.IndefiniteLen, ASN1_ERROR_UNSUPPORTED_ENCODING);
+
+    mElemStart = prevContext.ElemStart + prevContext.HeadLen + prevContext.ValueLen;
 
     mContainerEnd = prevContext.ContainerEnd;
 
     ResetElementState();
 
-    return ASN1_NO_ERROR;
+    return CHIP_NO_ERROR;
 }
 
 bool ASN1Reader::IsContained() const
@@ -140,166 +147,114 @@ bool ASN1Reader::IsContained() const
     return mNumSavedContexts > 0;
 }
 
-ASN1_ERROR ASN1Reader::GetInteger(int64_t & val)
+CHIP_ERROR ASN1Reader::GetInteger(int64_t & val)
 {
-    if (Value == nullptr)
-        return ASN1_ERROR_INVALID_STATE;
-    if (ValueLen < 1)
-        return ASN1_ERROR_INVALID_ENCODING;
-    if (ValueLen > sizeof(int64_t))
-        return ASN1_ERROR_VALUE_OVERFLOW;
-    if (mElemStart + mHeadLen + ValueLen > mContainerEnd)
-        return ASN1_ERROR_UNDERRUN;
-    const uint8_t * p = Value;
-    val               = ((*p & 0x80) == 0) ? 0 : -1;
-    for (uint32_t i = ValueLen; i > 0; i--, p++)
-        val = (val << 8) | *p;
-    return ASN1_NO_ERROR;
+    uint8_t encodedVal[sizeof(int64_t)] = { 0 };
+    size_t valPaddingLen                = sizeof(int64_t) - ValueLen;
+
+    VerifyOrReturnError(Value != nullptr, ASN1_ERROR_INVALID_STATE);
+    VerifyOrReturnError(ValueLen >= 1, ASN1_ERROR_INVALID_ENCODING);
+    VerifyOrReturnError(ValueLen <= sizeof(int64_t), ASN1_ERROR_VALUE_OVERFLOW);
+    VerifyOrReturnError(mElemStart + mHeadLen + ValueLen <= mContainerEnd, ASN1_ERROR_UNDERRUN);
+
+    if ((*Value & 0x80) == 0x80)
+    {
+        for (size_t i = 0; i < valPaddingLen; i++)
+        {
+            encodedVal[i] = 0xFF;
+        }
+    }
+    memcpy(&encodedVal[valPaddingLen], Value, ValueLen);
+
+    val = static_cast<int64_t>(BigEndian::Get64(encodedVal));
+
+    return CHIP_NO_ERROR;
 }
 
-ASN1_ERROR ASN1Reader::GetBoolean(bool & val)
+CHIP_ERROR ASN1Reader::GetBoolean(bool & val)
 {
-    if (Value == nullptr)
-        return ASN1_ERROR_INVALID_STATE;
-    if (ValueLen != 1)
-        return ASN1_ERROR_INVALID_ENCODING;
-    if (mElemStart + mHeadLen + ValueLen > mContainerEnd)
-        return ASN1_ERROR_UNDERRUN;
-    if (*Value == 0)
-        val = false;
-    else if (*Value == 0xFF)
-        val = true;
-    else
-        return ASN1_ERROR_INVALID_ENCODING;
-    return ASN1_NO_ERROR;
+    VerifyOrReturnError(Value != nullptr, ASN1_ERROR_INVALID_STATE);
+    VerifyOrReturnError(ValueLen == 1, ASN1_ERROR_INVALID_ENCODING);
+    VerifyOrReturnError(mElemStart + mHeadLen + ValueLen <= mContainerEnd, ASN1_ERROR_UNDERRUN);
+    VerifyOrReturnError(Value[0] == 0 || Value[0] == 0xFF, ASN1_ERROR_INVALID_ENCODING);
+
+    val = (Value[0] != 0);
+
+    return CHIP_NO_ERROR;
 }
 
-ASN1_ERROR ASN1Reader::GetUTCTime(ASN1UniversalTime & outTime)
+CHIP_ERROR ASN1Reader::GetUTCTime(ASN1UniversalTime & outTime)
 {
     // Supported Encoding: YYMMDDHHMMSSZ
+    VerifyOrReturnError(Value != nullptr, ASN1_ERROR_INVALID_STATE);
+    VerifyOrReturnError(ValueLen >= 1, ASN1_ERROR_INVALID_ENCODING);
+    VerifyOrReturnError(mElemStart + mHeadLen + ValueLen <= mContainerEnd, ASN1_ERROR_UNDERRUN);
+    VerifyOrReturnError(ValueLen == 13 && Value[12] == 'Z', ASN1_ERROR_UNSUPPORTED_ENCODING);
 
-    if (Value == nullptr)
-        return ASN1_ERROR_INVALID_STATE;
-    if (ValueLen < 1)
-        return ASN1_ERROR_INVALID_ENCODING;
-    if (mElemStart + mHeadLen + ValueLen > mContainerEnd)
-        return ASN1_ERROR_UNDERRUN;
-
-    if (ValueLen != 13 || Value[12] != 'Z')
-        return ASN1_ERROR_UNSUPPORTED_ENCODING;
-
-    for (int i = 0; i < 12; i++)
-        if (!isdigit(Value[i]))
-            return ASN1_ERROR_INVALID_ENCODING;
-
-    outTime.Year   = (Value[0] - '0') * 10 + (Value[1] - '0');
-    outTime.Month  = (Value[2] - '0') * 10 + (Value[3] - '0');
-    outTime.Day    = (Value[4] - '0') * 10 + (Value[5] - '0');
-    outTime.Hour   = (Value[6] - '0') * 10 + (Value[7] - '0');
-    outTime.Minute = (Value[8] - '0') * 10 + (Value[9] - '0');
-    outTime.Second = (Value[10] - '0') * 10 + (Value[11] - '0');
-
-    if (outTime.Year >= 50)
-        outTime.Year += 1900;
-    else
-        outTime.Year += 2000;
-
-    return ASN1_NO_ERROR;
+    return outTime.ImportFrom_ASN1_TIME_string(CharSpan(reinterpret_cast<const char *>(Value), ValueLen));
 }
 
-ASN1_ERROR ASN1Reader::GetGeneralizedTime(ASN1UniversalTime & outTime)
+CHIP_ERROR ASN1Reader::GetGeneralizedTime(ASN1UniversalTime & outTime)
 {
     // Supported Encoding: YYYYMMDDHHMMSSZ
+    VerifyOrReturnError(Value != nullptr, ASN1_ERROR_INVALID_STATE);
+    VerifyOrReturnError(ValueLen >= 1, ASN1_ERROR_INVALID_ENCODING);
+    VerifyOrReturnError(mElemStart + mHeadLen + ValueLen <= mContainerEnd, ASN1_ERROR_UNDERRUN);
+    VerifyOrReturnError(ValueLen == 15 && Value[14] == 'Z', ASN1_ERROR_UNSUPPORTED_ENCODING);
 
-    if (Value == nullptr)
-        return ASN1_ERROR_INVALID_STATE;
-    if (ValueLen < 1)
-        return ASN1_ERROR_INVALID_ENCODING;
-    if (mElemStart + mHeadLen + ValueLen > mContainerEnd)
-        return ASN1_ERROR_UNDERRUN;
-
-    if (ValueLen != 15 || Value[14] != 'Z')
-        return ASN1_ERROR_UNSUPPORTED_ENCODING;
-
-    for (int i = 0; i < 14; i++)
-        if (!isdigit(Value[i]))
-            return ASN1_ERROR_INVALID_ENCODING;
-
-    outTime.Year   = (Value[0] - '0') * 1000 + (Value[1] - '0') * 100 + (Value[2] - '0') * 10 + (Value[3] - '0');
-    outTime.Month  = (Value[4] - '0') * 10 + (Value[5] - '0');
-    outTime.Day    = (Value[6] - '0') * 10 + (Value[7] - '0');
-    outTime.Hour   = (Value[8] - '0') * 10 + (Value[9] - '0');
-    outTime.Minute = (Value[10] - '0') * 10 + (Value[11] - '0');
-    outTime.Second = (Value[12] - '0') * 10 + (Value[13] - '0');
-
-    return ASN1_NO_ERROR;
+    return outTime.ImportFrom_ASN1_TIME_string(CharSpan(reinterpret_cast<const char *>(Value), ValueLen));
 }
 
 static uint8_t ReverseBits(uint8_t v)
 {
     // swap adjacent bits
-    v = ((v >> 1) & 0x55) | ((v & 0x55) << 1);
+    v = static_cast<uint8_t>(static_cast<uint8_t>((v >> 1) & 0x55) | static_cast<uint8_t>((v & 0x55) << 1));
     // swap adjacent bit pairs
-    v = ((v >> 2) & 0x33) | ((v & 0x33) << 2);
+    v = static_cast<uint8_t>(static_cast<uint8_t>((v >> 2) & 0x33) | static_cast<uint8_t>((v & 0x33) << 2));
     // swap nibbles
-    v = (v >> 4) | (v << 4);
+    v = static_cast<uint8_t>(static_cast<uint8_t>(v >> 4) | static_cast<uint8_t>(v << 4));
     return v;
 }
 
-ASN1_ERROR ASN1Reader::GetBitString(uint32_t & outVal)
+CHIP_ERROR ASN1Reader::GetBitString(uint32_t & outVal)
 {
     // NOTE: only supports DER encoding.
-
-    if (Value == nullptr)
-        return ASN1_ERROR_INVALID_STATE;
-    if (ValueLen < 1)
-        return ASN1_ERROR_INVALID_ENCODING;
-    if (ValueLen > 5)
-        return ASN1_ERROR_UNSUPPORTED_ENCODING;
-    if (mElemStart + mHeadLen + ValueLen > mContainerEnd)
-        return ASN1_ERROR_UNDERRUN;
+    VerifyOrReturnError(Value != nullptr, ASN1_ERROR_INVALID_STATE);
+    VerifyOrReturnError(ValueLen >= 1, ASN1_ERROR_INVALID_ENCODING);
+    VerifyOrReturnError(ValueLen <= 5, ASN1_ERROR_UNSUPPORTED_ENCODING);
+    VerifyOrReturnError(mElemStart + mHeadLen + ValueLen <= mContainerEnd, ASN1_ERROR_UNDERRUN);
 
     if (ValueLen == 1)
+    {
         outVal = 0;
+    }
     else
     {
         outVal    = ReverseBits(Value[1]);
         int shift = 8;
         for (uint32_t i = 2; i < ValueLen; i++, shift += 8)
-            outVal |= (ReverseBits(Value[i]) << shift);
+        {
+            outVal |= static_cast<uint32_t>(ReverseBits(Value[i]) << shift);
+        }
     }
 
-    return ASN1_NO_ERROR;
+    return CHIP_NO_ERROR;
 }
 
-ASN1_ERROR ASN1Reader::DecodeHead()
+CHIP_ERROR ASN1Reader::DecodeHead()
 {
     const uint8_t * p = mElemStart;
-
-    if (p >= mBufEnd)
-        return ASN1_ERROR_UNDERRUN;
+    VerifyOrReturnError(p < mBufEnd, ASN1_ERROR_UNDERRUN);
 
     Class       = *p & 0xC0;
     Constructed = (*p & 0x20) != 0;
+    Tag         = *p & 0x1F;
 
-    Tag = *p & 0x1F;
+    // Only tags < 31 supported. The implication of this is that encoded tags are exactly 1 byte long.
+    VerifyOrReturnError(Tag < 0x1F, ASN1_ERROR_UNSUPPORTED_ENCODING);
+
     p++;
-    if (Tag == 0x1F)
-    {
-        Tag = 0;
-        do
-        {
-            if (p >= mBufEnd)
-                return ASN1_ERROR_UNDERRUN;
-            if ((Tag & 0xFE000000) != 0)
-                return ASN1_ERROR_TAG_OVERFLOW;
-            Tag = (Tag << 7) | (*p & 0x7F);
-            p++;
-        } while ((*p & 0x80) != 0);
-    }
-
-    if (p >= mBufEnd)
-        return ASN1_ERROR_UNDERRUN;
+    VerifyOrReturnError(p < mBufEnd, ASN1_ERROR_UNDERRUN);
 
     if ((*p & 0x80) == 0)
     {
@@ -320,22 +275,23 @@ ASN1_ERROR ASN1Reader::DecodeHead()
         p++;
         for (; lenLen > 0; lenLen--, p++)
         {
-            if (p >= mBufEnd)
-                return ASN1_ERROR_UNDERRUN;
-            if ((ValueLen & 0xFF000000) != 0)
-                return ASN1_ERROR_LENGTH_OVERFLOW;
+            VerifyOrReturnError(p < mBufEnd, ASN1_ERROR_UNDERRUN);
+            VerifyOrReturnError((ValueLen & 0xFF000000) == 0, ASN1_ERROR_LENGTH_OVERFLOW);
             ValueLen = (ValueLen << 8) | *p;
         }
         IndefiniteLen = false;
     }
 
-    mHeadLen = p - mElemStart;
+    VerifyOrReturnError(CanCastTo<uint32_t>(mBufEnd - p), ASN1_ERROR_VALUE_OVERFLOW);
+    VerifyOrReturnError(static_cast<uint32_t>(mBufEnd - p) >= ValueLen, ASN1_ERROR_VALUE_OVERFLOW);
+    VerifyOrReturnError(CanCastTo<uint32_t>(p - mElemStart), ASN1_ERROR_VALUE_OVERFLOW);
+    mHeadLen = static_cast<uint32_t>(p - mElemStart);
 
-    EndOfContents = (Class == kASN1TagClass_Universal && Tag == 0 && Constructed == false && ValueLen == 0);
+    EndOfContents = (Class == kASN1TagClass_Universal && Tag == 0 && !Constructed && ValueLen == 0);
 
     Value = p;
 
-    return ASN1_NO_ERROR;
+    return CHIP_NO_ERROR;
 }
 
 void ASN1Reader::ResetElementState()
@@ -350,9 +306,9 @@ void ASN1Reader::ResetElementState()
     mHeadLen      = 0;
 }
 
-ASN1_ERROR DumpASN1(ASN1Reader & asn1Parser, const char * prefix, const char * indent)
+CHIP_ERROR DumpASN1(ASN1Reader & asn1Parser, const char * prefix, const char * indent)
 {
-    ASN1_ERROR err = ASN1_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     if (indent == nullptr)
         indent = "  ";
@@ -361,25 +317,24 @@ ASN1_ERROR DumpASN1(ASN1Reader & asn1Parser, const char * prefix, const char * i
     while (true)
     {
         err = asn1Parser.Next();
-        if (err != ASN1_NO_ERROR)
+        if (err != CHIP_NO_ERROR)
         {
             if (err == ASN1_END)
             {
                 if (asn1Parser.IsContained())
                 {
                     err = asn1Parser.ExitConstructedType();
-                    if (err != ASN1_NO_ERROR)
+                    if (err != CHIP_NO_ERROR)
                     {
-                        printf("ASN1Reader::ExitConstructedType() failed: %ld\n", (long) err);
+                        printf("ASN1Reader::ExitConstructedType() failed: %" CHIP_ERROR_FORMAT "\n", err.Format());
                         return err;
                     }
                     nestLevel--;
                     continue;
                 }
-                else
-                    break;
+                break;
             }
-            printf("ASN1Reader::Next() failed: %ld\n", (long) err);
+            printf("ASN1Reader::Next() failed: %" CHIP_ERROR_FORMAT "\n", err.Format());
             return err;
         }
         if (prefix != nullptr)
@@ -465,9 +420,9 @@ ASN1_ERROR DumpASN1(ASN1Reader & asn1Parser, const char * prefix, const char * i
         if (asn1Parser.IsConstructed())
         {
             err = asn1Parser.EnterConstructedType();
-            if (err != ASN1_NO_ERROR)
+            if (err != CHIP_NO_ERROR)
             {
-                printf("ASN1Reader::EnterConstructedType() failed: %ld\n", (long) err);
+                printf("ASN1Reader::EnterConstructedType() failed: %" CHIP_ERROR_FORMAT "\n", err.Format());
                 return err;
             }
             nestLevel++;

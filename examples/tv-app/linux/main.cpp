@@ -16,61 +16,78 @@
  *    limitations under the License.
  */
 
-#include <platform/CHIPDeviceLayer.h>
-#include <platform/PlatformManager.h>
+#include "AppMain.h"
+#include "AppTv.h"
 
-#include "af.h"
-#include "gen/attribute-id.h"
-#include "gen/cluster-id.h"
-#include <app/chip-zcl-zpro-codec.h>
-#include <app/util/af-types.h>
-#include <app/util/attribute-storage.h>
-#include <app/util/util.h>
-#include <core/CHIPError.h>
-#include <support/CHIPMem.h>
-#include <support/RandUtils.h>
+#include <access/AccessControl.h>
+#include <app-common/zap-generated/ids/Attributes.h>
+#include <app-common/zap-generated/ids/Clusters.h>
+#include <app/CommandHandler.h>
+#include <app/app-platform/ContentAppPlatform.h>
+#include <app/util/endpoint-config-api.h>
 
-#include "Server.h"
-
-#include <cassert>
-#include <iostream>
+#if defined(ENABLE_CHIP_SHELL)
+#include "AppTvShellCommands.h"
+#endif
 
 using namespace chip;
-using namespace chip::Inet;
 using namespace chip::Transport;
 using namespace chip::DeviceLayer;
+using namespace chip::AppPlatform;
+using namespace chip::app::Clusters;
 
-void emberAfPostAttributeChangeCallback(EndpointId endpoint, ClusterId clusterId, AttributeId attributeId, uint8_t mask,
-                                        uint16_t manufacturerCode, uint8_t type, uint8_t size, uint8_t * value)
-{}
-
-bool emberAfBasicClusterMfgSpecificPingCallback(void)
+void ApplicationInit()
 {
-    emberAfSendDefaultResponse(emberAfCurrentCommand(), EMBER_ZCL_STATUS_SUCCESS);
-    return true;
+    ChipLogProgress(Zcl, "TV Linux App: ApplicationInit()");
+
+    // Disable last fixed endpoint, which is used as a placeholder for all of the
+    // supported clusters so that ZAP will generated the requisite code.
+    ChipLogDetail(DeviceLayer, "TV Linux App: Warning - Fixed Content App Endpoint Not Disabled");
+    // Can't disable this without breaking CI unit tests that act upon account login cluster (only available on ep3)
+    // emberAfEndpointEnableDisable(3, false);
+
+#if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
+    // Install Content Apps
+    ContentAppFactoryImpl * factory = GetContentAppFactoryImpl();
+
+    // Content App 1
+    constexpr uint16_t kApp1VendorId  = 65521;
+    constexpr uint16_t kApp1ProductId = 32769;
+    factory->InstallContentApp(kApp1VendorId, kApp1ProductId);
+
+    // Content App 2
+    constexpr uint16_t kApp2VendorId  = 1;
+    constexpr uint16_t kApp2ProductId = 11;
+    factory->InstallContentApp(kApp2VendorId, kApp2ProductId);
+
+    // Content App 3
+    constexpr uint16_t kApp3VendorId  = 9050;
+    constexpr uint16_t kApp3ProductId = 22;
+    factory->InstallContentApp(kApp3VendorId, kApp3ProductId);
+
+    // Content App 4
+    constexpr uint16_t kApp4VendorId  = 1111;
+    constexpr uint16_t kApp4ProductId = 22;
+    factory->InstallContentApp(kApp4VendorId, kApp4ProductId);
+#endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
 }
+
+void ApplicationShutdown() {}
 
 int main(int argc, char * argv[])
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
 
-    err = chip::Platform::MemoryInit();
-    SuccessOrExit(err);
+    VerifyOrDie(ChipLinuxAppInit(argc, argv) == 0);
 
-    err = chip::DeviceLayer::PlatformMgr().InitChipStack();
-    SuccessOrExit(err);
+    AppTvInit();
 
-    // Init ZCL Data Model and CHIP App Server
-    InitServer();
+#if defined(ENABLE_CHIP_SHELL)
+#if CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
+    Shell::RegisterAppTvCommands();
+#endif // CHIP_DEVICE_CONFIG_APP_PLATFORM_ENABLED
+#endif
 
-    chip::DeviceLayer::PlatformMgr().RunEventLoop();
+    ChipLinuxAppMainLoop();
 
-exit:
-    if (err != CHIP_NO_ERROR)
-    {
-        std::cerr << "Failed to run TV App: " << ErrorStr(err) << std::endl;
-        // End the program with non zero error code to indicate a error.
-        return 1;
-    }
     return 0;
 }
