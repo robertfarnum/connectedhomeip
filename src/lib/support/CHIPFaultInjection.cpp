@@ -26,8 +26,6 @@
 
 #include <string.h>
 
-#if CHIP_CONFIG_TEST && CHIP_WITH_NLFAULTINJECTION
-
 namespace chip {
 namespace FaultInjection {
 
@@ -37,12 +35,25 @@ static int32_t sFault_FuzzExchangeHeader_Arguments[1];
 static class nl::FaultInjection::Manager sChipFaultInMgr;
 static const nl::FaultInjection::Name sManagerName  = "chip";
 static const nl::FaultInjection::Name sFaultNames[] = {
-    "AllocExchangeContext", "DropIncomingUDPMsg",   "DropOutgoingUDPMsg", "AllocBinding", "SendAlarm",
-    "HandleAlarm",          "FuzzExchangeHeaderTx", "RMPDoubleTx",        "RMPSendError", "BDXBadBlockCounter",
-    "BDXAllocTransfer",     "CASEKeyConfirm",       "SecMgrBusy",
+    "AllocExchangeContext",
+    "DropIncomingUDPMsg",
+    "DropOutgoingUDPMsg",
+    "AllocBinding",
+    "SendAlarm",
+    "HandleAlarm",
+    "FuzzExchangeHeaderTx",
+    "RMPDoubleTx",
+    "RMPSendError",
+    "BDXBadBlockCounter",
+    "BDXAllocTransfer",
+    "SecMgrBusy",
+    "IMInvoke_SeparateResponses",
+    "IMInvoke_SeparateResponsesInvertResponseOrder",
+    "IMInvoke_SkipSecondResponse",
 #if CONFIG_NETWORK_LAYER_BLE
     "CHIPOBLESend",
 #endif // CONFIG_NETWORK_LAYER_BLE
+    "CASEServerBusy",
 };
 
 /**
@@ -78,7 +89,7 @@ DLL_EXPORT void FuzzExchangeHeader(uint8_t * p, int32_t arg)
         1, // MessageType
         2, // ExchangeId
         4, // ProfileId
-        8  // AckMsgId
+        8  // AckMessageCounter
     };
     const uint8_t values[CHIP_FAULT_INJECTION_NUM_FUZZ_VALUES] = { 0x1, 0x2, 0xFF };
     size_t offsetIndex                                         = 0;
@@ -91,5 +102,3 @@ DLL_EXPORT void FuzzExchangeHeader(uint8_t * p, int32_t arg)
 
 } // namespace FaultInjection
 } // namespace chip
-
-#endif // CHIP_CONFIG_TEST

@@ -25,19 +25,15 @@
 
 #pragma once
 
-#include <core/CHIPConfig.h>
+#include <lib/core/CHIPConfig.h>
 
 #include <system/SystemLayer.h>
 
-#include <ble/BleConfig.h>
-
 #if CONFIG_NETWORK_LAYER_BLE
-#include <ble/BleLayer.h>
+#include <ble/Ble.h>
 #endif // CONFIG_NETWORK_LAYER_BLE
-
-#include <inet/InetLayer.h>
 
 #define CHIP_CORE_IDENTITY "chip-core"
 #define CHIP_CORE_PREFIX CHIP_CORE_IDENTITY ": "
 
-#include <core/CHIPError.h>
+#include <lib/core/CHIPError.h>

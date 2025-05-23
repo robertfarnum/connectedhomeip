@@ -24,9 +24,13 @@
 
 #pragma once
 
-#include <ble/BleConfig.h>
+#ifndef _CHIP_BLE_BLE_H
+#error "Please include <ble/Ble.h> instead!"
+#endif
 
-#include <support/DLLUtil.h>
+#include <lib/support/DLLUtil.h>
+
+#include "BleConfig.h"
 
 namespace chip {
 namespace Ble {
@@ -39,9 +43,13 @@ public:
 
     // CHIP calls this function once it closes the last BLEEndPoint associated with a BLE given connection object.
     // A call to this function means CHIP no longer cares about the state of the given BLE connection.
-    // The application can use this callback to e.g. close the underlying BLE conection if it is no longer needed,
+    // The application can use this callback to e.g. close the underlying BLE connection if it is no longer needed,
     // decrement the connection's refcount if it has one, or perform any other sort of cleanup as desired.
     virtual void NotifyChipConnectionClosed(BLE_CONNECTION_OBJECT connObj) = 0;
+
+    // Called to determine whether the BLE connection should be closed when in Non-concurrent mode if sending
+    // ConnectNetworkResponse. The BTP will be in kState_Complete when all fragments have been sent.
+    virtual void CheckNonConcurrentBleClosing() {}
 };
 
 } /* namespace Ble */

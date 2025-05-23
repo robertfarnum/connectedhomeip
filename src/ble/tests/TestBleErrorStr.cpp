@@ -24,49 +24,34 @@
  *
  */
 
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
-
 #include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <ble/BleError.h>
-#include <support/ErrorStr.h>
-#include <support/UnitTestRegistration.h>
+#include <pw_unit_test/framework.h>
 
-#include <nlunit-test.h>
+#include <lib/core/ErrorStr.h>
+
+#define _CHIP_BLE_BLE_H
+#include <ble/BleError.h>
 
 using namespace chip;
 
 // Test input data.
 
-// clang-format off
-static int32_t sContext[] =
-{
-    BLE_ERROR_BAD_ARGS,
-    BLE_ERROR_INCORRECT_STATE,
-    BLE_ERROR_NO_ENDPOINTS,
+static const CHIP_ERROR kTestElements[] = {
+    BLE_ERROR_ADAPTER_UNAVAILABLE,
     BLE_ERROR_NO_CONNECTION_RECEIVED_CALLBACK,
     BLE_ERROR_CENTRAL_UNSUBSCRIBED,
     BLE_ERROR_GATT_SUBSCRIBE_FAILED,
     BLE_ERROR_GATT_UNSUBSCRIBE_FAILED,
     BLE_ERROR_GATT_WRITE_FAILED,
     BLE_ERROR_GATT_INDICATE_FAILED,
-    BLE_ERROR_NOT_IMPLEMENTED,
     BLE_ERROR_CHIPOBLE_PROTOCOL_ABORT,
     BLE_ERROR_REMOTE_DEVICE_DISCONNECTED,
     BLE_ERROR_APP_CLOSED_CONNECTION,
-    BLE_ERROR_OUTBOUND_MESSAGE_TOO_BIG,
     BLE_ERROR_NOT_CHIP_DEVICE,
     BLE_ERROR_INCOMPATIBLE_PROTOCOL_VERSIONS,
-    BLE_ERROR_NO_MEMORY,
-    BLE_ERROR_MESSAGE_INCOMPLETE,
     BLE_ERROR_INVALID_FRAGMENT_SIZE,
     BLE_ERROR_START_TIMER_FAILED,
     BLE_ERROR_CONNECT_TIMED_OUT,
@@ -80,66 +65,28 @@ static int32_t sContext[] =
     BLE_ERROR_INVALID_BTP_HEADER_FLAGS,
     BLE_ERROR_INVALID_BTP_SEQUENCE_NUMBER,
     BLE_ERROR_REASSEMBLER_INCORRECT_STATE,
-    BLE_ERROR_RECEIVED_MESSAGE_TOO_BIG
 };
-// clang-format on
 
-static const size_t kTestElements = sizeof(sContext) / sizeof(sContext[0]);
-
-static void CheckBleErrorStr(nlTestSuite * inSuite, void * inContext)
+TEST(TestBleErrorStr, CheckBleErrorStr)
 {
     // Register the layer error formatter
 
     Ble::RegisterLayerErrorFormatter();
 
     // For each defined error...
-    for (size_t i = 0; i < kTestElements; i++)
+    for (const auto & err : kTestElements)
     {
-        int32_t err         = sContext[i];
         const char * errStr = ErrorStr(err);
         char expectedText[9];
 
         // Assert that the error string contains the error number in hex.
-        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, err);
-        NL_TEST_ASSERT(inSuite, (strstr(errStr, expectedText) != NULL));
+        snprintf(expectedText, sizeof(expectedText), "%08" PRIX32, err.AsInteger());
+        EXPECT_NE(strstr(errStr, expectedText), nullptr);
 
 #if !CHIP_CONFIG_SHORT_ERROR_STR
         // Assert that the error string contains a description, which is signaled
         // by a presence of a colon proceeding the description.
-        NL_TEST_ASSERT(inSuite, (strchr(errStr, ':') != NULL));
+        EXPECT_NE(strchr(errStr, ':'), nullptr);
 #endif // !CHIP_CONFIG_SHORT_ERROR_STR
     }
 }
-
-/**
- *   Test Suite. It lists all the test functions.
- */
-
-// clang-format off
-static const nlTest sTests[] =
-{
-    NL_TEST_DEF("BleErrorStr", CheckBleErrorStr),
-
-    NL_TEST_SENTINEL()
-};
-// clang-format on
-
-int TestBleErrorStr(void)
-{
-    // clang-format off
-    nlTestSuite theSuite =
-	{
-        "Ble-Error-Strings",
-        &sTests[0],
-        NULL,
-        NULL
-    };
-    // clang-format on
-
-    // Run test suit againt one context.
-    nlTestRunner(&theSuite, &sContext);
-
-    return nlTestRunnerStats(&theSuite);
-}
-
-CHIP_REGISTER_TEST_SUITE(TestBleErrorStr)

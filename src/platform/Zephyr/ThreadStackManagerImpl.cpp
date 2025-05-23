@@ -24,10 +24,10 @@
 /* this file behaves like a config.h, comes first */
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
-#include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread.cpp>
+#include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread.hpp>
 #include <platform/Zephyr/ThreadStackManagerImpl.h>
 
-#include <platform/OpenThread/OpenThreadUtils.h>
+#include <lib/support/CodeUtils.h>
 #include <platform/ThreadStackManager.h>
 
 namespace chip {
@@ -39,12 +39,14 @@ ThreadStackManagerImpl ThreadStackManagerImpl::sInstance;
 
 CHIP_ERROR ThreadStackManagerImpl::_InitThreadStack()
 {
-    return GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(openthread_get_default_instance());
-}
+    otInstance * const instance = openthread_get_default_instance();
 
-CHIP_ERROR ThreadStackManagerImpl::_StartThreadTask()
-{
-    // Intentionally empty.
+    ReturnErrorOnFailure(GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(instance));
+
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+    k_sem_init(&mSrpClearAllSemaphore, 0, 1);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+
     return CHIP_NO_ERROR;
 }
 
@@ -64,20 +66,17 @@ void ThreadStackManagerImpl::_UnlockThreadStack()
     openthread_api_mutex_unlock(openthread_get_default_context());
 }
 
-void ThreadStackManagerImpl::_ProcessThreadActivity()
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
+void ThreadStackManagerImpl::_WaitOnSrpClearAllComplete()
 {
-    // Intentionally empty.
+    k_sem_take(&mSrpClearAllSemaphore, K_SECONDS(2));
 }
 
-void ThreadStackManagerImpl::_OnCHIPoBLEAdvertisingStart()
+void ThreadStackManagerImpl::_NotifySrpClearAllComplete()
 {
-    // Intentionally empty.
+    k_sem_give(&mSrpClearAllSemaphore);
 }
-
-void ThreadStackManagerImpl::_OnCHIPoBLEAdvertisingStop()
-{
-    // Intentionally empty.
-}
+#endif // CHIP_DEVICE_CONFIG_ENABLE_THREAD_SRP_CLIENT
 
 } // namespace DeviceLayer
 } // namespace chip

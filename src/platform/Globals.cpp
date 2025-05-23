@@ -19,18 +19,42 @@
 /* this file behaves like a config.h, comes first */
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
-#include <platform/internal/BLEManager.h>
+#include <system/SystemLayerImpl.h>
 
 namespace chip {
 namespace DeviceLayer {
 
-chip::System::Layer SystemLayer;
-chip::Inet::InetLayer InetLayer;
+chip::System::LayerImpl * gMockedSystemLayer = nullptr;
+
+void SetSystemLayerForTesting(System::Layer * layer)
+{
+    gMockedSystemLayer = static_cast<System::LayerImpl *>(layer);
+}
+
+chip::System::LayerImpl & SystemLayerImpl()
+{
+    if (gMockedSystemLayer != nullptr)
+        return *gMockedSystemLayer;
+
+    static chip::System::LayerImpl gSystemLayerImpl;
+    return gSystemLayerImpl;
+}
+
+chip::System::Layer & SystemLayer()
+{
+    return SystemLayerImpl();
+}
+
+#if CHIP_SYSTEM_CONFIG_USE_SOCKETS
+chip::System::LayerSockets & SystemLayerSockets()
+{
+    return SystemLayerImpl();
+}
+#endif // CHIP_SYSTEM_CONFIG_USE_SOCKETS
 
 namespace Internal {
-
-const char * const TAG = "CHIP[DL]";
-
+extern const char TAG[] = "CHIP[DL]";
 } // namespace Internal
+
 } // namespace DeviceLayer
 } // namespace chip

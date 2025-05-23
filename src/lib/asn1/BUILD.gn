@@ -39,8 +39,11 @@ static_library("asn1") {
     "ASN1Macros.h",
     "ASN1OID.cpp",
     "ASN1Reader.cpp",
+    "ASN1Time.cpp",
     "ASN1Writer.cpp",
   ]
+
+  cflags = [ "-Wconversion" ]
 
   public_deps = [
     ":asn1oid_header",
@@ -51,7 +54,6 @@ static_library("asn1") {
 
   public_configs = [
     "${chip_root}/src:includes",
-    "${chip_root}/src/lib:includes",
     "${chip_root}/src/system:system_config",
   ]
 }

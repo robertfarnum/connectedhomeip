@@ -1,10 +1,10 @@
-# CHIP Tests on Device
+# Matter Tests on Device
 
-An appplication that runs CHIP's unit tests on ESP32 device or QEMU.
+An application that runs Matter's unit tests on ESP32 device or QEMU.
 
 ---
 
--   [CHIP Tests on Device](#chip-tests-on-device)
+-   [Matter Tests on Device](#chip-tests-on-device)
     -   [Supported Devices](#supported-devices)
     -   [Building the Application](#building-the-application)
         -   [To build the application, follow these steps:](#to-build-the-application-follow-these-steps)
@@ -14,7 +14,7 @@ An appplication that runs CHIP's unit tests on ESP32 device or QEMU.
 
 ## Supported Devices
 
-The CHIP application is intended to work on
+The Matter application is intended to work on
 [ESP32-DevKitC](https://www.espressif.com/en/products/hardware/esp32-devkitc/overview),
 [QEMU](https://github.com/espressif/qemu), and the
 [M5Stack](http://m5stack.com). Support for the [M5Stack](http://m5stack.com) is
@@ -29,13 +29,14 @@ The `chip-build` Docker container and VSCode devcontainer has these components
 pre-installed, so you can skip this step. To install these components manually,
 follow these steps:
 
--   Clone the Espressif ESP-IDF and checkout release/v4.2 branch
+-   Clone the Espressif ESP-IDF and checkout
+    [v4.3 tag](https://github.com/espressif/esp-idf/releases/v4.3)
 
           $ mkdir -p ${HOME}/tools
           $ cd ${HOME}/tools
           $ git clone https://github.com/espressif/esp-idf.git
           $ cd esp-idf
-          $ git checkout release/v4.2
+          $ git checkout v4.3
           $ git submodule update --init
           $ export IDF_PATH=${HOME}/tools/esp-idf
           $ ./install.sh
@@ -57,9 +58,13 @@ follow these steps:
 -   Setup ESP32 QEMU. This will build QEMU and install necessary artifacts to
     run unit tests.
 
-          $ source idf.sh
-          $ ./qemu_setup.sh
+          ```
+          source idf.sh
+          ./qemu_setup.sh
+          ```
 
 -   Run specific unit tests
 
-          $ idf make -C build/chip/src/crypto/tests check
+          ```
+          idf make -C build/chip/src/crypto/tests check
+          ```

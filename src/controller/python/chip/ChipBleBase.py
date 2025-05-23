@@ -22,6 +22,7 @@
 #
 
 from __future__ import absolute_import
+
 import abc
 import optparse
 import shlex
@@ -63,7 +64,8 @@ class ChipBleBase(metaclass=abc.ABCMeta):
                 type="float",
                 default=10.0,
             )
-            optParser.add_option("-q", "--quiet", action="store_true", dest="quiet")
+            optParser.add_option(
+                "-q", "--quiet", action="store_true", dest="quiet")
 
         try:
             (options, remainingArgs) = optParser.parse_args(args)

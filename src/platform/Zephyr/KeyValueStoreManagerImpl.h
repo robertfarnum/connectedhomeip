@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 namespace chip {
 namespace DeviceLayer {
@@ -46,6 +46,8 @@ public:
     CHIP_ERROR _Delete(const char * key);
 
     CHIP_ERROR _Put(const char * key, const void * value, size_t value_size);
+
+    CHIP_ERROR DoFactoryReset();
 
 private:
     // ===== Members for internal use by the following friends.

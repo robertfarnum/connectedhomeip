@@ -52,15 +52,21 @@ protected:
     // ===== Methods that implement the PlatformManager abstract interface.
 
     CHIP_ERROR _InitChipStack();
-    CHIP_ERROR _Shutdown();
+    void _Shutdown();
     CHIP_ERROR _AddEventHandler(PlatformManager::EventHandlerFunct handler, intptr_t arg);
     void _RemoveEventHandler(PlatformManager::EventHandlerFunct handler, intptr_t arg);
-    void _ScheduleWork(AsyncWorkFunct workFunct, intptr_t arg);
+    void _HandleServerStarted();
+    void _HandleServerShuttingDown();
+    CHIP_ERROR _ScheduleWork(AsyncWorkFunct workFunct, intptr_t arg);
+    CHIP_ERROR _ScheduleBackgroundWork(AsyncWorkFunct workFunct, intptr_t arg);
+    CHIP_ERROR _PostBackgroundEvent(const ChipDeviceEvent * event);
+    void _RunBackgroundEventLoop(void);
+    CHIP_ERROR _StartBackgroundEventLoopTask(void);
+    CHIP_ERROR _StopBackgroundEventLoopTask();
     void _DispatchEvent(const ChipDeviceEvent * event);
 
     // ===== Support methods that can be overridden by the implementation subclass.
 
-    void DispatchEventToSystemLayer(const ChipDeviceEvent * event);
     void DispatchEventToDeviceLayer(const ChipDeviceEvent * event);
     void DispatchEventToApplication(const ChipDeviceEvent * event);
     static void HandleMessageLayerActivityChanged(bool messageLayerIsActive);
