@@ -57,11 +57,14 @@ namespace {
 #if CHIP_DEVICE_CONFIG_WITH_GLIB_MAIN_LOOP
 void * GLibMainLoopThread(void * userData)
 {
+    printf("DEBUG: GLibMainLoopThread started.\n"); fflush(stdout);
     GMainLoop * loop       = static_cast<GMainLoop *>(userData);
     GMainContext * context = g_main_loop_get_context(loop);
 
     g_main_context_push_thread_default(context);
+    printf("DEBUG: GLibMainLoopThread running loop.\n"); fflush(stdout);
     g_main_loop_run(loop);
+    printf("DEBUG: GLibMainLoopThread loop exited.\n"); fflush(stdout);
 
     return nullptr;
 }
@@ -223,13 +226,16 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
                 std::unique_lock<std::mutex> lock_(PlatformMgrImpl().mGLibMainLoopCallbackIndirectionMutex);
                 data->mDone = true;
                 data->mDoneCond.notify_one();
+                printf("DEBUG: GLib Loop Idle Callback executed.\n"); fflush(stdout);
                 return G_SOURCE_REMOVE;
             },
             &invokeData, nullptr);
         GLibMatterContextAttachSource(idleSource);
         g_source_unref(idleSource);
 
+        printf("DEBUG: Waiting for GLib Loop to start...\n"); fflush(stdout);
         invokeData.mDoneCond.wait(lock, [&invokeData]() { return invokeData.mDone; });
+        printf("DEBUG: GLib Loop started.\n"); fflush(stdout);
     }
 
 #endif

@@ -4411,31 +4411,31 @@
     },
     {
       "id": 2,
-      "name": "MA-dimmablelight",
+      "name": "MA-jointfabricadministrator",
       "deviceTypeRef": {
-        "code": 268,
+        "code": 304,
         "profileId": 259,
-        "label": "MA-colortemperaturelight",
-        "name": "MA-colortemperaturelight",
+        "label": "MA-jointfabricadministrator",
+        "name": "MA-jointfabricadministrator",
         "deviceTypeOrder": 0
       },
       "deviceTypes": [
         {
-          "code": 268,
+          "code": 304,
           "profileId": 259,
-          "label": "MA-colortemperaturelight",
-          "name": "MA-colortemperaturelight",
+          "label": "MA-jointfabricadministrator",
+          "name": "MA-jointfabricadministrator",
           "deviceTypeOrder": 0
         }
       ],
       "deviceVersions": [
-        4
+        1
       ],
       "deviceIdentifiers": [
-        268
+        304
       ],
-      "deviceTypeName": "MA-colortemperaturelight",
-      "deviceTypeCode": 268,
+      "deviceTypeName": "MA-jointfabricadministrator",
+      "deviceTypeCode": 304,
       "deviceTypeProfileId": 259,
       "clusters": [
         {
@@ -4444,7 +4444,7 @@
           "mfgCode": null,
           "define": "IDENTIFY_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "Identify",
@@ -4584,7 +4584,7 @@
           "mfgCode": null,
           "define": "GROUPS_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "AddGroup",
@@ -4772,7 +4772,7 @@
           "mfgCode": null,
           "define": "ON_OFF_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "Off",
@@ -4992,7 +4992,7 @@
           "mfgCode": null,
           "define": "LEVEL_CONTROL_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "MoveToLevel",
@@ -5478,7 +5478,7 @@
           "mfgCode": null,
           "define": "COLOR_CONTROL_CLUSTER",
           "side": "server",
-          "enabled": 1,
+          "enabled": 0,
           "commands": [
             {
               "name": "MoveToHue",
@@ -6059,7 +6059,6 @@
           "define": "JOINT_FABRIC_DATASTORE_CLUSTER",
           "side": "server",
           "enabled": 1,
-          "apiMaturity": "provisional",
           "commands": [
             {
               "name": "AddKeySet",
@@ -6536,7 +6535,6 @@
           "define": "JOINT_FABRIC_ADMINISTRATOR_CLUSTER",
           "side": "server",
           "enabled": 1,
-          "apiMaturity": "provisional",
           "commands": [
             {
               "name": "ICACCSRRequest",
@@ -6723,7 +6721,7 @@
       "parentEndpointIdentifier": null
     },
     {
-      "endpointTypeName": "MA-dimmablelight",
+      "endpointTypeName": "MA-jointfabricadministrator",
       "endpointTypeIndex": 1,
       "profileId": 259,
       "endpointId": 1,

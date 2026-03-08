@@ -26,7 +26,7 @@
 #include <lib/support/ScopedBuffer.h>
 #include <lib/support/TestGroupData.h>
 
-#include "commands/example/ExampleOperationalCredentialsIssuer.h"
+#include "joint_fabric/ExampleOperationalCredentialsIssuer.h"
 
 namespace chip {
 namespace CustomCredentialsIssuer {

@@ -1,0 +1,62 @@
+
+syntax = "proto3";
+
+import 'pw_protobuf_protos/common.proto';
+import 'pw_protobuf_protos/status.proto';
+
+package joint_fabric;
+
+message TextMessage {
+    string msg_data = 1;
+}
+
+/* OpenCommissioningWindow command parameters and response */
+message OpenCommissioningWindowIn {
+    uint32 mode = 1;
+    uint32 window_timeout = 2;
+    uint32 iterations = 3;
+    uint32 discriminator = 4;
+}
+
+message OpenCommissioningWindowOut {
+    string manual_code = 1;
+}
+
+/* CommissionDevice command parameters and response */
+message CommissionDeviceIn {
+    string manual_code = 1;
+    string duration = 2;
+}
+
+message ErrorCode {
+    sint32 err_code = 1;
+}
+
+message Device {
+    uint64 node_id = 1;
+    string display_name = 2;
+    bool on = 3;
+}
+
+message GetDevicesOut {
+    repeated Device devices = 1;
+}
+
+message UpdateOperationalIdentityIn {
+    uint64 node_id = 1;
+}
+
+service JointFabric {
+    rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (OpenCommissioningWindowOut) {}
+}
+
+service ReverseJointFabric {
+    rpc UpdateOperationalIdentity(UpdateOperationalIdentityIn) returns (ErrorCode) {}
+}
+
+service JointFabricControl {
+    rpc OpenCommissioningWindow(OpenCommissioningWindowIn) returns (OpenCommissioningWindowOut) {}
+    rpc CommissionDevice(CommissionDeviceIn) returns (ErrorCode) {}
+    rpc ControlDevice(Device) returns (ErrorCode) {}
+    rpc GetDevices(pw.protobuf.Empty) returns (GetDevicesOut) {}
+}

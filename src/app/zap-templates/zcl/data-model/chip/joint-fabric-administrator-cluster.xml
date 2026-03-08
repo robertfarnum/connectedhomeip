@@ -45,7 +45,7 @@ Git: 0.9-fall2024-3368-gf046a92e8
     <item name="TransferAnchorStatusNoUserConsent" value="0x02"/>
   </enum>
 
-  <cluster apiMaturity="provisional">
+  <cluster>
     <domain>General</domain>
     <name>Joint Fabric Administrator</name>
     <code>0x0753</code>

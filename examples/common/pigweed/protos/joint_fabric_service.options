@@ -1,2 +1,2 @@
-OwnershipContext.trustedIcacPublicKeyB max_size:65    // Maximum size of trustedIcacPublicKeyB
-Response.response_bytes max_size:600                  // Maximum size of ICACCSR
+IssueIcacRequest.icac_csr max_size:300   // Maximum size of ICAC CSR (P256 DER)
+IssueIcacResponse.icac max_size:600     // Maximum size of ICAC certificate (DER)

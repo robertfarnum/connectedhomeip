@@ -48,6 +48,8 @@ CHIP_ERROR JFAManager::Init(Server & server)
     mServer             = &server;
     mCASESessionManager = server.GetCASESessionManager();
 
+    ReturnErrorOnFailure(mOpCredsIssuer.Initialize(server.GetPersistentStorage()));
+
     return CHIP_NO_ERROR;
 }
 
@@ -60,32 +62,9 @@ CHIP_ERROR JFAManager::GetJointFabricMode(uint8_t & jointFabricMode)
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR JFAManager::FinalizeCommissioning(NodeId nodeId, bool isJCM, P256PublicKey & trustedIcacPublicKeyB, uint16_t endpointId)
+CHIP_ERROR JFAManager::SignIcac(ByteSpan icacCsr, FabricId anchorFabricId, MutableByteSpan & icac)
 {
-    if (jfFabricIndex == kUndefinedFabricId)
-    {
-        return CHIP_ERROR_INCORRECT_STATE;
-    }
-
-    ChipLogProgress(JointFabric, "FinalizeCommissioning for NodeID: 0x" ChipLogFormatX64 ", isJCM = %d, peerEndpointId = %d",
-                    ChipLogValueX64(nodeId), isJCM, endpointId);
-
-    peerAdminJFAdminClusterEndpointId = endpointId;
-    peerAdminICACPubKey               = trustedIcacPublicKeyB;
-    ScopedNodeId scopedNodeId         = ScopedNodeId(nodeId, jfFabricIndex);
-    ConnectToNode(scopedNodeId, isJCM ? kJCMCommissioning : kStandardCommissioningComplete);
-
-    return CHIP_NO_ERROR;
-}
-
-void JFAManager::SetJFARpc(JFARpc & aJFARpc)
-{
-    mJFARpc = &aJFARpc;
-}
-
-JFARpc * JFAManager::GetJFARpc()
-{
-    return mJFARpc;
+    return mOpCredsIssuer.SignICAC(icacCsr, anchorFabricId, icac);
 }
 
 void JFAManager::HandleCommissioningCompleteEvent()
@@ -447,12 +426,25 @@ void JFAManager::OnCommissioningCompleteFailure(void * context, CHIP_ERROR error
 
 CHIP_ERROR JFAManager::GetIcacCsr(MutableByteSpan & icacCsr)
 {
-    JFARpc * jfaRpc = GetJFARpc();
+    // Generate the ICAC CSR locally using the embedded OperationalCredentialsIssuer.
+    // This replaces the old flow where the CSR was fetched from jf-control-app via RPC.
+    return mOpCredsIssuer.ObtainICACSR(icacCsr);
+}
 
-    if (jfaRpc)
+CHIP_ERROR JFAManager::StartJcm(NodeId nodeId, EndpointId peerAdminEndpointId)
+{
+    ChipLogProgress(JointFabric, "JFAManager::StartJcm for NodeId: 0x" ChipLogFormatX64 " peerEndpointId: %d",
+                    ChipLogValueX64(nodeId), peerAdminEndpointId);
+
+    if (jfFabricIndex == kUndefinedFabricId)
     {
-        return jfaRpc->GetICACCSRForJF(icacCsr);
+        ChipLogError(JointFabric, "StartJcm: JFA not yet commissioned into the joint fabric");
+        return CHIP_ERROR_INCORRECT_STATE;
     }
 
-    return CHIP_ERROR_UNINITIALIZED;
+    mNodeId                          = nodeId;
+    peerAdminJFAdminClusterEndpointId = peerAdminEndpointId;
+
+    ConnectToNode(ScopedNodeId(nodeId, jfFabricIndex), kJCMCommissioning);
+    return CHIP_NO_ERROR;
 }

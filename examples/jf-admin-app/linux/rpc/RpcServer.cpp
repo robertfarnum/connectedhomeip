@@ -1,5 +1,7 @@
 #include "pigweed/rpc_services/JointFabric.h"
 
+#include "JFAManager.h"
+
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -8,91 +10,66 @@ using namespace chip;
 
 namespace joint_fabric_service {
 
-constexpr uint32_t kRpcTimeoutMs = 1000;
-std::condition_variable responseCv;
-bool responseReceived = false;
-
-uint8_t icacCSRBuf[Crypto::kMIN_CSR_Buffer_Size] = { 0 };
-MutableByteSpan icacCSRSpan{ icacCSRBuf };
-
-::pw::Status JointFabric::TransferOwnership(const ::OwnershipContext & request, ::pw_protobuf_Empty & response)
+::pw::Status JointFabric::IssueIcac(const ::IssueIcacRequest & request, ::IssueIcacResponse & response)
 {
-    ChipLogProgress(JointFabric, "RPC Ownership Transfer for NodeId: 0x" ChipLogFormatX64 ", jcm=%d",
-                    ChipLogValueX64(request.node_id), request.jcm);
+    ChipLogProgress(JointFabric, "RPC IssueIcac");
 
-    if (request.jcm && (Crypto::kP256_PublicKey_Length != request.trustedIcacPublicKeyB.size))
+    // Get the ICAC CSR from request
+    ByteSpan icacCsr(request.icac_csr.bytes, request.icac_csr.size);
+    FabricId anchorFabricId = request.anchor_fabric_id;
+
+    // Issue ICAC using the JFAManager's OperationalCredentialsIssuer
+    uint8_t icacBuf[chip::Credentials::kMaxDERCertLength];
+    MutableByteSpan icac(icacBuf);
+    
+    CHIP_ERROR err = JFAMgr().SignIcac(icacCsr, anchorFabricId, icac);
+    if (err != CHIP_NO_ERROR)
     {
-        ChipLogError(JointFabric, "Invalid ICAC Public Key Size");
-        return pw::Status::OutOfRange();
+        ChipLogError(JointFabric, "SignICAC Failed");
+        return pw::Status::Internal();
     }
 
-    if (request.jcm && request.peerAdminJFAdminClusterEndpointId == kInvalidEndpointId)
-    {
-        return pw::Status::OutOfRange();
-        ChipLogError(JointFabric, "Invalid Peer Admin Endpoint ID for the JF Administrator Cluster");
-    }
-
-    OwnershipTransferContext * data = Platform::New<OwnershipTransferContext>(
-        request.node_id, request.jcm, ByteSpan(request.trustedIcacPublicKeyB.bytes, request.trustedIcacPublicKeyB.size),
-        request.peerAdminJFAdminClusterEndpointId);
-    VerifyOrReturnValue(data, pw::Status::Internal());
-    TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(FinalizeCommissioningWork, reinterpret_cast<intptr_t>(data));
+    // Populate response
+    memcpy(response.icac.bytes, icac.data(), icac.size());
+    response.icac.size = icac.size();
 
     return pw::OkStatus();
 }
 
-void JointFabric::GetStream(const ::pw_protobuf_Empty & request, ServerWriter<::RequestOptions> & writer)
+::pw::Status JointFabric::StartJcm(const ::StartJcmRequest & request, ::pw_protobuf_Empty & response)
 {
-    ChipLogProgress(JointFabric, "GetStream Opened");
-    rpcGetStream = std::move(writer);
+    ChipLogProgress(JointFabric, "RPC StartJcm for NodeId: 0x" ChipLogFormatX64 " peerEndpointId: %u",
+                    ChipLogValueX64(request.node_id), static_cast<unsigned>(request.peer_admin_endpoint_id));
 
-    return;
-}
+    // Schedule JCM start on the Matter event loop
+    struct StartJcmArgs
+    {
+        uint64_t nodeId;
+        uint32_t peerAdminEndpointId;
+    };
 
-::pw::Status JointFabric::ResponseStream(const ::Response & ICACCSRBytes, ::pw_protobuf_Empty & response)
-{
-    ChipLogProgress(JointFabric, "RPC ReplyWithICACCSR");
+    StartJcmArgs * args = Platform::New<StartJcmArgs>();
+    VerifyOrReturnValue(args, pw::Status::Internal());
+    args->nodeId               = request.node_id;
+    args->peerAdminEndpointId  = request.peer_admin_endpoint_id;
 
-    TEMPORARY_RETURN_IGNORED CopySpanToMutableSpan(ByteSpan(ICACCSRBytes.response_bytes.bytes, ICACCSRBytes.response_bytes.size),
-                                                   icacCSRSpan);
-
-    responseReceived = true;
-    responseCv.notify_one();
+    TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(FinalizeCommissioningWork, reinterpret_cast<intptr_t>(args));
 
     return pw::OkStatus();
 }
 
-CHIP_ERROR JointFabric::GetICACCSRForJF(MutableByteSpan & icacCSR)
+void JointFabric::FinalizeCommissioningWork(intptr_t arg)
 {
-    std::mutex responseMutex;
-    std::unique_lock<std::mutex> lock(responseMutex);
-    ::pw::Status status;
-
-    // JFA requests an ICAC CSR from JFC
-    RequestOptions requestOptions{ TransactionType::TransactionType_ICAC_CSR };
-    status = rpcGetStream.Write(requestOptions);
-
-    if (pw::OkStatus() != status)
+    struct StartJcmArgs
     {
-        ChipLogError(JointFabric, "Writing to GetStream failed");
-        return CHIP_ERROR_SHUT_DOWN;
-    }
+        uint64_t nodeId;
+        uint32_t peerAdminEndpointId;
+    };
 
-    // wait for the ICAC CSR from JFC
-    if (responseCv.wait_for(lock, std::chrono::milliseconds(kRpcTimeoutMs), [] { return responseReceived; }))
-    {
-        ReturnErrorOnFailure(CopySpanToMutableSpan(ByteSpan(icacCSRSpan.data(), icacCSRSpan.size()), icacCSR));
-        responseReceived = false;
-
-        return CHIP_NO_ERROR;
-    }
-
-    return CHIP_ERROR_TIMEOUT;
-}
-
-void JointFabric::CloseStreams()
-{
-    rpcGetStream.Finish();
+    StartJcmArgs * args = reinterpret_cast<StartJcmArgs *>(arg);
+    TEMPORARY_RETURN_IGNORED JFAMgr().StartJcm(static_cast<NodeId>(args->nodeId),
+                                               static_cast<EndpointId>(args->peerAdminEndpointId));
+    chip::Platform::Delete(args);
 }
 
 } // namespace joint_fabric_service

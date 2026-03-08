@@ -28,7 +28,9 @@
 
 #include <lib/core/CHIPError.h>
 
-#include "JFARpc.h"
+#include "controller/jcm/AutoCommissioner.h"
+#include "controller/jcm/DeviceCommissioner.h"
+#include "joint_fabric/ExampleOperationalCredentialsIssuer.h"
 
 namespace chip {
 
@@ -39,16 +41,14 @@ public:
 
     CHIP_ERROR Init(Server & server);
     void HandleCommissioningCompleteEvent();
-    CHIP_ERROR FinalizeCommissioning(NodeId nodeId, bool isJCM, chip::Crypto::P256PublicKey & trustedIcacPublicKeyB,
-                                     uint16_t peerAdminJFAdminClusterEndpointId);
-
-    void SetJFARpc(JFARpc & aJFARpc);
-    JFARpc * GetJFARpc();
 
     /* app::JointFabricAdministrator::Delegate */
     CHIP_ERROR GetIcacCsr(MutableByteSpan & icacCsr) override;
 
     CHIP_ERROR GetJointFabricMode(uint8_t & jointFabricMode);
+
+    CHIP_ERROR StartJcm(NodeId nodeId, EndpointId peerAdminEndpointId);
+    CHIP_ERROR SignIcac(ByteSpan icacCsr, FabricId anchorFabricId, MutableByteSpan & icac);
 
     bool IsDeviceCommissioned() { return jfFabricIndex != kUndefinedFabricId; }
     bool IsDeviceJFAdmin();
@@ -71,7 +71,9 @@ private:
     Server * mServer                          = nullptr;
     CASESessionManager * mCASESessionManager  = nullptr;
     Messaging::ExchangeManager * mExchangeMgr = nullptr;
-    JFARpc * mJFARpc                          = nullptr;
+    chip::CustomCredentialsIssuer::ExampleOperationalCredentialsIssuer mOpCredsIssuer;
+    chip::Controller::JCM::DeviceCommissioner mDeviceCommissioner;
+    chip::Controller::JCM::AutoCommissioner mAutoCommissioner;
     SessionHolder mSessionHolder;
     Callback::Callback<OnDeviceConnected> mOnConnectedCallback;
     Callback::Callback<OnDeviceConnectionFailure> mOnConnectionFailureCallback;

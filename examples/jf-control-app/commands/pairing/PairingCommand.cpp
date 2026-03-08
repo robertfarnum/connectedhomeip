@@ -552,23 +552,12 @@ namespace {
 constexpr uint32_t kRpcTimeoutMs     = 1000;
 constexpr uint32_t kDefaultChannelId = 1;
 
-struct RequestOptionsContext
-{
-    RequestOptionsContext(uint64_t fabricId, TransactionType transactionType) :
-        mAnchorFabricId(fabricId), mTransactionType(transactionType)
-    {}
-
-    uint64_t mAnchorFabricId;
-    TransactionType mTransactionType;
-};
-
 ::pw_rpc::nanopb::JointFabric::Client rpcClient(chip::rpc::client::GetDefaultRpcClient(), kDefaultChannelId);
 
 std::mutex responseMutex;
 std::condition_variable responseCv;
-bool responseReceived                                  = false;
-CHIP_ERROR responseError                               = CHIP_NO_ERROR;
-CredentialIssuerCommands * pkiProviderCredentialIssuer = nullptr;
+bool responseReceived = false;
+CHIP_ERROR responseError = CHIP_NO_ERROR;
 
 // By passing the `call` parameter into WaitForResponse we are explicitly trying to insure the caller takes into consideration that
 // the lifetime of the `call` object when calling WaitForResponse
@@ -589,8 +578,8 @@ CHIP_ERROR WaitForResponse(CallType & call)
     }
 }
 
-// Callback function to be called when the RPC response is received
-void OnRPCTransferDone(const _pw_protobuf_Empty & response, ::pw::Status status)
+// Callback function to be called when the StartJcm RPC response is received
+void OnStartJcmDone(const ::pw_protobuf_Empty & response, ::pw::Status status)
 {
     std::lock_guard<std::mutex> lock(responseMutex);
     responseReceived = true;
@@ -599,80 +588,11 @@ void OnRPCTransferDone(const _pw_protobuf_Empty & response, ::pw::Status status)
 
     if (status.ok())
     {
-        ChipLogProgress(JointFabric, "OnRPCTransferDone RPC call succeeded!");
+        ChipLogProgress(JointFabric, "StartJcm RPC call succeeded!");
     }
     else
     {
-        ChipLogProgress(JointFabric, "OnRPCTransferDone RPC call failed with status: %d\n", status.code());
-    }
-}
-
-static void GenerateReplyWork(intptr_t arg)
-{
-    CHIP_ERROR err = CHIP_ERROR_INTERNAL;
-    uint8_t buf[kMaxDERCertLength];
-    MutableByteSpan generatedCertificate(buf, kMaxDERCertLength);
-    Response rsp;
-    ::pw::rpc::NanopbUnaryReceiver<::pw_protobuf_Empty> call;
-
-    RequestOptionsContext * request = reinterpret_cast<RequestOptionsContext *>(arg);
-    VerifyOrExit(request, ChipLogError(JointFabric, "GenerateReplyWork: invalid request"));
-    VerifyOrExit(pkiProviderCredentialIssuer, ChipLogError(JointFabric, "GenerateReplyWork: no PKI provider"));
-
-    switch (request->mTransactionType)
-    {
-    case TransactionType::TransactionType_ICAC_CSR: {
-        err = (static_cast<ExampleCredentialIssuerCommands *>(pkiProviderCredentialIssuer))->GenerateIcacCsr(generatedCertificate);
-        if (err != CHIP_NO_ERROR)
-        {
-            ChipLogError(JointFabric, "GenerateIcacCsr failed");
-        }
-        break;
-    }
-    default: {
-        err = CHIP_ERROR_INVALID_ARGUMENT;
-        break;
-    }
-    }
-    VerifyOrExit(err == CHIP_NO_ERROR, ChipLogError(JointFabric, "GenerateReplyWork: invalid request"));
-
-    memcpy(rsp.response_bytes.bytes, generatedCertificate.data(), generatedCertificate.size());
-    rsp.response_bytes.size = (short unsigned int) generatedCertificate.size();
-
-    call = rpcClient.ResponseStream(rsp, OnRPCTransferDone);
-    VerifyOrExit(rpcClient.ResponseStream(rsp, OnRPCTransferDone).active(),
-                 ChipLogError(JointFabric, "GenerateReplyWork: stream error"));
-    VerifyOrExit(CHIP_NO_ERROR == WaitForResponse(call), ChipLogError(JointFabric, "GenerateReplyWork: stream error"));
-
-exit:
-    if (request)
-    {
-        Platform::Delete(request);
-    }
-}
-
-void OnGetStreamOnNext(const RequestOptions & requestOptions)
-{
-    ChipLogProgress(JointFabric, "OnGetStreamOnNext, fabricId: %ld", requestOptions.anchor_fabric_id);
-
-    RequestOptionsContext * options =
-        Platform::New<RequestOptionsContext>(requestOptions.anchor_fabric_id, requestOptions.transaction_type);
-
-    if (options)
-    {
-        TEMPORARY_RETURN_IGNORED DeviceLayer::PlatformMgr().ScheduleWork(GenerateReplyWork, reinterpret_cast<intptr_t>(options));
-    }
-}
-
-void OnGetStreamOnDone(::pw::Status status)
-{
-    if (status.ok())
-    {
-        ChipLogProgress(JointFabric, "GetStream RPC successfully closed!");
-    }
-    else
-    {
-        ChipLogProgress(JointFabric, "GetStream RPC closed with error: %d\n", status.code());
+        ChipLogProgress(JointFabric, "StartJcm RPC call failed with status: %d\n", status.code());
     }
 }
 
@@ -686,52 +606,23 @@ void PairingCommand::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
         {
             ChipLogProgress(JointFabric, "Anchor Administrator (nodeId=%ld) commissioned with success", nodeId);
             TEMPORARY_RETURN_IGNORED SetAnchorNodeId(nodeId);
-
-            _pw_protobuf_Empty request;
-
-            ::pw::rpc::NanopbClientReader<::RequestOptions> localStream =
-                rpcClient.GetStream(request, OnGetStreamOnNext, OnGetStreamOnDone);
-            if (!localStream.active())
-            {
-                ChipLogError(JointFabric, "RPC: Opening GetStream Error");
-                SetCommandExitStatus(CHIP_ERROR_SHUT_DOWN);
-                return;
-            }
-            else
-            {
-                rpcGetStream                = std::move(localStream);
-                pkiProviderCredentialIssuer = mCredIssuerCmds;
-            }
         }
         else
         {
-            OwnershipContext request;
-            Credentials::P256PublicKeySpan adminICACPKSpan;
-
-            memset(&request, 0, sizeof(request));
-            request.node_id                      = nodeId;
-            request.jcm                          = mJCM.ValueOr(false);
+            // Non-anchor commissioning complete (JCM path).
+            // Notify jf-admin-app to start the JCM sequence for this node via RPC.
             JCMDeviceCommissioner & commissioner = static_cast<JCMDeviceCommissioner &>(CurrentCommissioner());
             JCMTrustVerificationInfo & info      = commissioner.GetTrustVerificationInfo();
-            /* extract and save the public key of the peer Admin ICAC */
-            err = Credentials::ExtractPublicKeyFromChipCert(info.adminICAC.Span(), adminICACPKSpan);
-            if (err != CHIP_NO_ERROR)
-            {
-                ChipLogError(Controller, "Joint Commissioning Method Error parsing adminICAC Public Key");
-                SetCommandExitStatus(err);
-                return;
-            }
 
-            memcpy(request.trustedIcacPublicKeyB.bytes, adminICACPKSpan.data(), adminICACPKSpan.size());
-            request.trustedIcacPublicKeyB.size = Crypto::kP256_PublicKey_Length;
+            StartJcmRequest request;
+            memset(&request, 0, sizeof(request));
+            request.node_id                = nodeId;
+            request.peer_admin_endpoint_id = static_cast<uint32_t>(info.adminEndpointId);
 
-            request.peerAdminJFAdminClusterEndpointId = info.adminEndpointId;
-
-            auto call = rpcClient.TransferOwnership(request, OnRPCTransferDone);
+            auto call = rpcClient.StartJcm(request, OnStartJcmDone);
             if (!call.active())
             {
-                // The RPC call was not sent. This could occur due to, for example, an invalid channel ID. Handle as an error.
-                ChipLogError(JointFabric, "RPC: OwnershipTransfer Call Error");
+                ChipLogError(JointFabric, "RPC: StartJcm Call Error");
                 SetCommandExitStatus(CHIP_ERROR_SHUT_DOWN);
                 return;
             }
@@ -739,8 +630,7 @@ void PairingCommand::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
             err = WaitForResponse(call);
             if (err != CHIP_NO_ERROR)
             {
-                ChipLogError(JointFabric, "Joint Commissioning Method (nodeId=%ld) failed: RPC OwnershipTransfer Timeout Error",
-                             nodeId);
+                ChipLogError(JointFabric, "Joint Commissioning Method (nodeId=%ld) failed: StartJcm RPC Timeout", nodeId);
             }
         }
     }

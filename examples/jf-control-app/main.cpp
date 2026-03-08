@@ -17,7 +17,7 @@
  */
 
 #include "commands/common/Commands.h"
-#include "commands/example/ExampleCredentialIssuerCommands.h"
+#include "joint_fabric/ExampleCredentialIssuerCommands.h"
 
 #include <iostream>
 #include <string>

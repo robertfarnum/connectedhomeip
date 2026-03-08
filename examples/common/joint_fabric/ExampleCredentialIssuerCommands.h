@@ -25,7 +25,7 @@
 #include <credentials/attestation_verifier/DeviceAttestationVerifier.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 
-#include "commands/example/ExampleOperationalCredentialsIssuer.h"
+#include "joint_fabric/ExampleOperationalCredentialsIssuer.h"
 
 class ExampleCredentialIssuerCommands : public CredentialIssuerCommands
 {

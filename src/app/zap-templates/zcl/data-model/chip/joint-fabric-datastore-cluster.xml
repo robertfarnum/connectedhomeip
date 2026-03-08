@@ -57,7 +57,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item name="CommitFailed" value="0x03"/>
   </enum>
 
-  <struct name="DatastoreACLEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreACLEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="NodeID" type="node_id"/>
     <item fieldId="1" name="ListID" type="int16u"/>
@@ -65,7 +65,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="3" name="StatusEntry" type="DatastoreStatusEntryStruct"/>
   </struct>
 
-  <struct name="DatastoreAccessControlEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreAccessControlEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="1" name="Privilege" type="DatastoreAccessControlEntryPrivilegeEnum" min="0x00" max="0x05"/>
     <item fieldId="2" name="AuthMode" type="DatastoreAccessControlEntryAuthModeEnum" min="0x00" max="0x03"/>
@@ -73,14 +73,14 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="4" name="Targets" array="true" type="DatastoreAccessControlTargetStruct" isNullable="true"/>
   </struct>
 
-  <struct name="DatastoreAccessControlTargetStruct" apiMaturity="provisional">
+  <struct name="DatastoreAccessControlTargetStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="Cluster" type="cluster_id" isNullable="true"/>
     <item fieldId="1" name="Endpoint" type="endpoint_no" isNullable="true"/>
     <item fieldId="2" name="DeviceType" type="devtype_id" isNullable="true"/>
   </struct>
 
-  <struct name="DatastoreAdministratorInformationEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreAdministratorInformationEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="1" name="NodeID" type="node_id"/>
     <item fieldId="2" name="FriendlyName" type="char_string" length="32"/>
@@ -88,7 +88,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="4" name="ICAC" type="long_octet_string" length="400"/>
   </struct>
 
-  <struct name="DatastoreBindingTargetStruct" apiMaturity="provisional">
+  <struct name="DatastoreBindingTargetStruct">
     <cluster code="0x0752"/>
     <item fieldId="1" name="Node" type="node_id" optional="true"/>
     <item fieldId="2" name="Group" type="group_id" optional="true" min="1"/>
@@ -96,7 +96,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="4" name="Cluster" type="cluster_id" optional="true"/>
   </struct>
 
-  <struct name="DatastoreEndpointBindingEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreEndpointBindingEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="NodeID" type="node_id"/>
     <item fieldId="1" name="EndpointID" type="endpoint_no"/>
@@ -105,7 +105,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="4" name="StatusEntry" type="DatastoreStatusEntryStruct"/>
   </struct>
 
-  <struct name="DatastoreEndpointEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreEndpointEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="EndpointID" type="endpoint_no"/>
     <item fieldId="1" name="NodeID" type="node_id"/>
@@ -113,7 +113,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="3" name="StatusEntry" type="DatastoreStatusEntryStruct"/>
   </struct>
 
-  <struct name="DatastoreEndpointGroupIDEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreEndpointGroupIDEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="NodeID" type="node_id"/>
     <item fieldId="1" name="EndpointID" type="endpoint_no"/>
@@ -121,7 +121,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="3" name="StatusEntry" type="DatastoreStatusEntryStruct"/>
   </struct>
 
-  <struct name="DatastoreGroupInformationEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreGroupInformationEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="GroupID" type="int64u"/>
     <item fieldId="1" name="FriendlyName" type="char_string" length="32"/>
@@ -131,7 +131,7 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="5" name="GroupPermission" type="DatastoreAccessControlEntryPrivilegeEnum" min="0x00" max="0x05"/>
   </struct>
 
-  <struct name="DatastoreGroupKeySetStruct" apiMaturity="provisional">
+  <struct name="DatastoreGroupKeySetStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="GroupKeySetID" type="int16u"/>
     <item fieldId="1" name="GroupKeySecurityPolicy" type="DatastoreGroupKeySecurityPolicyEnum" min="0x00" max="0x00"/>
@@ -144,28 +144,28 @@ Git: 0.9-fall2024-2942-g1338c37b8
     <item fieldId="8" name="GroupKeyMulticastPolicy" type="DatastoreGroupKeyMulticastPolicyEnum" min="0x00" max="0x01"/>
   </struct>
 
-  <struct name="DatastoreNodeInformationEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreNodeInformationEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="1" name="NodeID" type="node_id"/>
     <item fieldId="2" name="FriendlyName" type="char_string" length="32"/>
     <item fieldId="3" name="CommissioningStatusEntry" type="DatastoreStatusEntryStruct"/>
   </struct>
 
-  <struct name="DatastoreNodeKeySetEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreNodeKeySetEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="NodeID" type="node_id"/>
     <item fieldId="1" name="GroupKeySetID" type="int16u"/>
     <item fieldId="2" name="StatusEntry" type="DatastoreStatusEntryStruct"/>
   </struct>
 
-  <struct name="DatastoreStatusEntryStruct" apiMaturity="provisional">
+  <struct name="DatastoreStatusEntryStruct">
     <cluster code="0x0752"/>
     <item fieldId="0" name="State" type="DatastoreStateEnum" default="0x00" min="0x00" max="0x03"/>
     <item fieldId="1" name="UpdateTimestamp" type="epoch_s"/>
     <item fieldId="2" name="FailureCode" type="status" default="0"/>
   </struct>
 
-  <cluster apiMaturity="provisional">
+  <cluster>
     <domain>General</domain>
     <name>Joint Fabric Datastore</name>
     <code>0x0752</code>

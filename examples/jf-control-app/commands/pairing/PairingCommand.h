@@ -336,7 +336,6 @@ private:
     bool mDeviceIsICD = false;
     uint8_t mRandomGeneratedICDSymmetricKey[chip::Crypto::kAES_CCM128_Key_Length];
 
-    ::pw::rpc::NanopbClientReader<::RequestOptions> rpcGetStream;
     chip::ByteSpan mRemoteAdminTrustedRoot;
 
     // For unpair
