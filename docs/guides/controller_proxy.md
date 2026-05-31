@@ -7,12 +7,16 @@ payloads with no knowledge of which transport protocol is active.
 
 ## Architecture
 
-```
-ControllerProxy          TransportProtocol (abstract)
-      |                         |
-      | SetAdapter()            |-- MqttTransportAdapter  (IPC bridge to external manager)
-      | SendMessage()           |-- (future: WebSocketAdapter, AMQPAdapter, …)
-      | MessageHandler callback |
+```mermaid
+graph TD
+    CP["ControllerProxy\n(SetAdapter / SendMessage\n/ MessageHandler callback)"]
+    TP["TransportProtocol\n(abstract interface)"]
+    MQTT["MqttTransportAdapter\n(IPC bridge to external manager)"]
+    FUTURE["future adapters\n(WebSocket, AMQP, …)"]
+
+    CP -->|owns one adapter| TP
+    TP --> MQTT
+    TP --> FUTURE
 ```
 
 The three key components are:
