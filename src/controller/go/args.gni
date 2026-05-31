@@ -1,0 +1,21 @@
+import("//build_overrides/chip.gni")
+
+import("${chip_root}/config/standalone/args.gni")
+
+# Minimal controller build — no app-level configs
+chip_build_tests = false
+chip_enable_wifi = false
+chip_enable_thread = false
+chip_build_tools = false
+
+# Use the default standalone platform (Darwin/Linux)
+chip_device_platform = "darwin"
+
+# Build for arm64 (Apple Silicon)
+target_cpu = "arm64"
+
+# Disable BLE — only on-network commissioning needed for sim
+chip_config_network_layer_ble = false
+
+# Disable stack lock tracking — Darwin LockChipStack is a no-op
+chip_stack_lock_tracking = "none"
