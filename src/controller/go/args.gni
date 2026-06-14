@@ -14,8 +14,11 @@ chip_device_platform = "darwin"
 # Build for arm64 (Apple Silicon)
 target_cpu = "arm64"
 
-# Disable BLE — only on-network commissioning needed for sim
-chip_config_network_layer_ble = false
+# Enable BLE for BLE-WiFi commissioning via CoreBluetooth on Darwin.
+# The Darwin platform BLEManagerImpl wires the BleLayer automatically once
+# InitChipStack() is called; no manual plumbing is needed.
+chip_config_network_layer_ble = true
+chip_enable_ble = true
 
 # Disable stack lock tracking — Darwin LockChipStack is a no-op
 chip_stack_lock_tracking = "none"

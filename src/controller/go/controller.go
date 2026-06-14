@@ -81,6 +81,30 @@ func (c *Controller) Commission(ctx context.Context, setupCode uint32, discrimin
 	return nodeID, nil
 }
 
+// CommissionWithCode pairs and commissions a device using a pairing code.
+// code is either a manual pairing code (11/21 digits) or QR code payload ("MT:...").
+// Returns the assigned node ID on success.
+func (c *Controller) CommissionWithCode(ctx context.Context, code string, creds *CommissionCredentials) (uint64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return 0, fmt.Errorf("matter: controller is shut down")
+	}
+
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	default:
+	}
+
+	nodeID, err := cCommissionWithCode(c.handle, code, creds)
+	if err != nil {
+		return 0, fmt.Errorf("matter.CommissionWithCode: %w", err)
+	}
+	return nodeID, nil
+}
+
 // SendCommand sends a cluster command to a commissioned device.
 // Returns the TLV-encoded response bytes.
 func (c *Controller) SendCommand(ctx context.Context, nodeID uint64, endpoint uint16, clusterID, commandID uint32, payload []byte) ([]byte, error) {

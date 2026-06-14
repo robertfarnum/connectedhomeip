@@ -1,4 +1,6 @@
-CHIP_ROOT := $(abspath third_party/connectedhomeip)
+# Resolve CHIP_ROOT relative to this Makefile's directory, not the caller's cwd.
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+CHIP_ROOT := $(abspath $(MAKEFILE_DIR)third_party/connectedhomeip)
 OUT_DIR := out
 TARGET := $(OUT_DIR)/obj/lib/matter_controller.a
 

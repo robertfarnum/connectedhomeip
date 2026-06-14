@@ -102,6 +102,17 @@ void matter_response_free(matter_response_t* response);
 void matter_result_free(matter_result_t* result);
 void matter_commission_result_free(matter_commission_result_t* result);
 
+// Commission a device using a pairing code (manual or QR)
+// code: 11/21-digit manual pairing code OR "MT:..." QR code payload
+// credentials: optional network credentials (for BLE-WiFi/Thread flows)
+// Auto-detects format: strings starting with "MT:" use QR parser, else manual parser.
+// Uses parsed rendezvous hints to select commissioning transport.
+matter_commission_result_t matter_controller_commission_with_code(
+    matter_controller_handle_t handle,
+    const char* code,
+    const matter_commission_credentials_t* credentials
+);
+
 #ifdef __cplusplus
 }
 #endif

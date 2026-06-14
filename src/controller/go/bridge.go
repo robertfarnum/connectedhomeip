@@ -10,7 +10,7 @@ package matter
 #cgo CFLAGS: -I${SRCDIR}/third_party/connectedhomeip/config/standalone
 #cgo LDFLAGS: ${SRCDIR}/out/obj/lib/matter_controller.a
 #cgo LDFLAGS: -lstdc++ -lobjc
-#cgo LDFLAGS: -framework CoreFoundation -framework Foundation -framework Network -framework CoreData -framework IOKit -framework Security -framework SystemConfiguration
+#cgo LDFLAGS: -framework CoreFoundation -framework Foundation -framework Network -framework CoreData -framework IOKit -framework Security -framework SystemConfiguration -framework CoreBluetooth
 #include "matter_controller.h"
 #include <stdlib.h>
 */
@@ -112,6 +112,49 @@ func cSendCommand(handle C.matter_controller_handle_t, nodeID uint64, endpoint u
 		return data, nil
 	}
 	return nil, nil
+}
+
+// cCommissionWithCode calls the C matter_controller_commission_with_code function.
+func cCommissionWithCode(handle C.matter_controller_handle_t, code string, creds *CommissionCredentials) (uint64, error) {
+	cCode := C.CString(code)
+	defer C.free(unsafe.Pointer(cCode))
+
+	var cCreds C.matter_commission_credentials_t
+	var cSSID, cPassword, cDataset *C.char
+
+	if creds != nil {
+		if creds.SSID != "" {
+			cSSID = C.CString(creds.SSID)
+			defer C.free(unsafe.Pointer(cSSID))
+			cCreds.ssid = cSSID
+		}
+		if creds.Password != "" {
+			cPassword = C.CString(creds.Password)
+			defer C.free(unsafe.Pointer(cPassword))
+			cCreds.password = cPassword
+		}
+		if creds.OperationalDataset != "" {
+			cDataset = C.CString(creds.OperationalDataset)
+			defer C.free(unsafe.Pointer(cDataset))
+			cCreds.operational_dataset = cDataset
+		}
+		cCreds.use_ble_wifi = C.bool(creds.UseBLEWiFi)
+		cCreds.use_ble_thread = C.bool(creds.UseBLEThread)
+		cCreds.use_on_network = C.bool(creds.UseOnNetwork)
+	}
+
+	result := C.matter_controller_commission_with_code(
+		handle,
+		cCode,
+		&cCreds,
+	)
+	defer C.matter_commission_result_free(&result)
+
+	if result.code != 0 {
+		msg := C.GoString(result.message)
+		return 0, fmt.Errorf("commission_with_code failed (code %d): %s", result.code, msg)
+	}
+	return uint64(result.node_id), nil
 }
 
 // cReadAttribute calls the C matter_controller_read_attribute function.

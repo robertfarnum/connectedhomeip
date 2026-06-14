@@ -27,8 +27,13 @@
 #include <lib/support/TestPersistentStorageDelegate.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/PlatformManager.h>
+#if CONFIG_NETWORK_LAYER_BLE
+#include <platform/internal/BLEManager.h>
+#endif // CONFIG_NETWORK_LAYER_BLE
 #include <lib/support/TestGroupData.h>
 #include <setup_payload/ManualSetupPayloadGenerator.h>
+#include <setup_payload/ManualSetupPayloadParser.h>
+#include <setup_payload/QRCodeSetupPayloadParser.h>
 #include <setup_payload/SetupPayload.h>
 
 using namespace chip;
@@ -133,6 +138,30 @@ matter_controller_handle_t matter_controller_init(
         return nullptr;
     }
 
+#if CONFIG_NETWORK_LAYER_BLE
+    // Put the BLE adapter into central (scanner) mode before InitChipStack so
+    // the Darwin BLEManagerImpl comes up ready to scan for commissionable devices.
+    // Adapter ID 0 selects the default CoreBluetooth adapter.
+    err = DeviceLayer::Internal::BLEMgrImpl().ConfigureBle(/* adapter */ 0, /* isCentral */ true);
+    if (err != CHIP_NO_ERROR) {
+        result->code = static_cast<int32_t>(err.AsInteger());
+        result->message = strdup_safe("failed to configure BLE adapter as central");
+        Platform::MemoryShutdown();
+        return nullptr;
+    }
+#endif // CONFIG_NETWORK_LAYER_BLE
+
+    // InitChipStack initialises the Darwin device layer, including BLEManagerImpl.
+    // This must happen before DeviceControllerFactory::Init so that
+    // ConnectivityMgr().GetBleLayer() returns a valid BleLayer pointer.
+    err = DeviceLayer::PlatformMgr().InitChipStack();
+    if (err != CHIP_NO_ERROR) {
+        result->code = static_cast<int32_t>(err.AsInteger());
+        result->message = strdup_safe("failed to initialize CHIP stack");
+        Platform::MemoryShutdown();
+        return nullptr;
+    }
+
     auto state = new MatterControllerState();
     state->storage_path = storage_path;
     state->fabric_id = static_cast<FabricId>(fabric_id);
@@ -143,6 +172,7 @@ matter_controller_handle_t matter_controller_init(
         result->code = static_cast<int32_t>(err.AsInteger());
         result->message = strdup_safe("failed to initialize operational keystore");
         delete state;
+        DeviceLayer::PlatformMgr().Shutdown();
         Platform::MemoryShutdown();
         return nullptr;
     }
@@ -152,6 +182,7 @@ matter_controller_handle_t matter_controller_init(
         result->code = static_cast<int32_t>(err.AsInteger());
         result->message = strdup_safe("failed to initialize op cert store");
         delete state;
+        DeviceLayer::PlatformMgr().Shutdown();
         Platform::MemoryShutdown();
         return nullptr;
     }
@@ -592,6 +623,142 @@ void matter_commission_result_free(matter_commission_result_t* result) {
         free((void*)result->message);
         result->message = nullptr;
     }
+}
+
+matter_commission_result_t matter_controller_commission_with_code(
+    matter_controller_handle_t handle,
+    const char* code,
+    const matter_commission_credentials_t* credentials
+) {
+    matter_commission_result_t result = {};
+
+    if (!handle) {
+        result.code = -1;
+        result.message = strdup_safe("invalid handle");
+        return result;
+    }
+
+    if (!code || strlen(code) == 0) {
+        result.code = -1;
+        result.message = strdup_safe("pairing code must not be empty");
+        return result;
+    }
+
+    auto state = static_cast<MatterControllerState*>(handle);
+    std::unique_lock<std::mutex> lock(state->mu);
+
+    if (!state->initialized || state->shutdown_called) {
+        result.code = -1;
+        result.message = strdup_safe("controller not initialized or already shut down");
+        return result;
+    }
+
+    // Parse the pairing code to extract setup payload
+    SetupPayload payload;
+    CHIP_ERROR parse_err;
+    std::string code_str(code);
+
+    if (code_str.rfind("MT:", 0) == 0) {
+        // QR code format (starts with "MT:")
+        QRCodeSetupPayloadParser qr_parser(code_str);
+        parse_err = qr_parser.populatePayload(payload);
+    } else {
+        // Manual pairing code (numeric digits, 11 or 21 chars)
+        ManualSetupPayloadParser manual_parser(code_str);
+        parse_err = manual_parser.populatePayload(payload);
+    }
+
+    if (parse_err != CHIP_NO_ERROR) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "failed to parse pairing code: code=%d (0x%x)",
+                 static_cast<int>(parse_err.AsInteger()), static_cast<unsigned>(parse_err.AsInteger()));
+        result.code = static_cast<int32_t>(parse_err.AsInteger());
+        result.message = strdup_safe(msg);
+        return result;
+    }
+
+    // Configure commissioning parameters
+    CommissioningParameters params;
+
+    if (credentials) {
+        if (credentials->use_ble_wifi && credentials->ssid && credentials->password) {
+            ByteSpan ssid_span(
+                reinterpret_cast<const uint8_t*>(credentials->ssid),
+                strlen(credentials->ssid)
+            );
+            ByteSpan password_span(
+                reinterpret_cast<const uint8_t*>(credentials->password),
+                strlen(credentials->password)
+            );
+            params.SetWiFiCredentials(
+                Controller::WiFiCredentials(ssid_span, password_span)
+            );
+        }
+    }
+
+    // Use rendezvous information from the parsed payload to determine discovery type
+    DiscoveryType discovery_type = DiscoveryType::kDiscoveryNetworkOnly;
+    if (payload.rendezvousInformation.HasValue()) {
+        auto rendezvous = payload.rendezvousInformation.Value();
+        if (rendezvous.Has(RendezvousInformationFlag::kBLE)) {
+            discovery_type = DiscoveryType::kAll;
+        }
+    }
+    // Allow caller to override via credentials
+    if (credentials && !credentials->use_on_network) {
+        discovery_type = DiscoveryType::kAll;
+    }
+
+    // Assign a node ID for the remote device
+    NodeId remote_node_id = 1;
+
+    // Reset delegate and start async commissioning using the pairing code directly
+    state->pairing_delegate.Reset();
+
+    CHIP_ERROR err = state->commissioner.PairDevice(
+        remote_node_id,
+        code,
+        params,
+        discovery_type
+    );
+
+    if (err != CHIP_NO_ERROR) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "PairDevice failed: code=%d (0x%x)",
+                 static_cast<int>(err.AsInteger()), static_cast<unsigned>(err.AsInteger()));
+        result.code = static_cast<int32_t>(err.AsInteger());
+        result.message = strdup_safe(msg);
+        return result;
+    }
+
+    // Release our mutex so the CHIP event loop can deliver callbacks
+    state->mu.unlock();
+
+    // Wait for commissioning to complete (timeout: 120 seconds)
+    bool completed = state->pairing_delegate.WaitForComplete(120000);
+
+    // Re-acquire mutex
+    state->mu.lock();
+
+    if (!completed) {
+        result.code = -2;
+        result.message = strdup_safe("commissioning timed out");
+        return result;
+    }
+
+    CHIP_ERROR commission_err = state->pairing_delegate.GetError();
+    if (commission_err != CHIP_NO_ERROR) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "commissioning failed: code=%d (0x%x)",
+                 static_cast<int>(commission_err.AsInteger()), static_cast<unsigned>(commission_err.AsInteger()));
+        result.code = static_cast<int32_t>(commission_err.AsInteger());
+        result.message = strdup_safe(msg);
+        return result;
+    }
+
+    result.code = 0;
+    result.node_id = static_cast<uint64_t>(state->pairing_delegate.GetNodeId());
+    return result;
 }
 
 } // extern "C"

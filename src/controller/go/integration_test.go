@@ -48,3 +48,63 @@ func TestCommissionCameraApp(t *testing.T) {
 		t.Logf("BasicInformation.NodeLabel response (%d bytes): %x", len(resp), resp)
 	}
 }
+
+// TestCommissionWithManualCode commissions a device using a manual pairing code.
+// Requires: a Matter device running on the local network with default credentials.
+// Run with: go test -tags 'matter integration' -v -timeout 120s -run TestCommissionWithManualCode ./matter/
+func TestCommissionWithManualCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	storagePath := filepath.Join(tmpDir, "kvs")
+
+	ctrl, err := NewController(storagePath, 1)
+	if err != nil {
+		t.Fatalf("NewController failed: %v", err)
+	}
+	defer ctrl.Shutdown()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	// Manual pairing code for default credentials (setupCode=20202021, discriminator=3840)
+	const manualCode = "34970112332"
+
+	t.Logf("Commissioning device with manual code: %s", manualCode)
+	nodeID, err := ctrl.CommissionWithCode(ctx, manualCode, &CommissionCredentials{UseOnNetwork: true})
+	if err != nil {
+		t.Fatalf("CommissionWithCode failed: %v", err)
+	}
+	if nodeID == 0 {
+		t.Fatal("CommissionWithCode returned nodeID=0, expected non-zero")
+	}
+	t.Logf("Commissioned successfully with code! nodeID=%d", nodeID)
+}
+
+// TestCommissionWithQRCode commissions a device using a QR code payload.
+// Requires: a Matter device running on the local network with default credentials.
+// Run with: go test -tags 'matter integration' -v -timeout 120s -run TestCommissionWithQRCode ./matter/
+func TestCommissionWithQRCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	storagePath := filepath.Join(tmpDir, "kvs")
+
+	ctrl, err := NewController(storagePath, 1)
+	if err != nil {
+		t.Fatalf("NewController failed: %v", err)
+	}
+	defer ctrl.Shutdown()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	// QR code payload for default credentials (setupCode=20202021, discriminator=3840)
+	const qrCode = "MT:Y.K9042C00KA0648G00"
+
+	t.Logf("Commissioning device with QR code: %s", qrCode)
+	nodeID, err := ctrl.CommissionWithCode(ctx, qrCode, &CommissionCredentials{UseOnNetwork: true})
+	if err != nil {
+		t.Fatalf("CommissionWithCode (QR) failed: %v", err)
+	}
+	if nodeID == 0 {
+		t.Fatal("CommissionWithCode (QR) returned nodeID=0, expected non-zero")
+	}
+	t.Logf("Commissioned successfully with QR code! nodeID=%d", nodeID)
+}

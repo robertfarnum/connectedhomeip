@@ -26,6 +26,7 @@ static_library("matter_controller") {
     "${chip_root}/src/crypto",
     "${chip_root}/src/transport",
     "${chip_root}/src/protocols",
+    "${chip_root}/src/ble",
   ]
 
   cflags = [ "-Wno-unused-parameter" ]

@@ -46,4 +46,9 @@ func TestControllerLifecycle(t *testing.T) {
 	if err == nil {
 		t.Error("ReadAttribute should fail after shutdown")
 	}
+
+	_, err = ctrl.CommissionWithCode(ctx, "34970112332", &CommissionCredentials{UseOnNetwork: true})
+	if err == nil {
+		t.Error("CommissionWithCode should fail after shutdown")
+	}
 }

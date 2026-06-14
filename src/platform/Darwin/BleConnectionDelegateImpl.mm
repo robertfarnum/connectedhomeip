@@ -76,6 +76,10 @@ typedef NS_ENUM(uint8_t, BleConnectionMode) {
 @property (assign, nonatomic) BleConnectionDelegate::OnConnectionErrorFunct onConnectionError;
 @property (assign, nonatomic) chip::DeviceLayer::BleScannerDelegate * scannerDelegate;
 @property (assign, nonatomic) chip::Ble::BleLayer * bleLayer;
+// Cached C2 (Indicate) characteristic and its CCCD descriptor, used for the
+// macOS Tahoe direct-CCCD-write workaround (see SubscribeCharacteristic).
+@property (strong, nonatomic, nullable) CBCharacteristic * c2Characteristic;
+@property (strong, nonatomic, nullable) CBDescriptor * c2CCCDescriptor;
 
 - (instancetype)initWithDelegate:(chip::DeviceLayer::BleScannerDelegate *)delegate prewarm:(bool)prewarm;
 - (instancetype)initWithDiscriminators:(const chip::Span<const chip::SetupDiscriminator> &)desiredDiscriminators;
@@ -521,8 +525,35 @@ namespace DeviceLayer {
         ChipLogError(Ble, "Failed to discover characteristics: %@", error);
     }
 
-    // XXX error ?
-    [self dispatchConnectionComplete:peripheral];
+    // Log each discovered characteristic with its properties so we can diagnose
+    // CBErrorUUIDNotAllowed (code=8) write failures.
+    CBUUID * c2UUID = [CBUUID UUIDWithString:@"18EE2EF5-263D-4559-959F-4F9C429F9D12"];
+    CBCharacteristic * c2Chr = nil;
+    for (CBCharacteristic * chr in service.characteristics) {
+        ChipLogDetail(Ble, "  Characteristic %s  properties=0x%02x%s%s%s%s",
+            chr.UUID.UUIDString.UTF8String,
+            (unsigned) chr.properties,
+            (chr.properties & CBCharacteristicPropertyWrite)              ? " Write"              : "",
+            (chr.properties & CBCharacteristicPropertyWriteWithoutResponse) ? " WriteWithoutResp" : "",
+            (chr.properties & CBCharacteristicPropertyNotify)             ? " Notify"             : "",
+            (chr.properties & CBCharacteristicPropertyIndicate)           ? " Indicate"           : "");
+        if ([chr.UUID isEqual:c2UUID]) {
+            c2Chr = chr;
+        }
+    }
+
+    // macOS Tahoe blocks setNotifyValue:YES for 128-bit proprietary UUIDs.
+    // Workaround: discover the CCCD descriptor for C2 and write it directly.
+    // dispatchConnectionComplete: is called from didDiscoverDescriptorsForCharacteristic:
+    // once descriptor discovery finishes (or immediately if C2 was not found).
+    if (c2Chr != nil) {
+        self.c2Characteristic = c2Chr;
+        ChipLogProgress(Ble, "BLE: Discovering descriptors for C2 characteristic (macOS Tahoe CCCD workaround)");
+        [peripheral discoverDescriptorsForCharacteristic:c2Chr];
+    } else {
+        ChipLogError(Ble, "BLE: C2 characteristic not found — proceeding without CCCD workaround");
+        [self dispatchConnectionComplete:peripheral];
+    }
 }
 
 - (void)peripheral:(CBPeripheral *)peripheral
@@ -536,7 +567,9 @@ namespace DeviceLayer {
         ChipBleUUID charId = BleUUIDFromCBUUD(characteristic.UUID);
         _bleLayer->HandleWriteConfirmation(BleConnObjectFromCBPeripheral(peripheral), &svcId, &charId);
     } else {
-        ChipLogError(Ble, "Failed to write characteristic: %@", error);
+        ChipLogError(Ble, "Failed to write characteristic: domain=%s code=%ld desc=%s",
+            error.domain.UTF8String, (long) error.code,
+            error.localizedDescription.UTF8String);
         MATTER_LOG_METRIC(kMetricBLEWriteChrValueFailed, BLE_ERROR_GATT_WRITE_FAILED);
         _bleLayer->HandleConnectionError(BleConnObjectFromCBPeripheral(peripheral), BLE_ERROR_GATT_WRITE_FAILED);
     }
@@ -554,25 +587,92 @@ namespace DeviceLayer {
         ChipBleUUID svcId = BleUUIDFromCBUUD(characteristic.service.UUID);
         ChipBleUUID charId = BleUUIDFromCBUUD(characteristic.UUID);
         if (isNotifying) {
+            // setNotifyValue: succeeded (fallback path — CCCD descriptor was not available).
             _bleLayer->HandleSubscribeComplete(BleConnObjectFromCBPeripheral(peripheral), &svcId, &charId);
         } else {
             _bleLayer->HandleUnsubscribeComplete(BleConnObjectFromCBPeripheral(peripheral), &svcId, &charId);
         }
     } else {
-        ChipLogError(Ble, "BLE:Error subscribing/unsubcribing some characteristic on the device: [%s]",
-            [error.localizedDescription UTF8String]);
+        ChipLogError(Ble, "BLE:Error subscribing/unsubscribing characteristic: domain=%s code=%ld desc=%s",
+            error.domain.UTF8String, (long) error.code, error.localizedDescription.UTF8String);
 
         if (isNotifying) {
             MATTER_LOG_METRIC(kMetricBLEUpdateNotificationStateForChrFailed, BLE_ERROR_GATT_WRITE_FAILED);
-            // we're still notifying, so we must failed the unsubscription
+            // still notifying, so we failed the unsubscription
             _bleLayer->HandleConnectionError(BleConnObjectFromCBPeripheral(peripheral), BLE_ERROR_GATT_UNSUBSCRIBE_FAILED);
         } else {
-            // we're not notifying, so we must failed the subscription
+            // setNotifyValue: failed (fallback path only — normally we use the direct CCCD write).
             MATTER_LOG_METRIC(kMetricBLEUpdateNotificationStateForChrFailed, BLE_ERROR_GATT_SUBSCRIBE_FAILED);
             _bleLayer->HandleConnectionError(BleConnObjectFromCBPeripheral(peripheral), BLE_ERROR_GATT_SUBSCRIBE_FAILED);
         }
     }
 }
+
+// macOS Tahoe direct-CCCD-write workaround -----------------------------------------
+//
+// setNotifyValue:YES returns CBErrorUUIDNotAllowed (code=8) for 128-bit proprietary
+// UUIDs on macOS Tahoe.  As a workaround we discover the C2 CCCD descriptor eagerly
+// during characteristic discovery, then write the "enable indications" value (0x0002)
+// to it directly when SubscribeCharacteristic is called.
+//
+// Flow:
+//  didDiscoverCharacteristicsForService → discoverDescriptorsForCharacteristic (C2)
+//     → didDiscoverDescriptorsForCharacteristic → stores CCCD → dispatchConnectionComplete
+//  BlePlatformDelegateImpl::SubscribeCharacteristic → writeValue:forDescriptor: (CCCD)
+//     → didWriteValueForDescriptor → HandleSubscribeComplete / HandleConnectionError
+
+- (void)peripheral:(CBPeripheral *)peripheral
+    didDiscoverDescriptorsForCharacteristic:(CBCharacteristic *)characteristic
+                                      error:(NSError *)error
+{
+    assertChipStackLockedByCurrentThread();
+
+    if (error != nil) {
+        ChipLogError(Ble, "BLE: Failed to discover descriptors for %s: %@",
+            characteristic.UUID.UUIDString.UTF8String, error);
+    } else {
+        CBUUID * cccdUUID = [CBUUID UUIDWithString:@"2902"];
+        for (CBDescriptor * desc in characteristic.descriptors) {
+            if ([desc.UUID isEqual:cccdUUID]) {
+                self.c2CCCDescriptor = desc;
+                ChipLogProgress(Ble, "BLE: Found CCCD descriptor for C2 — direct-write path ready");
+                break;
+            }
+        }
+        if (self.c2CCCDescriptor == nil) {
+            ChipLogError(Ble, "BLE: CCCD descriptor not found for C2 — falling back to setNotifyValue:");
+        }
+    }
+
+    // Proceed to report the connection as complete regardless of descriptor outcome.
+    [self dispatchConnectionComplete:peripheral];
+}
+
+- (void)peripheral:(CBPeripheral *)peripheral
+    didWriteValueForDescriptor:(CBDescriptor *)descriptor
+                         error:(NSError *)error
+{
+    assertChipStackLockedByCurrentThread();
+
+    // We only write to the CCCD descriptor (UUID 2902) as a subscribe workaround.
+    CBUUID * cccdUUID = [CBUUID UUIDWithString:@"2902"];
+    if (![descriptor.UUID isEqual:cccdUUID]) {
+        return;
+    }
+
+    if (error == nil) {
+        ChipLogProgress(Ble, "BLE: CCCD write succeeded — indications enabled on C2");
+        ChipBleUUID svcId  = BleUUIDFromCBUUD(descriptor.characteristic.service.UUID);
+        ChipBleUUID charId = BleUUIDFromCBUUD(descriptor.characteristic.UUID);
+        _bleLayer->HandleSubscribeComplete(BleConnObjectFromCBPeripheral(peripheral), &svcId, &charId);
+    } else {
+        ChipLogError(Ble, "BLE: CCCD write failed: domain=%s code=%ld desc=%s",
+            error.domain.UTF8String, (long) error.code, error.localizedDescription.UTF8String);
+        _bleLayer->HandleConnectionError(BleConnObjectFromCBPeripheral(peripheral), BLE_ERROR_GATT_SUBSCRIBE_FAILED);
+    }
+}
+
+// -----------------------------------------------------------------------------------
 
 - (void)peripheral:(CBPeripheral *)peripheral
     didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic

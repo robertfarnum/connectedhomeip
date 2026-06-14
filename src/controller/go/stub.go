@@ -33,6 +33,11 @@ func (c *Controller) Commission(ctx context.Context, setupCode uint32, discrimin
 	return 0, fmt.Errorf("matter: native controller not available (build without 'matter' tag)")
 }
 
+// CommissionWithCode returns an error indicating native Matter support is not available.
+func (c *Controller) CommissionWithCode(ctx context.Context, code string, creds *CommissionCredentials) (uint64, error) {
+	return 0, fmt.Errorf("matter: native controller not available (build without 'matter' tag)")
+}
+
 // SendCommand returns an error indicating native Matter support is not available.
 func (c *Controller) SendCommand(ctx context.Context, nodeID uint64, endpoint uint16, clusterID, commandID uint32, payload []byte) ([]byte, error) {
 	return nil, fmt.Errorf("matter: native controller not available (build without 'matter' tag)")
